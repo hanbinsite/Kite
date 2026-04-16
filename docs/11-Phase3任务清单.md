@@ -47,7 +47,7 @@ Phase 3 视为完成，**必须同时满足**以下条件：
   - `cargo test` 包含基础脚本执行测试（简单赋值、数学运算、字符串操作）
   - 脚本崩溃（无限循环、栈溢出）不阻塞主进程
 - **关键文件**：`src-tauri/src/script/engine.rs`, `src-tauri/src/script/mod.rs`
-- **关联文档**：04-技术方案.md §3.3; 08-开发指南.md §3
+- **关联文档**：04a-架构设计.md §3.3; 08-开发指南.md §3
 
 ### 3.02 — pm.request 对象实现
 
@@ -102,7 +102,7 @@ Phase 3 视为完成，**必须同时满足**以下条件：
   - 脚本中 `pm.variables.set('token', 'abc')` 执行后，后续请求中 `{{token}}` 解析为 `abc`
   - 变量修改通过 `ScriptResult.variables` Map 返回，前端接收后更新对应 Store
 - **关键文件**：`src-tauri/src/script/pm_api.rs`, `packages/core/src/script/dispatcher.ts`
-- **关联文档**：03-功能设计.md §6.2; 04-技术方案.md §5.2
+- **关联文档**：03-功能设计.md §6.2; 04a-架构设计.md §5.2
 
 ### 3.05 — console 对象捕获
 
@@ -141,7 +141,7 @@ Phase 3 视为完成，**必须同时满足**以下条件：
 - **验收标准**：
   - Scripts Tab 包含 Pre-request / Post-response 子 Tab
   - 每个子 Tab 内嵌 Monaco Editor（延迟加载：首次打开 Scripts Tab 时加载）
-  - Monaco 使用单实例 EditorManager（04-技术方案.md §4.4），切换 Tab 时替换 Model
+  - Monaco 使用单实例 EditorManager（04a-架构设计.md §4.4），切换 Tab 时替换 Model
   - JavaScript 语法高亮 + 自动补全（pm. 对象方法补全）
   - 右上角 "Snippets" 按钮，点击弹出常用脚本模板列表：
     - 设置时间戳变量
@@ -153,7 +153,7 @@ Phase 3 视为完成，**必须同时满足**以下条件：
   - ⌘S 保存脚本内容到请求配置
   - 加载中显示 "Loading editor..." 占位文本
 - **关键文件**：`packages/ui/src/components/editor/ScriptEditor.tsx`, `apps/desktop/src/utils/EditorManager.ts`
-- **关联文档**：04-技术方案.md §4.4; 07-核心页面视觉规范.md §2.9
+- **关联文档**：04a-架构设计.md §4.4; 07b-请求编辑视觉规范.md §2.9
 
 ---
 
@@ -202,11 +202,11 @@ Phase 3 视为完成，**必须同时满足**以下条件：
     - Post-response 脚本失败：显示错误但不影响响应查看
   - 脚本执行超时时：返回 `AppError::ScriptTimeout`，请求不发送
 - **关键文件**：`packages/core/src/script/dispatcher.ts`, `packages/core/src/http/client.ts`
-- **关联文档**：04-技术方案.md §5.2; 03-功能设计.md §6.3
+- **关联文档**：04a-架构设计.md §5.2; 03-功能设计.md §6.3
 
 ### 3.10 — Collection Runner 完整实现
 
-- **依赖**：3.08, 3.09
+- **依赖**：3.08, 3.09, 2.26
 - **工时**：14h
 - **验收标准**：
   - Runner 模态框配置：
@@ -248,7 +248,8 @@ Phase 3 视为完成，**必须同时满足**以下条件：
   - 清除按钮：清空当前 Console 内容
   - Console 内容不持久化（重启后清空）
   - 最大保留 1000 条日志，超出自动清理最早的
-- **关键文件**：`packages/ui/src/components/console/ConsolePanel.tsx`, `packages/core/src/console/index.ts`
+  - Vitest 包含 console 输出格式化测试
+- **关键文件**：`packages/ui/src/components/drawers/ConsolePanel.tsx`, `packages/core/src/console/index.ts`
 - **关联文档**：02-UI设计.md §3.5; 05-UI操作流程.md §3.7
 
 ### 3.12 — 脚本执行结果展示（Tests Tab）
@@ -264,7 +265,7 @@ Phase 3 视为完成，**必须同时满足**以下条件：
   - 无测试时显示 "No tests found" 空状态
   - 脚本执行错误显示在 Console 面板而非 Tests Tab
 - **关键文件**：`packages/ui/src/components/response/TestsTab.tsx`
-- **关联文档**：07-核心页面视觉规范.md §2.16
+- **关联文档**：07b-请求编辑视觉规范.md §2.16
 
 ### 3.13 — 脚本模板库
 
@@ -292,7 +293,8 @@ Phase 3 视为完成，**必须同时满足**以下条件：
   - 点击 Console 中的错误行号跳转到编辑器对应行
   - 变量调试：脚本执行后 Console 显示所有被修改的变量列表
   - 脚本执行耗时显示在 Console 中
-- **关键文件**：`packages/ui/src/components/editor/ScriptEditor.tsx`, `packages/ui/src/components/console/ConsolePanel.tsx`
+  - cargo test 包含脚本错误诊断逻辑测试
+- **关键文件**：`packages/ui/src/components/editor/ScriptEditor.tsx`, `packages/ui/src/components/drawers/ConsolePanel.tsx`
 
 ---
 
@@ -332,12 +334,13 @@ Phase 3 视为完成，**必须同时满足**以下条件：
   - 右上角 ✕ 关闭抽屉
   - 切换语言时代码实时重新生成
   - 代码中 `{{variable}}` 保持原样，品牌色高亮
-- **关键文件**：`packages/ui/src/components/drawer/CodeSnippetDrawer.tsx`
-- **关联文档**：02-UI设计.md §3.5; 07-核心页面视觉规范.md §5
+- **关键文件**：`packages/ui/src/components/drawers/CodeSnippetDrawer.tsx`
+- **关联文档**：02-UI设计.md §3.5; 07c-侧边栏与命令面板视觉规范.md §5
 
 ### 3.17 — 导入器（Postman / OpenAPI / cURL / HAR）
 
 - **依赖**：Phase 2 集合管理完成
+- **备注**：此任务将 Phase 2 中 TypeScript 实现的导入器迁移至 Rust 侧
 - **工时**：16h
 - **验收标准**：
   - 导入入口：侧边栏 [+ Import] 按钮 或 ⌘K → "Import Collection"
@@ -361,6 +364,7 @@ Phase 3 视为完成，**必须同时满足**以下条件：
 ### 3.18 — 导出器
 
 - **依赖**：3.17
+- **备注**：此任务将 Phase 2 中 TypeScript 实现的导出器迁移至 Rust 侧
 - **工时**：8h
 - **验收标准**：
   - 导出入口：集合右键 → Export / ⌘K → "Export Collection"
@@ -400,7 +404,7 @@ Phase 3 视为完成，**必须同时满足**以下条件：
   - ESC 关闭
   - 搜索无结果时显示 "No results found" + 建议操作
 - **关键文件**：`packages/ui/src/components/command-palette/CommandPalette.tsx`, `packages/core/src/search/index.ts`
-- **关联文档**：02-UI设计.md §3.6; 07-核心页面视觉规范.md §3
+- **关联文档**：02-UI设计.md §3.6; 07c-侧边栏与命令面板视觉规范.md §3
 
 ### 3.20 — 变量检查抽屉（⌘⇧V）
 
@@ -414,7 +418,7 @@ Phase 3 视为完成，**必须同时满足**以下条件：
   - Vault 变量值显示为 `****`，来源标记为 🔒
   - 点击变量行跳转到对应编辑器（环境编辑器/全局变量编辑器）
   - 右上角 ✕ 关闭抽屉
-- **关键文件**：`packages/ui/src/components/drawer/VariablesDrawer.tsx`
+- **关键文件**：`packages/ui/src/components/drawers/VariablesDrawer.tsx`
 - **关联文档**：02-UI设计.md §3.5
 
 ### 3.21 — 动态变量生成器
@@ -432,6 +436,7 @@ Phase 3 视为完成，**必须同时满足**以下条件：
   - 支持 `{{$randomAlphaNumeric}}` — 生成 8 位随机字母数字
   - 动态变量每次请求发送时重新生成（不缓存）
   - URL/Headers/Body 中的动态变量均正确解析
+  - cargo test 包含每种动态变量类型的单元测试（UUID v4 格式、ISO 8601 时间戳、随机整数范围等）
 - **关键文件**：`packages/core/src/environment/dynamic-variables.ts`
 - **关联文档**：03-功能设计.md §5.1
 
@@ -450,8 +455,8 @@ Phase 3 视为完成，**必须同时满足**以下条件：
     - `list_vault_secrets()` — 返回所有 secret 名称列表
   - 安全保证：
     - 密钥不离开 Rust（通过 keyring 管理，不经过 IPC）
-    - 加密使用 AES-256 (sodiumoxide)
-    - 密钥派生使用 Argon2 (sodiumoxide pwhash)
+    - 加密使用 AES-256-GCM (aes-gcm crate)
+    - 密钥派生使用 Argon2id (argon2 crate)
   - UI：
     - 环境编辑器中 secret 类型变量旁显示 🔒 图标
     - 点击 🔒 打开 Vault 解锁对话框（输入主密码）
@@ -459,7 +464,7 @@ Phase 3 视为完成，**必须同时满足**以下条件：
     - 应用启动时 Vault 默认锁定
     - 设置页面提供 "Lock Vault" 按钮
 - **关键文件**：`src-tauri/src/commands/crypto.rs`, `packages/ui/src/components/vault/VaultUnlockDialog.tsx`
-- **关联文档**：04-技术方案.md §3.4, §6; 03-功能设计.md §5.1
+- **关联文档**：04a-架构设计.md §3.4, §6; 03-功能设计.md §5.1
 
 ### 3.23 — 快捷请求（Scratch Pad）
 
@@ -505,7 +510,7 @@ Week 1-2 (脚本引擎):
                                               3.21 (动态变量)
 
 Week 3-4 (测试/Runner/Console):
-  3.02 + 3.03 + 3.04 + 3.06 + 3.08 ── 3.09 ── 3.10
+  3.02 + 3.03 + 3.04 + 3.06 + 3.08 ── 3.09 + 2.26 ── 3.10
   3.05 + 3.09 ── 3.11
   3.08 + 3.11 ── 3.12
   3.07 + 3.11 ── 3.14
@@ -536,4 +541,4 @@ Week 5-6 (生成/导入/搜索):
 
 *文档版本: v1.0*
 *创建时间: 2026-04-16*
-*基于: 01-整体规划.md / 03-功能设计.md / 04-技术方案.md / 08-开发指南.md*
+*基于: 01-整体规划.md / 03-功能设计.md / 04a-架构设计.md / 04b-API设计.md / 04c-安全与性能.md / 08-开发指南.md*

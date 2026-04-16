@@ -66,7 +66,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 三个子包 `package.json` 均使用 `workspace:*` 引用 `@api-client/types`
   - 各子包 `pnpm typecheck` 通过（允许空导出）
 - **关键文件**：`packages/ui/package.json`, `packages/core/package.json`, `packages/types/package.json`, 各 `src/index.ts`
-- **关联文档**：08-开发指南.md §1.4, §2.11, §2.12, §2.13; 04-技术方案.md §2.2
+- **关联文档**：08-开发指南.md §1.4, §2.11, §2.12, §2.13; 04a-架构设计.md §2.2
 
 ### 1.04 — 构建与开发配置（Vite + Turbo + TypeScript）
 
@@ -105,7 +105,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 关键帧动画：`slide-in-right`, `fade-in-up`, `pulse-glow`, `send-pulse` 定义
   - `body` 背景色为 `#0c0c12`，字体为 Geist / JetBrains Mono 栈，滚动条 6px 宽
 - **关键文件**：`apps/desktop/src/styles/index.css`
-- **关联文档**：08-开发指南.md §2.7; 02-UI设计.md §2.1-2.6; 07-核心页面视觉规范.md "Design Token 速查"
+- **关联文档**：08-开发指南.md §2.7; 02-UI设计.md §2.1-2.6; 07b-请求编辑视觉规范.md "Design Token 速查"
 
 ### 1.07 — Tauri Capabilities 与插件注册
 
@@ -129,7 +129,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - `App.tsx` 渲染空壳布局（暂仅 `<div>API Client</div>`），背景色为 `--color-bg-base`
   - `pnpm tauri dev` 启动后显示暗色背景 + "API Client" 文字
 - **关键文件**：`apps/desktop/src/main.tsx`, `apps/desktop/src/App.tsx`, `packages/ui/src/ErrorBoundary.tsx`
-- **关联文档**：04-技术方案.md §4.3
+- **关联文档**：04a-架构设计.md §4.3
 
 ### 1.09 — 暗色主题端到端验证
 
@@ -143,7 +143,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 无控制台错误（React / Tauri 插件加载错误除外）
   - Rust 后端编译零 warning
 - **关键文件**：集成验证，不新增文件
-- **关联文档**：02-UI设计.md §1.1; 07-核心页面视觉规范.md §1
+- **关联文档**：02-UI设计.md §1.1; 07a-首页视觉规范.md §1
 
 ---
 
@@ -160,7 +160,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 整体高度 100vh，无滚动条
   - 窗口宽度 >= 1024px 时布局正常；缩小到 1024px 时不溢出
 - **关键文件**：`apps/desktop/src/components/layout/AppLayout.tsx`, `packages/ui/src/components/layout/AppLayout.tsx`
-- **关联文档**：02-UI设计.md §3.1; 07-核心页面视觉规范.md §2.1
+- **关联文档**：02-UI设计.md §3.1; 07b-请求编辑视觉规范.md §2.1
 
 ### 1.11 — Sidebar 组件（搜索栏 + 3 个可折叠区域）
 
@@ -174,7 +174,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - COLLECTIONS 区域默认展开，占据剩余空间；HISTORY 和 ENVIRONMENTS 默认折叠
   - 侧边栏底部无 Footer
 - **关键文件**：`apps/desktop/src/components/sidebar/Sidebar.tsx`, `SidebarSearch.tsx`, `SidebarSection.tsx`
-- **关联文档**：02-UI设计.md §3.3; 07-核心页面视觉规范.md §4.1-4.3
+- **关联文档**：02-UI设计.md §3.3; 07c-侧边栏与命令面板视觉规范.md §4.1-4.3
 
 ### 1.12 — Sidebar 折叠/展开与状态记忆
 
@@ -187,7 +187,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 折叠状态持久化到 localStorage；重启应用后侧边栏记忆上次状态
   - 折叠态点击图标可临时展开 Sidebar
 - **关键文件**：`apps/desktop/src/components/sidebar/Sidebar.tsx`, `packages/core/src/navigation/index.ts`
-- **关联文档**：02-UI设计.md §6.1; 07-核心页面视觉规范.md §4.7
+- **关联文档**：02-UI设计.md §6.1; 07c-侧边栏与命令面板视觉规范.md §4.7
 
 ### 1.13 — URL 栏组件（方法选择器 + URL 输入 + 发送按钮）
 
@@ -201,7 +201,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 发送按钮 40x32px，背景 `--color-brand`，hover 时品牌色辉光 + scale(1.02)
   - URL 栏第二行：环境选择器药丸 + 命令面板图标 + 菜单图标
 - **关键文件**：`apps/desktop/src/components/url-bar/UrlBar.tsx`, `MethodSelector.tsx`, `SendButton.tsx`, `UrlInput.tsx`
-- **关联文档**：02-UI设计.md §3.2; 07-核心页面视觉规范.md §2.2-2.3
+- **关联文档**：02-UI设计.md §3.2; 07b-请求编辑视觉规范.md §2.2-2.3
 
 ### 1.14 — Tab 系统组件
 
@@ -216,7 +216,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 点击 `+` 创建新 Tab；点击 `x` 关闭 Tab；关闭当前 Tab 时自动激活相邻 Tab
   - 右键 Tab 出现上下文菜单：关闭、关闭其他、关闭全部
 - **关键文件**：`apps/desktop/src/components/tab/TabBar.tsx`, `TabItem.tsx`, `TabContextMenu.tsx`
-- **关联文档**：02-UI设计.md §3.4, §6.3; 07-核心页面视觉规范.md §2.4
+- **关联文档**：02-UI设计.md §3.4, §6.3; 07b-请求编辑视觉规范.md §2.4
 
 ### 1.15 — Zustand Store 基础架构（UI / Tab / Navigation）
 
@@ -230,7 +230,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - `useUIStore.sidebar.visible` 变更时，Sidebar 组件响应式更新宽度
   - `useTabStore` 的 openTab/closeTab 调用后，TabBar 组件响应式更新
 - **关键文件**：`packages/core/src/navigation/index.ts`, `apps/desktop/src/stores/ui-store.ts`, `apps/desktop/src/stores/tab-store.ts`, `apps/desktop/src/stores/navigation-store.ts`
-- **关联文档**：04-技术方案.md §4.2
+- **关联文档**：04a-架构设计.md §4.2
 
 ### 1.16 — 主题系统（Dark / Light / System）
 
@@ -272,7 +272,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - ENVIRONMENTS 区域显示 3 个环境（Development / Staging / Production），当前环境有品牌色圆点标记
   - 点击环境项切换 `useEnvironmentStore.activeEnvironmentId`，URL 栏环境药丸同步更新
 - **关键文件**：`apps/desktop/src/components/sidebar/CollectionSection.tsx`, `HistorySection.tsx`, `EnvironmentSection.tsx`
-- **关联文档**：02-UI设计.md §3.3; 07-核心页面视觉规范.md §4.4-4.6
+- **关联文档**：02-UI设计.md §3.3; 07c-侧边栏与命令面板视觉规范.md §4.4-4.6
 
 ### 1.19 — Workbench 空状态与首页
 
@@ -285,7 +285,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 底部 "Collections" 网格区域显示 mock 集合卡片
   - 打开 Tab 后首页消失，切换为请求编辑视图
 - **关键文件**：`apps/desktop/src/components/workbench/HomePage.tsx`, `RecentCard.tsx`, `QuickActionsCard.tsx`
-- **关联文档**：07-核心页面视觉规范.md §1
+- **关联文档**：07a-首页视觉规范.md §1
 
 ---
 
@@ -304,7 +304,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 点击下拉项后关闭下拉并更新 trigger 方法和颜色
   - 点击下拉外部区域关闭下拉
 - **关键文件**：`apps/desktop/src/components/url-bar/MethodSelector.tsx`
-- **关联文档**：02-UI设计.md §4.2; 07-核心页面视觉规范.md §2.2
+- **关联文档**：02-UI设计.md §4.2; 07b-请求编辑视觉规范.md §2.2
 
 ### 1.21 — 发送按钮（脉冲动画 + 状态变化）
 
@@ -317,7 +317,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 请求失败：背景变为 `--color-accent-danger` 持续 1s，显示叉号图标，然后恢复品牌色
   - URL 为空时：按钮 disabled，opacity: 0.4
 - **关键文件**：`apps/desktop/src/components/url-bar/SendButton.tsx`
-- **关联文档**：02-UI设计.md §4.1; 07-核心页面视觉规范.md §2.2
+- **关联文档**：02-UI设计.md §4.1; 07b-请求编辑视觉规范.md §2.2
 
 ### 1.22 — Key-Value 编辑器组件
 
@@ -334,7 +334,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - Delete 按钮 hover 时显示，hover 时红色底 + 红色图标
   - 空状态显示 "No items added yet" 提示
 - **关键文件**：`packages/ui/src/components/editor/KeyValueEditor.tsx`, `KVRow.tsx`
-- **关联文档**：02-UI设计.md §4.3; 07-核心页面视觉规范.md §2.6
+- **关联文档**：02-UI设计.md §4.3; 07b-请求编辑视觉规范.md §2.6
 
 ### 1.23 — 请求 Tabs 面板（Params / Headers / Body / Auth / Scripts / Settings）
 
@@ -351,7 +351,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - Settings Tab：Timeout / Redirects / SSL 验证等开关项
   - Params/Headers Tab 右上角显示已启用项数量 badge
 - **关键文件**：`apps/desktop/src/components/request/RequestPanel.tsx`, `RequestTabs.tsx`, `ParamsTab.tsx`, `HeadersTab.tsx`, `BodyTab.tsx`, `AuthTab.tsx`, `ScriptsTab.tsx`, `SettingsTab.tsx`
-- **关联文档**：07-核心页面视觉规范.md §2.5, §2.7, §2.8, §2.9
+- **关联文档**：07b-请求编辑视觉规范.md §2.5, §2.7, §2.8, §2.9
 
 ### 1.24 — 响应 Tabs 面板（Body / Headers / Cookies / Tests）
 
@@ -367,7 +367,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - Tests Tab：暂显示 "No test results" 空状态
   - 响应区空状态：品牌色图标 + "Hit Send to get a response" + Cmd+Enter 快捷键提示
 - **关键文件**：`apps/desktop/src/components/response/ResponsePanel.tsx`, `ResponseTabs.tsx`, `ResponseBodyTab.tsx`, `ResponseHeadersTab.tsx`, `JsonViewer.tsx`
-- **关联文档**：07-核心页面视觉规范.md §2.12-2.14, §2.17
+- **关联文档**：07b-请求编辑视觉规范.md §2.12-2.14, §2.17
 
 ### 1.25 — 响应状态条
 
@@ -381,7 +381,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 未发送请求时状态条不显示
   - 发送中时显示 spinner + 计时器
 - **关键文件**：`apps/desktop/src/components/response/ResponseStatus.tsx`
-- **关联文档**：02-UI设计.md §4.6; 07-核心页面视觉规范.md §2.11
+- **关联文档**：02-UI设计.md §4.6; 07b-请求编辑视觉规范.md §2.11
 
 ### 1.26 — 可拖拽分屏（SplitPane）
 
@@ -396,7 +396,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 双击分割条恢复 50:50 默认比例
   - 分割条有 cursor: row-resize
 - **关键文件**：`apps/desktop/src/components/layout/SplitPane.tsx`, `apps/desktop/src/hooks/useResizable.ts`
-- **关联文档**：02-UI设计.md §6.4; 07-核心页面视觉规范.md §2.10
+- **关联文档**：02-UI设计.md §6.4; 07b-请求编辑视觉规范.md §2.10
 
 ### 1.27 — 命令面板 Shell（Cmd+K 浮层）
 
@@ -415,7 +415,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 点击遮罩关闭面板
   - z-index: `--z-command-palette` (500)
 - **关键文件**：`apps/desktop/src/components/command-palette/CommandPalette.tsx`, `SearchInput.tsx`, `ResultList.tsx`, `ResultItem.tsx`
-- **关联文档**：02-UI设计.md §3.6; 07-核心页面视觉规范.md §3
+- **关联文档**：02-UI设计.md §3.6; 07c-侧边栏与命令面板视觉规范.md §3
 
 ### 1.28 — Request Store 与 Environment Store
 
@@ -428,7 +428,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 发送按钮、响应面板、状态条均绑定 Store 响应式更新
   - Environment Store 的 activeEnvironmentId 变更时，URL 栏环境药丸同步更新
 - **关键文件**：`apps/desktop/src/stores/request-store.ts`, `apps/desktop/src/stores/environment-store.ts`
-- **关联文档**：04-技术方案.md §4.2
+- **关联文档**：04a-架构设计.md §4.2
 
 ### 1.29 — 变量高亮（URL 输入框变量渲染）
 
@@ -442,7 +442,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 选中补全项后替换为 `{{variable_name}}`
   - 未定义变量（环境/全局中找不到）显示红色警告样式
 - **关键文件**：`apps/desktop/src/components/url-bar/UrlInput.tsx`, `VariableHighlight.tsx`
-- **关联文档**：02-UI设计.md §6.5; 07-核心页面视觉规范.md §2.2
+- **关联文档**：02-UI设计.md §6.5; 07b-请求编辑视觉规范.md §2.2
 
 ---
 
@@ -461,7 +461,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 支持 redirect 跟随（max_redirects）、timeout、SSL 验证控制
   - `cargo check` 通过；`cargo test` 包含基础单元测试（mock HTTP server）
 - **关键文件**：`apps/desktop/src-tauri/src/commands/http.rs`, `apps/desktop/src-tauri/src/commands/mod.rs`
-- **关联文档**：08-开发指南.md §2.16, §3; 04-技术方案.md §3.1-3.2
+- **关联文档**：08-开发指南.md §2.16, §3; 04a-架构设计.md §3.1-3.2
 
 ### 1.31 — 请求取消机制（CancellationToken）
 
@@ -474,7 +474,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 取消时 reqwest 请求立即中断，返回 `AppError::NetRequestCancelled`
   - 前端发送按钮点击后变为 Cancel 按钮；再次点击调用 cancel command
 - **关键文件**：`apps/desktop/src-tauri/src/commands/http.rs`
-- **关联文档**：04-技术方案.md §3.1
+- **关联文档**：04a-架构设计.md §3.1
 
 ### 1.32 — 文件系统存储（JSON 集合/环境）
 
@@ -489,7 +489,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 写入操作使用原子写入（先写临时文件，再 rename）
   - `cargo test` 包含文件操作单元测试
 - **关键文件**：`apps/desktop/src-tauri/src/storage/file.rs`, `apps/desktop/src-tauri/src/storage/mod.rs`
-- **关联文档**：04-技术方案.md §3.5; 08-开发指南.md §2.16
+- **关联文档**：04a-架构设计.md §3.5; 08-开发指南.md §2.16
 
 ### 1.33 — SQLite 存储层（History / Cookies / Settings）
 
@@ -503,7 +503,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 应用启动时自动执行数据库迁移（`Storage::migrate()`）
   - `cargo test` 包含 CRUD 单元测试
 - **关键文件**：`apps/desktop/src-tauri/src/storage/sqlite.rs`
-- **关联文档**：04-技术方案.md §3.5; 08-开发指南.md §3
+- **关联文档**：04a-架构设计.md §3.5; 08-开发指南.md §3
 
 ### 1.34 — Tauri Command 注册与前端 invoke 封装
 
@@ -516,7 +516,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 前端调用 `sendHttpRequest(config)` 返回 `Promise<HttpResponse>`，类型与 Rust 侧 `HttpResponse` 一致
   - `pnpm typecheck` 通过
 - **关键文件**：`apps/desktop/src-tauri/src/main.rs`, `packages/core/src/http/client.ts`, `packages/core/src/http/types.ts`
-- **关联文档**：04-技术方案.md §5.1-5.2
+- **关联文档**：04b-API设计.md §5.1-5.2
 
 ### 1.35 — 请求发送端到端联调
 
@@ -533,7 +533,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 网络错误（如 DNS 解析失败）在响应面板显示错误状态：红色图标 + 错误消息
   - 请求完成后自动写入 History（SQLite）
 - **关键文件**：`apps/desktop/src/stores/request-store.ts`, `apps/desktop/src/components/workbench/Workbench.tsx`
-- **关联文档**：04-技术方案.md §4.2; 05-UI操作流程.md
+- **关联文档**：04a-架构设计.md §4.2; 05-UI操作流程.md
 
 ### 1.36 — 环境选择器与变量解析
 
@@ -547,7 +547,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 未定义变量保持 `{{variable_name}}` 原样发送（不报错）
   - URL 栏第二行环境药丸样式：药丸形（radius-full）+ 环境色边框 + 环境色文字
 - **关键文件**：`apps/desktop/src/components/url-bar/EnvSelector.tsx`, `packages/core/src/http/builder.ts`
-- **关联文档**：02-UI设计.md §3.2; 07-核心页面视觉规范.md §2.3
+- **关联文档**：02-UI设计.md §3.2; 07b-请求编辑视觉规范.md §2.3
 
 ### 1.37 — POST 请求与 Body 编辑器联调
 
@@ -561,7 +561,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 切换为 `x-www-form-urlencoded` body，发送后响应中包含 urlencoded 字段
   - Body 为空时（none 模式），不发送 body
 - **关键文件**：`apps/desktop/src/components/request/BodyTab.tsx`, `packages/core/src/http/builder.ts`
-- **关联文档**：07-核心页面视觉规范.md §2.7
+- **关联文档**：07b-请求编辑视觉规范.md §2.7
 
 ### 1.38 — History 写入与侧边栏历史展示
 
@@ -574,7 +574,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - 点击历史项打开对应请求 Tab，填充 method + URL
   - 历史列表最多显示 50 条，超出部分自动清理
 - **关键文件**：`apps/desktop/src/components/sidebar/HistorySection.tsx`, `packages/core/src/http/client.ts`
-- **关联文档**：07-核心页面视觉规范.md §4.5
+- **关联文档**：07c-侧边栏与命令面板视觉规范.md §4.5
 
 ### 1.39 — 基础错误处理与用户反馈
 
@@ -587,7 +587,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - SSL 错误显示特定提示（"SSL certificate verification failed"）+ 跳过验证选项
   - URL 格式错误在发送前拦截，输入框边框变红 + 错误提示
 - **关键文件**：`apps/desktop/src/components/response/ResponseError.tsx`, `packages/core/src/http/client.ts`
-- **关联文档**：08-开发指南.md §3 "AppError"; 07-核心页面视觉规范.md §2.19
+- **关联文档**：08-开发指南.md §3 "AppError"; 07b-请求编辑视觉规范.md §2.19
 
 ---
 
@@ -630,7 +630,25 @@ Week 4 (后端)
 1.35 + 1.23 ── 1.37
 1.33 + 1.35 ── 1.38
 1.35 + 1.31 ── 1.39
+1.06 ── 1.40
 ```
+
+---
+
+## Week 4 新增任务
+
+### 1.40 — 性能埋点基础设施
+
+- **依赖**：1.06（设计 Token 已完成，CSS Variables 可用）
+- **工时**：4h
+- **验收标准**：
+  - `packages/core/src/performance/index.ts` 实现 `measureAsync` 和 `measurePerformance` 工具函数
+  - 关键路径已埋点：冷启动（`app:ready`）、请求发送（`request:send` → `request:response`）、侧边栏展开/折叠（`sidebar:toggle`）
+  - 开发环境（`import.meta.env.DEV`）输出 `console.debug` 日志
+  - 生产环境预留 Sentry performance 上报接口（暂不集成）
+  - Rust 侧 `app.ready` 事件时间戳可通过 `performance.now()` 计算冷启动耗时
+- **关键文件**：`packages/core/src/performance/index.ts`, `apps/desktop/src/main.tsx`, `apps/desktop/src/App.tsx`
+- **关联文档**：01-整体规划.md §15
 
 ---
 

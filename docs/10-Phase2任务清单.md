@@ -42,20 +42,20 @@ Phase 2 视为完成，**必须同时满足**以下条件：
   - 选中后标签颜色跟随方法变化
   - 键盘 ↑↓ 选择，Enter 确认
 - **关键文件**：`packages/ui/src/components/request/MethodSelector.tsx`
-- **关联文档**：02-UI设计.md §4.2、07-视觉规范.md §2.5
+- **关联文档**：02-UI设计.md §4.2、07b-请求编辑视觉规范.md §2.5
 
 ### 2.02 — URL 输入框（变量高亮 + 自动补全）
 
 - **依赖**：1.12（URL 栏 shell 已存在）
 - **工时**：8h
 - **验收标准**：
-  - 输入 `{{variable}}` 时显示蓝色高亮（`var(--brand-muted)` 背景）
+  - 输入 `{{variable}}` 时显示蓝色高亮（`var(--color-brand-muted)` 背景）
   - 悬停高亮文本显示 tooltip，提示变量当前值（来自环境/全局）
   - 输入过程中下拉自动补全建议（历史 URL、变量名）
   - 变量替换后 URL 预览显示解析后的完整 URL
   - 按 Tab 跳转到 Params 面板
 - **关键文件**：`packages/ui/src/components/request/UrlInput.tsx`
-- **关联文档**：02-UI设计.md §3.2、07-视觉规范.md §2.7（变量高亮）
+- **关联文档**：02-UI设计.md §3.2、07b-请求编辑视觉规范.md §2.7（变量高亮）
 
 ### 2.03 — Query 参数编辑器（Key-Value）
 
@@ -69,7 +69,7 @@ Phase 2 视为完成，**必须同时满足**以下条件：
   - Bulk Edit 切换到纯文本模式，格式：`key=value&key2=value2`
   - 支持拖拽排序参数顺序
 - **关键文件**：`packages/ui/src/components/editor/KeyValueEditor.tsx`
-- **关联文档**：07-视觉规范.md §2.8（Key-Value 编辑器）
+- **关联文档**：07b-请求编辑视觉规范.md §2.8（Key-Value 编辑器）
 
 ### 2.04 — 请求头编辑器（Key-Value + Auto 头）
 
@@ -86,7 +86,7 @@ Phase 2 视为完成，**必须同时满足**以下条件：
 
 ### 2.05 — Auth 配置面板（Bearer/Basic/APIKey）
 
-- **依赖**：2.01
+- **依赖**：2.01、2.08
 - **工时**：8h
 - **验收标准**：
   - Auth 类型下拉：None/Bearer/Basic/APIKey/JWT/OAuth1/OAuth2/AWSV4
@@ -97,7 +97,7 @@ Phase 2 视为完成，**必须同时满足**以下条件：
   - 选择 Auth 类型时右侧面板实时显示生成的 Header/Query
   - 未选择认证时不注入 Authorization 头
 - **关键文件**：`packages/ui/src/components/request/AuthTab.tsx`
-- **关联文档**：03-功能设计.md §2.2（AuthConfig）、07-视觉规范.md §2.10
+- **关联文档**：03-功能设计.md §2.2（AuthConfig）、07b-请求编辑视觉规范.md §2.10
 
 ### 2.06 — Rust HTTP Client 完整实现
 
@@ -133,7 +133,7 @@ Phase 2 视为完成，**必须同时满足**以下条件：
 
 ### 2.08 — 变量解析引擎（前端 + Rust 协作）
 
-- **依赖**：1.09（EnvironmentStore 已存在）
+- **依赖**：1.09（EnvironmentStore 已存在）、2.06
 - **工时**：10h
 - **验收标准**：
   - 前端渲染时解析 `{{variable}}` 为当前值显示（蓝色高亮）
@@ -156,7 +156,7 @@ Phase 2 视为完成，**必须同时满足**以下条件：
   - 工具按钮右对齐：⌘\（分屏）、全屏
   - 发送中状态显示加载动画
 - **关键文件**：`packages/ui/src/components/response/ResponseStatus.tsx`
-- **关联文档**：02-UI设计.md §3.4、07-视觉规范.md §2.12
+- **关联文档**：02-UI设计.md §3.4、07b-请求编辑视觉规范.md §2.12
 
 ---
 
@@ -171,7 +171,7 @@ Phase 2 视为完成，**必须同时满足**以下条件：
   - none 模式：显示"此请求没有请求体"提示
   - 其他模式根据选择显示对应编辑器
 - **关键文件**：`packages/ui/src/components/request/BodyTab.tsx`
-- **关联文档**：07-视觉规范.md §2.9
+- **关联文档**：07b-请求编辑视觉规范.md §2.9
 
 ### 2.11 — Raw Body 编辑器（JSON/Text）
 
@@ -184,7 +184,7 @@ Phase 2 视为完成，**必须同时满足**以下条件：
   - JSON 语法错误实时高亮提示
   - 变量 `{{}}` 在 Raw 中也可高亮
 - **关键文件**：`packages/ui/src/components/editor/InlineEditor.tsx`
-- **关联文档**：07-视觉规范.md §2.9
+- **关联文档**：07b-请求编辑视觉规范.md §2.9
 
 ### 2.12 — Form Data 编辑器（支持文件上传）
 
@@ -208,6 +208,7 @@ Phase 2 视为完成，**必须同时满足**以下条件：
   - 自动 URL 编码/解码
   - Bulk Edit 模式
 - **关键文件**：`packages/ui/src/components/editor/UrlEncodedEditor.tsx`
+- **关联文档**：07b-请求编辑视觉规范.md §2.9
 
 ### 2.14 — GraphQL 编辑器
 
@@ -235,7 +236,7 @@ Phase 2 视为完成，**必须同时满足**以下条件：
   - 行号显示
   - Copy 按钮（复制格式化后 JSON）
 - **关键文件**：`packages/ui/src/components/response/JsonViewer.tsx`
-- **关联文档**：07-视觉规范.md §2.13（JSON 查看器）
+- **关联文档**：07b-请求编辑视觉规范.md §2.13（JSON 查看器）
 
 ### 2.16 — 响应 Body Raw/Preview 视图
 
@@ -247,7 +248,7 @@ Phase 2 视为完成，**必须同时满足**以下条件：
   - XML 格式化显示
   - 二进制文件显示文件大小和下载按钮
 - **关键文件**：`packages/ui/src/components/response/RawViewer.tsx`、`HtmlPreview.tsx`
-- **关联文档**：07-视觉规范.md §2.13
+- **关联文档**：07b-请求编辑视觉规范.md §2.13
 
 ### 2.17 — 响应 Headers 查看器
 
@@ -258,7 +259,7 @@ Phase 2 视为完成，**必须同时满足**以下条件：
   - 可搜索过滤
   - 复制单个 Header 或全部复制
 - **关键文件**：`packages/ui/src/components/response/ResponseHeadersTab.tsx`
-- **关联文档**：07-视觉规范.md §2.14
+- **关联文档**：07b-请求编辑视觉规范.md §2.14
 
 ### 2.18 — 响应 Cookies 查看器
 
@@ -269,6 +270,7 @@ Phase 2 视为完成，**必须同时满足**以下条件：
   - 来自 Set-Cookie 头的 cookie 自动解析
   - 复制 cookie 为 cURL 格式
 - **关键文件**：`packages/ui/src/components/response/ResponseCookiesTab.tsx`
+- **关联文档**：07b-请求编辑视觉规范.md §2.14
 
 ---
 
@@ -285,7 +287,7 @@ Phase 2 视为完成，**必须同时满足**以下条件：
   - 集合元数据（name、description、variables）存储在 `collection.json`
   - 创建/删除/重命名集合时同步更新文件系统
 - **关键文件**：`packages/core/src/collection/storage.ts`
-- **关联文档**：03-功能设计.md §4、04-技术方案.md §3.5
+- **关联文档**：03-功能设计.md §4、04a-架构设计.md §3.5
 
 ### 2.20 — 集合树组件（展开/折叠/拖拽）
 
@@ -301,7 +303,7 @@ Phase 2 视为完成，**必须同时满足**以下条件：
   - 集合树支持虚拟滚动（超过 100 项时）
   - 选中节点高亮显示
 - **关键文件**：`packages/ui/src/components/layout/CollectionTree.tsx`
-- **关联文档**：02-UI设计.md §3.4、07-视觉规范.md §4（集合管理）
+- **关联文档**：02-UI设计.md §3.4、07c-侧边栏与命令面板视觉规范.md §4（集合管理）
 
 ### 2.21 — 环境变量编辑器
 
@@ -316,7 +318,7 @@ Phase 2 视为完成，**必须同时满足**以下条件：
   - 切换环境后 Current Value 更新
   - 环境变量保存到 SQLite
 - **关键文件**：`packages/ui/src/components/environment/EnvironmentEditor.tsx`
-- **关联文档**：02-UI设计.md §5.5、07-视觉规范.md §6
+- **关联文档**：02-UI设计.md §5.5、07c-侧边栏与命令面板视觉规范.md §6
 
 ### 2.22 — 环境选择器 UI
 
@@ -329,10 +331,11 @@ Phase 2 视为完成，**必须同时满足**以下条件：
   - 当前环境高亮显示
   - 快捷键 ⌘E 循环切换环境
 - **关键文件**：`packages/ui/src/components/layout/EnvSelector.tsx`
+- **关联文档**：07c-侧边栏与命令面板视觉规范.md §5
 
 ### 2.23 — 请求历史记录
 
-- **依赖**：2.06（发送请求后可记录）
+- **依赖**：2.06（发送请求后可记录）、2.19
 - **工时**：6h
 - **验收标准**：
   - 发送请求后自动写入 history 表（SQLite）
@@ -385,7 +388,7 @@ Phase 2 视为完成，**必须同时满足**以下条件：
   - 通过/失败/跳过计数
   - 完成后显示汇总报告
 - **关键文件**：`packages/ui/src/components/runner/CollectionRunner.tsx`
-- **关联文档**：03-功能设计.md §12、07-视觉规范.md §2.15
+- **关联文档**：03-功能设计.md §12、07c-侧边栏与命令面板视觉规范.md §2.15
 
 ---
 
@@ -407,28 +410,25 @@ Phase 2 视为完成，**必须同时满足**以下条件：
 
 ```
 Week 1-2:
-  2.01 → 2.02 → 2.03 → 2.04 → 2.05
-           ↘       ↗
-             2.06 ──→ 2.07
-             ↑
-           2.08
-             ↑
-           2.09
+  2.01 → 2.02 → 2.03 → 2.04
+              ↘       ↗
+  2.06 → 2.08 → 2.05
+    ├──→ 2.07
+    └──→ 2.09
 
 Week 3-4:
   2.10 → 2.11
        → 2.12
        → 2.13
        → 2.14
-             ↑
-  2.09 ────┴──→ 2.15 → 2.16 → 2.17 → 2.18
+  2.09 ──→ 2.15 → 2.16 → 2.17 → 2.18
 
 Week 5-6:
   2.19 → 2.20 ──→ 2.24 → 2.25
-       ↗                ↑
-  2.06 └──────→ 2.21 → 2.22 → 2.23
-                              ↑
-                           2.26
+    ↓  ↗                 ↑
+  2.23 2.06 └────→ 2.21 → 2.22
+  ↑
+  2.26 (← 2.19, 2.20)
 ```
 
 ---
