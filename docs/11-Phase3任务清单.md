@@ -91,7 +91,7 @@ Phase 3 视为完成，**必须同时满足**以下条件：
   - `pm.variables.set(name, value)` — 设置变量到当前作用域
   - `pm.variables.has(name)` — 判断变量是否存在
   - `pm.environment.get(name)` — 仅查找环境变量
-  - `pm.environment.set(name, value)` — 设置环境变量（立即生效，持久化到 SQLite）
+  - `pm.environment.set(name, value)` — 设置环境变量（立即生效，持久化到 File System: environments/{id}.json）
   - `pm.environment.unset(name)` — 删除环境变量
   - `pm.environment.clear()` — 清空当前环境所有变量
   - `pm.globals.get(name)` — 仅查找全局变量
@@ -466,7 +466,36 @@ Phase 3 视为完成，**必须同时满足**以下条件：
 - **关键文件**：`src-tauri/src/commands/crypto.rs`, `packages/ui/src/components/vault/VaultUnlockDialog.tsx`
 - **关联文档**：04a-架构设计.md §3.4, §6; 03-功能设计.md §5.1
 
-### 3.23 — 快捷请求（Scratch Pad）
+### 3.23 — SSE 连接模块
+
+- **依赖**：3.01
+- **工时**：8h
+- **验收标准**：
+  - src-tauri/src/commands/sse.rs 实现 sse_connect 和 sse_disconnect 命令
+  - SSE 连接通过 Rust reqwest 流式处理
+  - 收到事件时 emit sse-event 事件到前端
+  - 连接错误时 emit sse-error 事件
+  - 连接关闭时 emit sse-close 事件
+  - 支持 cancel_token 取消连接
+  - cargo test 包含 SSE 连接测试
+- **关键文件**：src-tauri/src/commands/sse.rs
+- **关联文档**：04a-架构设计.md 3.8; 04b-API设计.md 5.3
+
+### 3.24 — SSE 面板 UI
+
+- **依赖**：3.23
+- **工时**：6h
+- **验收标准**：
+  - 请求 Tab 类型选择增加 SSE 选项
+  - SSE URL 输入 + Connect/Disconnect 按钮
+  - 消息列表虚拟滚动显示
+  - 支持 event type 过滤
+  - 支持暂停/恢复接收
+  - 消息显示时间戳 + event type + data
+- **关键文件**：apps/desktop/src/components/request/SseTab.tsx
+- **关联文档**：03-功能设计.md 25
+
+### 3.25 — 快捷请求（Scratch Pad）
 
 - **依赖**：Phase 2 完成
 - **工时**：4h

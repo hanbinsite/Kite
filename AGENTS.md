@@ -140,12 +140,16 @@ api-client/
 
 ## 4. 核心架构原则
 
-1. **所有网络请求走 Rust 后端** — 前端不直接发送 HTTP/gRPC/WebSocket 请求，全部通过 Tauri IPC 调用 Rust
+1. **所有网络请求走 Rust 后端** — 前端不直接发送 HTTP/gRPC/WebSocket/SSE/GraphQL 请求，全部通过 Tauri IPC 调用 Rust
 2. **密钥不离开 Rust** — Vault 密钥通过 keyring 管理，不经过 IPC 传输
-3. **脚本在 Rust 侧执行** — 使用 rquickjs (QuickJS)，进程级隔离
+3. **脚本在 Rust 侧执行** — 使用 rquickjs (QuickJS)，进程级隔离，超时控制 5s（可配置）
 4. **状态驱动导航** — 不使用 React Router，使用 Zustand NavigationStore
 5. **Monaco 单实例** — 切换 Tab 时替换 Model，不创建新 Editor 实例
 6. **CSS 变量映射**：设计令牌（`--brand`）→ 实现变量（`--color-brand`）→ Tailwind（`text-brand`）
+7. **多 Tab 独立响应** — RequestStore 使用 `responses: Record<tabId, HttpResponse>`，而非单一 `currentResponse`
+8. **SQLite 查询用 spawn_blocking** — `rusqlite::Connection` 未实现 `Send`，必须通过 `tokio::task::spawn_blocking` 执行
+9. **环境变量存 File System** — 权威存储为 `environments/{id}.json`，SQLite 不存环境变量
+10. **文件操作必须校验路径** — 所有文件 Command 校验路径在 `{app_data}/` 内，防止路径遍历
 
 ---
 
@@ -243,5 +247,11 @@ api-client/
 - **不要使用 @apollo/client** — 使用 graphql-request
 - **不要在 IPC 中传递密钥** — 密钥只存储在 Rust 端 keyring
 - **不要创建多个 Monaco 实例** — 使用 EditorManager 单实例管理
-- **AuthConfig 不要用 untagged 枚举** — 使用外部标签 `#[serde(tag = "type")]`
+- **AuthConfig 不要用 untagged 枚举** — 使用外部标签 `#[serde(tag = "type", content = "config")]`
 - **CSS 变量使用 @theme 前缀** — `--color-brand` 而非 `--brand`
+- **不要在 async 中直接持有 SQLite Connection** — 使用 `spawn_blocking` + `blocking_lock()`
+- **不要在 RequestStore 中使用单一 `currentResponse`** — 使用 `responses: Record<tabId, HttpResponse>` 支持多 Tab
+- **不要在文件操作中接受未校验的路径** — 必须调用 `validate_path_within_app_data()`
+- **GraphQL 请求也走 Rust 后端** — 作为 `RequestBody::graphql` 变体，复用 `send_http_request`
+- **ESLint 使用 flat config** — `eslint.config.js`（ESLint 9.x），不用 `.eslintrc.js`
+- **环境变量不要存 SQLite** — 权威存储为 File System: `environments/{id}.json`
