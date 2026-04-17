@@ -53,11 +53,28 @@
      - #13 futures-util → 已添加到Cargo.toml
   12. 更新 task_plan.md/findings.md/progress.md
 
+## Session: 2026-04-17 (第二轮审计)
+
+### 审计发现9项阻断问题 → 全部修复
+- **Status:** completed
+- Actions taken:
+  1. 新增 14-Phase2b协议支持任务清单.md（gRPC/WS/MQTT/SSE/Mock 15任务 + Cookie管理）
+  2. 07c 新增 §12 Collection Runner 视觉规范（布局+CSS+状态矩阵）
+  3. 07b 新增 §2.20 SSE 面板视觉规范
+  4. 07b 删除重复 §3-§4（5400行→1480行，与07c完全去重）
+  5. 08 §5 新增 19个补充组件（含data-testid，Phase2/3组件全覆盖）
+  6. 08 §3 补充 MQTT/Mock/SSE Rust struct 定义（ts-rs导出）
+  7. 修复 10-Phase2 task 2.26 broken reference (07c §2.15 → §12)
+  8. 更新 AGENTS.md、README.md 文档索引（含14-Phase2b）
+  9. 更新 REMAINING_ISSUES.md、findings.md、progress.md
+- Files created: docs/14-Phase2b协议支持任务清单.md
+- Files modified: 07b, 07c, 08, 10, AGENTS.md, README.md, REMAINING_ISSUES.md, findings.md, progress.md
+
 ## 5-Question Reboot Check
 | Question | Answer |
 |----------|--------|
-| Where am I? | Phase 8 完成 — 全部文档优化和缺陷修复完成 |
+| Where am I? | 两轮审计修复完成 — 文档集完整可追溯 |
 | Where am I going? | 进入 Phase 1 开发（按 09-Phase1任务清单执行） |
-| What's the goal? | 使用优化后的完整文档集驱动 AI 开发 |
-| What have I learned? | 文档拆分对 AI 上下文至关重要；serde 标签策略影响数据安全 |
-| What have I done? | 创建14份文档+AGENTS.md，修复全部已知缺陷，文档集可直接开发 |
+| What's the goal? | 使用完整文档集驱动 AI 开发功能完备的 API 客户端 |
+| What have I learned? | 功能→任务可追溯性是 AI 开发成功的关键；组件清单必须覆盖所有任务引用的组件 |
+| What have I done? | 创建15份文档+AGENTS.md，修复22项缺陷，补9项缺失，文档集可直接开发 |

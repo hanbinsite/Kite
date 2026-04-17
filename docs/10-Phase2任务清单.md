@@ -388,7 +388,7 @@ Phase 2 视为完成，**必须同时满足**以下条件：
   - 通过/失败/跳过计数
   - 完成后显示汇总报告
 - **关键文件**：`packages/ui/src/components/runner/CollectionRunner.tsx`
-- **关联文档**：03-功能设计.md §12、07c-侧边栏与命令面板视觉规范.md §2.15
+- **关联文档**：03-功能设计.md §12、07c-侧边栏与命令面板视觉规范.md §12（Collection Runner 视觉规范）
 
 ---
 

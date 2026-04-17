@@ -92,6 +92,13 @@
 | Phase 1 文档引用更新 | 09 | ✅ |
 | REMAINING_ISSUES 13项修复 | 全部13项 | ✅ |
 | currentResponse → responses[tabId] | 08/09/12 | ✅ |
+| REMAINING_ISSUES第二批9项修复 | 全部9项 | ✅ |
+| 新增 14-Phase2b协议支持任务清单 | 15个原子任务 | ✅ |
+| 07b删除重复§3-§4 | 3972行→精简为1480行 | ✅ |
+| 07c新增§12 Collection Runner视觉规范 | 像素级CSS | ✅ |
+| 07b新增§2.20 SSE面板视觉规范 | 布局+CSS+状态矩阵 | ✅ |
+| 08 §5新增19个补充组件含data-testid | Phase2/3组件全覆盖 | ✅ |
+| 08 §3补充MQTT/Mock/SSE Rust structs | ts-rs导出类型 | ✅ |
 
 ## Resources
 - Postman: https://www.postman.com
