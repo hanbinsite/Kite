@@ -825,6 +825,10 @@ fn main() {
             commands::cookie::delete_cookie,
             commands::sse::sse_connect,
             commands::sse::sse_disconnect,
+            commands::mqtt::mqtt_connect,
+            commands::mqtt::mqtt_disconnect,
+            commands::mqtt::mqtt_publish,
+            commands::mqtt::mqtt_subscribe,
             commands::system::open_external,
             commands::system::get_version,
         ])
