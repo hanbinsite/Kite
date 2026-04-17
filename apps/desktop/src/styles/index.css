@@ -1,0 +1,281 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Geist", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+
+  --text-2xs: 10px;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+
+  --color-brand: #6c5ce7;
+  --color-brand-hover: #7c6cf7;
+  --color-brand-muted: oklch(0.55 0.2 275 / 0.15);
+  --color-brand-glow: oklch(0.55 0.2 275 / 0.25);
+
+  --color-bg-base: #0c0c12;
+  --color-bg-surface: #13131b;
+  --color-bg-elevated: #1a1a25;
+  --color-bg-hover: #22222e;
+  --color-bg-active: #2a2a38;
+  --color-bg-input: #0f0f18;
+  --color-bg-overlay: oklch(0 0 0 / 0.6);
+
+  --color-fg-primary: #e8e6f0;
+  --color-fg-secondary: #908ea0;
+  --color-fg-tertiary: #5a586a;
+  --color-fg-inverse: #0c0c12;
+
+  --color-accent-success: #00d68f;
+  --color-accent-warning: #ffb800;
+  --color-accent-danger: #ff4757;
+  --color-accent-info: #5b8def;
+
+  --color-method-get: #00d68f;
+  --color-method-post: #ffb800;
+  --color-method-put: #5b8def;
+  --color-method-patch: #bf5af2;
+  --color-method-delete: #ff4757;
+  --color-method-head: #6e6d80;
+  --color-method-options: #6e6d80;
+  --color-method-grpc: #7b68ee;
+  --color-method-websocket: #00d68f;
+  --color-method-mqtt: #ffb800;
+  --color-method-sse: #5b8def;
+
+  --color-status-2xx: #00d68f;
+  --color-status-3xx: #5b8def;
+  --color-status-4xx: #ffb800;
+  --color-status-5xx: #ff4757;
+
+  --color-border-default: #2a2a38;
+  --color-border-muted: #1e1e2a;
+  --color-border-focus: #6c5ce7;
+  --color-border-error: #ff4757;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+
+  --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.3);
+  --shadow-sm: 0 2px 8px oklch(0 0 0 / 0.3);
+  --shadow-md: 0 4px 16px oklch(0 0 0 / 0.35);
+  --shadow-lg: 0 8px 32px oklch(0 0 0 / 0.4);
+  --shadow-xl: 0 16px 48px oklch(0 0 0 / 0.5);
+  --shadow-glow: 0 0 20px oklch(0.55 0.2 275 / 0.2);
+  --shadow-inset: inset 0 1px 2px oklch(0 0 0 / 0.3);
+
+  --spacing-sidebar: 220px;
+  --spacing-sidebar-collapsed: 52px;
+  --spacing-url-bar: 44px;
+  --spacing-tab-bar: 36px;
+  --spacing-response-bar: 32px;
+  --spacing-min-pane: 120px;
+
+  --animate-duration-instant: 50ms;
+  --animate-duration-fast: 100ms;
+  --animate-duration-normal: 180ms;
+  --animate-duration-slow: 300ms;
+  --animate-duration-slower: 500ms;
+
+  --z-base: 0;
+  --z-sidebar: 10;
+  --z-workbench: 20;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-command-palette: 500;
+  --z-toast: 600;
+  --z-tooltip: 700;
+}
+
+[data-theme="light"] {
+  --color-brand: #5b4fd4;
+  --color-brand-hover: #6b5fe4;
+  --color-brand-muted: oklch(0.55 0.2 275 / 0.1);
+  --color-brand-glow: oklch(0.55 0.2 275 / 0.15);
+
+  --color-bg-base: #fafafb;
+  --color-bg-surface: #ffffff;
+  --color-bg-elevated: #f5f5f8;
+  --color-bg-hover: #eaeaef;
+  --color-bg-active: #dddde5;
+  --color-bg-input: #f0f0f4;
+  --color-bg-overlay: oklch(0 0 0 / 0.4);
+
+  --color-fg-primary: #1a1a2e;
+  --color-fg-secondary: #6e6d80;
+  --color-fg-tertiary: #9e9eb0;
+  --color-fg-inverse: #ffffff;
+
+  --color-accent-success: #00b37e;
+  --color-accent-warning: #e6a700;
+  --color-accent-danger: #e53935;
+  --color-accent-info: #4a7fd4;
+
+  --color-border-default: #e0e0e8;
+  --color-border-muted: #ebebf0;
+  --color-border-focus: #5b4fd4;
+
+  --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.06);
+  --shadow-sm: 0 2px 8px oklch(0 0 0 / 0.08);
+  --shadow-md: 0 4px 16px oklch(0 0 0 / 0.1);
+  --shadow-lg: 0 8px 32px oklch(0 0 0 / 0.12);
+  --shadow-xl: 0 16px 48px oklch(0 0 0 / 0.16);
+  --shadow-glow: 0 0 20px oklch(0.55 0.2 275 / 0.1);
+  --shadow-inset: inset 0 1px 2px oklch(0 0 0 / 0.06);
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    font-size: var(--text-base);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: var(--color-fg-primary);
+    background-color: var(--color-bg-base);
+    overflow: hidden;
+    user-select: none;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-border-focus);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--color-brand-muted);
+    color: var(--color-brand);
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border-default);
+    border-radius: var(--radius-full);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-fg-tertiary);
+  }
+}
+
+@utility glow-brand {
+  box-shadow: 0 0 20px oklch(0.55 0.2 275 / 0.3);
+}
+
+@utility glow-success {
+  box-shadow: 0 0 16px oklch(0.7 0.18 160 / 0.25);
+}
+
+@utility glow-danger {
+  box-shadow: 0 0 16px oklch(0.65 0.25 25 / 0.25);
+}
+
+@utility glass-bg {
+  background: oklch(0.15 0.02 275 / 0.75);
+  backdrop-filter: blur(20px);
+}
+
+@utility glass-border {
+  border: 1px solid oklch(1 0 0 / 0.06);
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 20px oklch(0.55 0.2 275 / 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px oklch(0.55 0.2 275 / 0.5);
+  }
+}
+
+@keyframes send-pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.96);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.json-key {
+  color: #5b8def;
+}
+.json-string {
+  color: #00d68f;
+}
+.json-number {
+  color: #ffb800;
+}
+.json-boolean {
+  color: #bf5af2;
+}
+.json-null {
+  color: var(--color-fg-tertiary);
+  font-style: italic;
+}
+.json-bracket {
+  color: var(--color-fg-tertiary);
+}
+
+.variable-highlight {
+  color: var(--color-brand);
+  background: var(--color-brand-muted);
+  border-radius: 2px;
+  padding: 0 2px;
+  cursor: pointer;
+}

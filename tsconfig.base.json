@@ -21,10 +21,14 @@
     "declarationMap": true,
     "sourceMap": true,
     "skipLibCheck": true,
+    "baseUrl": ".",
     "paths": {
       "@ui/*": ["./packages/ui/src/*"],
       "@core/*": ["./packages/core/src/*"],
-      "@types/*": ["./packages/types/src/*"]
+      "@types/*": ["./packages/types/src/*"],
+      "@api-client/core": ["./packages/core/src/index.ts"],
+      "@api-client/ui": ["./packages/ui/src/index.ts"],
+      "@api-client/types": ["./packages/types/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "dist", "src-tauri"]

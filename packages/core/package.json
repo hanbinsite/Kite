@@ -1,0 +1,25 @@
+{
+  "name": "@api-client/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./http": "./src/http/index.ts",
+    "./collection": "./src/collection/index.ts",
+    "./environment": "./src/environment/index.ts",
+    "./navigation": "./src/navigation/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@api-client/types": "workspace:*",
+    "@tauri-apps/api": "^2.0.0",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}
