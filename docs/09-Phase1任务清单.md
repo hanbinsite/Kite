@@ -648,7 +648,7 @@ Week 4 (后端)
   - 生产环境预留 Sentry performance 上报接口（暂不集成）
   - Rust 侧 `app.ready` 事件时间戳可通过 `performance.now()` 计算冷启动耗时
 - **关键文件**：`packages/core/src/performance/index.ts`, `apps/desktop/src/main.tsx`, `apps/desktop/src/App.tsx`
-- **关联文档**：01-整体规划.md §15
+- **关联文档**：01-整体规划.md §15（性能埋点与监控）
 
 ---
 
