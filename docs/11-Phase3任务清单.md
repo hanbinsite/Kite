@@ -463,12 +463,14 @@ Phase 3 视为完成，**必须同时满足**以下条件：
     - 解锁后 secret 值可查看/编辑
     - 应用启动时 Vault 默认锁定
     - 设置页面提供 "Lock Vault" 按钮
-- **关键文件**：`src-tauri/src/commands/crypto.rs`, `packages/ui/src/components/vault/VaultUnlockDialog.tsx`
+- **关键文件**：`src-tauri/src/commands/crypto.rs`, `apps/desktop/src/components/vault/VaultUnlockDialog.tsx`
 - **关联文档**：04a-架构设计.md §3.4, §6; 03-功能设计.md §5.1
 
 ### 3.23 — SSE 连接模块
 
-- **依赖**：3.01
+> **注意**：Phase 2b（14-Phase2b协议支持.md）任务 2b.09-2b.11 已覆盖基础 SSE UI 和端到端联调。本任务实现完整 SSE Rust 模块（含 cancel_token、事件过滤等增强功能），是对 Phase 2b 基础实现的深化。
+
+- **依赖**：3.01, 2b.09（Phase 2b SSE 基础 UI）
 - **工时**：8h
 - **验收标准**：
   - src-tauri/src/commands/sse.rs 实现 sse_connect 和 sse_disconnect 命令
@@ -481,9 +483,11 @@ Phase 3 视为完成，**必须同时满足**以下条件：
 - **关键文件**：src-tauri/src/commands/sse.rs
 - **关联文档**：04a-架构设计.md 3.8; 04b-API设计.md 5.3
 
-### 3.24 — SSE 面板 UI
+### 3.24 — SSE 面板 UI 增强
 
-- **依赖**：3.23
+> **注意**：Phase 2b 任务 2b.09 已实现基础 SSE 面板（URL + Connect/Disconnect + 消息列表）。本任务在此基础上增加 event type 过滤、暂停/恢复、虚拟滚动等增强功能。
+
+- **依赖**：3.23, 2b.09（Phase 2b SSE 基础 UI）
 - **工时**：6h
 - **验收标准**：
   - 请求 Tab 类型选择增加 SSE 选项

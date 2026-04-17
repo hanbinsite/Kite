@@ -316,7 +316,7 @@ Phase 2 视为完成，**必须同时满足**以下条件：
   - secret 类型变量显示为 `****`，点击解锁查看
   - 新增/删除变量行
   - 切换环境后 Current Value 更新
-  - 环境变量保存到 SQLite
+  - 环境变量保存到 File System: `environments/{id}.json`（权威存储为 File System，不存 SQLite）
 - **关键文件**：`packages/ui/src/components/environment/EnvironmentEditor.tsx`
 - **关联文档**：02-UI设计.md §5.5、07c-侧边栏与命令面板视觉规范.md §6
 
