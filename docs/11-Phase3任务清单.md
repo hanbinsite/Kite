@@ -306,7 +306,7 @@ Phase 3 视为完成，**必须同时满足**以下条件：
 - **工时**：12h
 - **验收标准**：
   - `src-tauri/src/commands/codegen.rs` 实现 `generate_code` Tauri Command
-  - 支持语言：cURL, Python(requests), JavaScript(fetch), JavaScript(axios), TypeScript(fetch), Go(net/http), Java(HttpURLConnection), PHP(curl), Ruby(net/http), Swift(URLSession), Kotlin(okhttp), C#(HttpClient), Dart(http), Perl(LWP), Node.js(undici)
+  - 支持语言：cURL, Python(requests), JavaScript(fetch), JavaScript(axios) — 仅为代码生成输出目标，本项目内部不使用 Axios（AGENTS.md §8）, TypeScript(fetch), Go(net/http), Java(HttpURLConnection), PHP(curl), Ruby(net/http), Swift(URLSession), Kotlin(okhttp), C#(HttpClient), Dart(http), Perl(LWP), Node.js(undici)
   - 输入：`HttpRequestConfig` + `CodeLanguage` + `CodeGeneratorConfig`
   - 输出：`{ code: string, language: string }`
   - 生成规则：

@@ -1,6 +1,6 @@
 # Phase 2b 任务清单 — 协议支持（与 Phase 2 并行，2 周）
 
-> 本文档补充 Phase 2/3 中缺失的多协议 UI 任务。gRPC/WebSocket/MQTT/SSE/Mock 的 Rust 后端已在 Phase 1 实现（04a §3），此阶段聚焦前端 UI 和端到端联调。
+> 本文档补充 Phase 2/3 中缺失的多协议 UI 任务。gRPC/WebSocket/MQTT/SSE/Mock 的 Rust 后端架构已在 04a-架构设计.md §3 中设计，但 Rust Command 实现需在本阶段完成或前置。
 
 ---
 
@@ -22,7 +22,7 @@
 ## Week 1: gRPC + WebSocket（Day 1-5）
 
 ### 2b.01 — gRPC 面板 UI 组件
-- **依赖**：Phase 1 完成（Rust grpc command 已实现）
+- **依赖**：09 Phase 1 框架完成 + 本阶段 Rust gRPC Command 实现
 - **工时**：6h
 - **验收标准**：
   - 侧边栏 COLLECTIONS 区域新增 "gRPC Request" 类型项（紫色标签）
@@ -56,7 +56,7 @@
 - **关联文档**：04a-架构设计.md §3.1; 08-开发指南.md §3
 
 ### 2b.04 — WebSocket 面板 UI 组件
-- **依赖**：Phase 1 完成（Rust ws_connect/ws_send/ws_close 已实现）
+- **依赖**：09 Phase 1 框架完成 + 本阶段 Rust WebSocket Command 实现
 - **工时**：6h
 - **验收标准**：
   - 侧边栏新增 "WebSocket" 类型项（蓝色标签）
@@ -115,7 +115,7 @@
 ## Week 2: SSE + MQTT + Mock（Day 6-10）
 
 ### 2b.09 — SSE 面板 UI 组件
-- **依赖**：Phase 1 完成（Rust SSE 模块已实现）
+- **依赖**：09 Phase 1 框架完成 + 本阶段 Rust SSE Command 实现
 - **工时**：4h
 - **验收标准**：
   - 侧边栏新增 "SSE" 类型项（青色标签）
@@ -148,7 +148,7 @@
 - **关联文档**：04a-架构设计.md §3.5; 08-开发指南.md §3
 
 ### 2b.12 — MQTT 面板 UI 组件
-- **依赖**：Phase 1 完成（Rust MQTT command 已实现）
+- **依赖**：09 Phase 1 框架完成 + 本阶段 Rust MQTT Command 实现
 - **工时**：6h
 - **验收标准**：
   - 侧边栏新增 "MQTT" 类型项（橙色标签）
@@ -171,7 +171,7 @@
 - **关联文档**：04a-架构设计.md §3; 08-开发指南.md §3
 
 ### 2b.14 — Mock Server UI 配置面板
-- **依赖**：Phase 1 完成（Rust mock 模块已实现）
+- **依赖**：09 Phase 1 框架完成 + 本阶段 Rust Mock Command 实现
 - **工时**：4h
 - **验收标准**：
   - Settings 页新增 "Mock Server" 入口
@@ -184,7 +184,7 @@
 - **关联文档**：03-功能设计.md §13; 07c-侧边栏与命令面板视觉规范.md §7
 
 ### 2b.15 — Cookie Jar 管理 UI
-- **依赖**：Phase 1 完成（Rust cookie_jar 已实现）
+- **依赖**：09 Phase 1 框架完成 + 本阶段 Rust Cookie Jar Command 实现
 - **工时**：4h
 - **验收标准**：
   - Console 面板新增 "Cookies" tab

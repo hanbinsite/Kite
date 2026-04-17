@@ -351,7 +351,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - Settings Tab：Timeout / Redirects / SSL 验证等开关项
   - Params/Headers Tab 右上角显示已启用项数量 badge
 - **关键文件**：`apps/desktop/src/components/request/RequestPanel.tsx`, `RequestTabs.tsx`, `ParamsTab.tsx`, `HeadersTab.tsx`, `BodyTab.tsx`, `AuthTab.tsx`, `ScriptsTab.tsx`, `SettingsTab.tsx`
-- **关联文档**：07b-请求编辑视觉规范.md §2.5, §2.7, §2.8, §2.9
+- **关联文档**：07b-请求编辑视觉规范.md §2.5, §2.7, §2.8, §2.9, AGENTS.md §3 (AuthConfig 使用 #[serde(tag = "type", content = "config")])
 
 ### 1.24 — 响应 Tabs 面板（Body / Headers / Cookies / Tests）
 
@@ -487,6 +487,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - `read_file` / `write_file` / `delete_file` / `list_directory` / `create_directory` 命令实现
   - 文件不存在时返回空列表（而非错误）
   - 写入操作使用原子写入（先写临时文件，再 rename）
+  - 所有文件操作命令调用 validate_path_within_app_data() 校验路径在 {app_data}/ 内，防止路径遍历（AGENTS.md §10）
   - `cargo test` 包含文件操作单元测试
 - **关键文件**：`apps/desktop/src-tauri/src/storage/file.rs`, `apps/desktop/src-tauri/src/storage/mod.rs`
 - **关联文档**：04a-架构设计.md §3.5; 08-开发指南.md §2.16
@@ -501,6 +502,7 @@ Phase 1 视为完成，**必须同时满足**以下条件：
   - cookie_jar 表包含索引 `idx_cookie_domain`
   - 提供方法：`insert_history()`, `query_history()`, `insert_cookie()`, `query_cookies()`, `get_setting()`, `set_setting()`
   - 应用启动时自动执行数据库迁移（`Storage::migrate()`）
+  - 所有 SQLite 操作通过 tokio::task::spawn_blocking 执行，不在 async 上下文中直接持有 Connection（AGENTS.md §8）
   - `cargo test` 包含 CRUD 单元测试
 - **关键文件**：`apps/desktop/src-tauri/src/storage/sqlite.rs`
 - **关联文档**：04a-架构设计.md §3.5; 08-开发指南.md §3
