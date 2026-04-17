@@ -422,9 +422,9 @@ Phase 1 视为完成，**必须同时满足**以下条件：
 - **依赖**：1.15
 - **工时**：6h
 - **验收标准**：
-  - `useRequestStore`：isLoading, currentResponse, error 状态；sendRequest action（暂为 mock 数据）
+  - `useRequestStore`：isLoading, responses (Record<tabId, HttpResponse>), error 状态；sendRequest action（暂为 mock 数据）
   - `useEnvironmentStore`：globals 数组, environments 数组, activeEnvironmentId；setVariable / setActiveEnvironment action
-  - sendRequest 调用后：isLoading=true -> 500ms 后 -> isLoading=false, currentResponse=mock 响应
+  - sendRequest 调用后：isLoading=true -> 500ms 后 -> isLoading=false, responses[activeTabId]=mock 响应
   - 发送按钮、响应面板、状态条均绑定 Store 响应式更新
   - Environment Store 的 activeEnvironmentId 变更时，URL 栏环境药丸同步更新
 - **关键文件**：`apps/desktop/src/stores/request-store.ts`, `apps/desktop/src/stores/environment-store.ts`

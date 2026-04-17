@@ -514,7 +514,7 @@ export function onWsMessage(
 export function onWsError(
   handler: (payload: WsErrorPayload) => void,
 ): Promise<UnlistenFn> {
-  return listen<WssErrorPayload>('ws-error', (e) => handler(e.payload));
+  return listen<WsErrorPayload>('ws-error', (e) => handler(e.payload));
 }
 
 export function onWsClose(
@@ -659,9 +659,9 @@ async function sendRequest(tabId: string, config: HttpRequestConfig) {
 }
 ```
 
-### 4.5 AppState 生命周期管理
+## 6. AppState 生命周期管理
 
-#### 4.5.1 Rust AppState 定义
+### 6.1 Rust AppState 定义
 
 AppState 是所有 Tauri Command 共享的全局状态，在应用启动时初始化，通过 `tauri::Manager::state()` 注入到每个 Command。
 
@@ -677,7 +677,7 @@ pub struct AppState {
     pub http_client: HttpClientState,
 
     // SQLite 使用 Mutex<Connection> 但在阻塞线程池中执行查询
-    // 参见 §4.5.6 — rusqlite::Connection 未实现 Send
+    // 参见 §6.6 — rusqlite::Connection 未实现 Send
     pub db: Arc<Mutex<rusqlite::Connection>>,
 
     pub fs_lock: Arc<Mutex<()>>,
@@ -710,11 +710,11 @@ pub struct WebSocketConnection {
 }
 ```
 
-#### 4.5.2 锁粒度选择
+### 6.2 锁粒度选择
 
 | 字段 | 锁类型 | 原因 |
 |------|--------|------|
-| `db` | `Mutex` | SQLite 写入需串行化；Connection 未实现 Send，通过 tokio::task::spawn_blocking 在阻塞线程池执行（见 §4.5.6） |
+| `db` | `Mutex` | SQLite 写入需串行化；Connection 未实现 Send，通过 tokio::task::spawn_blocking 在阻塞线程池执行（见 §6.6） |
 | `fs_lock` | `Mutex` | 文件系统写入需串行化，防止并发覆盖 |
 | `vault` | `RwLock` | 读多写少（解锁后只读密钥），允许并发读 |
 | `script_engine` | `Mutex` | QuickJS Runtime 非线程安全，需互斥 |
@@ -723,7 +723,9 @@ pub struct WebSocketConnection {
 | `http_client` | 无锁 (Arc) | reqwest::Client 内部已线程安全 |
 | `http_client.cookie_jar` | `Arc (无内部 mut)` | reqwest::cookie::Jar 内部线程安全，Arc 共享引用 |
 
-#### 4.5.3 初始化流程
+### 6.3 初始化流程
+
+> **注意**：`AppState.db` (Arc<Mutex<Connection>) 与 `Storage` (04c-安全与性能.md §3.5) 的关系：`Storage` 是数据库操作的封装层，`AppState.db` 是底层连接。Command 不直接操作 `db`，而是通过 `Storage` 的方法（如 `insert_history`, `query_cookies`）间接操作，由 `Storage` 内部通过 `spawn_blocking` + `blocking_lock()` 执行查询。
 
 ```rust
 pub fn init_app_state(data_dir: &Path) -> Result<AppState, String> {
@@ -744,6 +746,7 @@ pub fn init_app_state(data_dir: &Path) -> Result<AppState, String> {
             .cookie_store(true)
             .build()
             .map_err(|e| e.to_string())?,
+        cookie_jar: Arc::new(reqwest::cookie::Jar::default()),
     };
 
     Ok(AppState {
@@ -760,7 +763,7 @@ pub fn init_app_state(data_dir: &Path) -> Result<AppState, String> {
 }
 ```
 
-#### 4.5.4 在 Tauri 中注册
+### 6.4 在 Tauri 中注册
 
 ```rust
 fn main() {
@@ -830,31 +833,9 @@ fn main() {
 }
 ```
 
-#### 4.5.5 在 Command 中使用
+> **注意**：`send_http_request` 的完整流式实现见 §5.4（包含大响应体流式推送、Cookie 注入、Auth 注入、变量解析等）。此处仅展示 AppState 基本模式，不重复定义 Command 逻辑。
 
-```rust
-#[tauri::command]
-pub async fn send_http_request(
-    state: tauri::State<'_, AppState>,
-    config: HttpRequestConfig,
-    cancel_token: Option<String>,
-) -> Result<HttpResponse, String> {
-    if let Some(token_id) = cancel_token {
-        let token = tokio_util::sync::CancellationToken::new();
-        state.cancel_tokens.write().await.insert(token_id, token.clone());
-    }
-
-    let response = state.http_client.client
-        .request(config.method.parse().map_err(|e| e.to_string())?, &config.url)
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    Ok(parse_response(response).await?)
-}
-```
-
-#### 4.5.6 SQLite Connection 与 async Tauri Command 的兼容方案
+### 6.6 SQLite Connection 与 async Tauri Command 的兼容方案
 
 `rusqlite::Connection` **未实现 `Send`**，不能直接在 `tokio::sync::Mutex` 中跨 await 持有。解决方案：
 

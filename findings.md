@@ -40,121 +40,61 @@
 - 网络信息(本地/远程IP、HTTP版本、证书验证)
 
 ### Postman 认证类型
-- No Auth
-- API Key (Header/Query Params)
-- Bearer Token
-- JWT Bearer (HS/RS/ES/PS算法，Payload编辑，Advanced配置)
-- Basic Auth
-- OAuth 1.0
-- OAuth 2.0
-- AWS Signature
-- Hawk Authentication
-- NTLM
-- Akamai EdgeGrid
-- Digest Auth
+- No Auth, API Key, Bearer Token, JWT Bearer, Basic Auth
+- OAuth 1.0, OAuth 2.0, AWS Signature, Hawk, NTLM, Akamai EdgeGrid, Digest Auth
 
 ### Postman 变量系统
-- Global变量 (Footer中快速访问)
-- Environment变量 (环境选择器)
-- Collection变量
-- Data变量
-- 动态变量: {{$guid}}, {{$timestamp}}, {{$randomInt}}, {{$randomFullName}} 等
+- Global/Environment/Collection/Data/Local 变量
+- 动态变量: {{$guid}}, {{$timestamp}}, {{$randomInt}} 等
 - Postman Vault (本地敏感数据存储)
 - 变量作用域优先级: Global < Collection < Environment < Data < Local
 
 ### Postman 多协议支持
-- HTTP (REST)
-- GraphQL (Query/Mutation/Subscription, Schema探索, Autocomplete)
-- gRPC (Protobuf服务定义, Unary/Server/Client streaming)
-- WebSocket (双向通信, 消息收发)
-- MQTT (IoT协议, Broker连接, Topic订阅/发布)
-- SSE (Server-Sent Events)
-- Socket.IO
-- AI Requests (OpenAI兼容模型, MCP Server集成)
+- HTTP (REST), GraphQL, gRPC, WebSocket, MQTT, SSE, Socket.IO, AI Requests
 
 ### Postman AI 功能 (Agent Mode)
-- 自然语言操作API
-- AI生成测试脚本
-- AI生成文档
-- AI生成可视化
-- AI请求(交互AI模型)
-- MCP Server集成
-- AI Agent Builder
-- 自动运行模式(auto-run)
-- 深度API上下文理解
-
-### Postman Flows
-- 可视化API工作流
-- 拖拽式画布
-- 从集合生成Flow
-- AI单提示生成Flow
-- 错误处理自动化
-- 部署到Postman Cloud
-
-### Postman v12 新特性
-- Unified Workbench(统一工作台)
-- 本地Mock服务器
-- 本地Flows
-- 性能测试(负载测试)
-- CLI工作流
-- 多协议自动化执行
-- CI一致工作流
-- SDK Generator
-- Postman Shared Vault
-- API报告
-- Private API Monitoring
-- 本地秘密保护
+- 自然语言操作API、AI生成测试/文档/可视化
+- MCP Server集成、AI Agent Builder、auto-run模式
 
 ### 竞品分析
 
-#### Insomnia (Kong)
-- 技术: Electron
-- 支持: REST, GraphQL, gRPC, WebSocket, SSE, Socket.IO
-- 特点: MCP Client支持、AI能力、插件系统
-- 存储: 本地/Git/Cloud三种模式
-- 优势: 开源、UI简洁、无需账户即可本地使用
-- 劣势: 社区较小、功能不如Postman全面
-
-#### Hoppscotch
-- 技术: Web-based (Vue.js)
-- 特点: 开源、轻量、实时协作
-- 优势: 无需安装、开源、社区活跃
-- 劣势: 需浏览器、桌面功能受限
-
-#### Bruno
-- 技术: Electron + Next.js
-- 特点: Git-native、文件系统集合、纯文本文件
-- 优势: 纯本地无云同步、Git协作、安全、轻量
-- 劣势: 无团队协作云功能、功能较基础
+| 竞品 | 技术栈 | 优势 | 劣势 |
+|------|--------|------|------|
+| Insomnia (Kong) | Electron | 开源、MCP Client、AI | 社区较小 |
+| Hoppscotch | Vue.js (Web) | 无需安装、开源 | 桌面功能受限 |
+| Bruno | Electron + Next.js | Git-native、本地安全 | 功能较基础 |
 
 ## Technical Decisions
+
 | Decision | Rationale |
 |----------|-----------|
-| Tauri + React + TypeScript | 现代化桌面应用方案，包体小、性能高、安全 |
+| Tauri + React + TypeScript | 包体小、性能高、安全，Rust 后端处理所有网络请求 |
 | 本地优先 + 可选云同步 | 兼顾Bruno的本地安全和Postman的协作能力 |
-| 文件系统集合存储 | 兼容Git、便于版本控制，参考Bruno理念 |
-| Monorepo | 统一管理前端、后端、共享代码 |
+| 文件系统集合存储 | Git 友好、版本控制 |
+| Monorepo (pnpm workspace) | 统一管理前端、后端、共享代码 |
+| AuthConfig 外部标签 serde | 避免 untagged 反序列化歧义 |
+| argon2 + aes-gcm 替代 sodiumoxide | OWASP/NIST 推荐，更现代更安全 |
+| 文档拆分（04→3子文档, 07→3子文档） | 避免 AI 上下文溢出 |
+| 本地字体打包（woff2） | 零 FOUC、离线可用 |
 
-## Issues Encountered
-| Issue | Resolution |
-|-------|------------|
-| Postman文档部分页面404 | 使用替代页面和主页信息补充 |
+## Document Optimization Log (2026-04-16/17)
+
+| 优化项 | 修复数 | 状态 |
+|--------|--------|------|
+| AuthConfig serde 标签策略 | 03+08 两文件 | ✅ |
+| sodiumoxide → argon2+aes-gcm | 6 文件 | ✅ |
+| data-testid 补充 | 08 (组件表+页面级清单) | ✅ |
+| 04 拆分为 04a/04b/04c | 1→3 | ✅ |
+| 07 拆分为 07a/07b/07c | 1→3 | ✅ |
+| 字体打包策略 | 08 新增 §2.6b | ✅ |
+| CI 类型同步工作流 | 08 扩展 §7.2 | ✅ |
+| Phase 2/3 依赖和引用修复 | 10+11 两文件 | ✅ |
+| Phase 1 文档引用更新 | 09 | ✅ |
+| REMAINING_ISSUES 13项修复 | 全部13项 | ✅ |
+| currentResponse → responses[tabId] | 08/09/12 | ✅ |
 
 ## Resources
-- Postman 官网: https://www.postman.com
-- Postman 文档: https://learning.postman.com
+- Postman: https://www.postman.com
 - Insomnia: https://insomnia.rest
 - Hoppscotch: https://hoppscotch.io
 - Bruno: https://www.usebruno.com
-
-## Visual/Browser Findings
-- Postman v12采用统一工作台(United Workbench)设计
-- 侧边栏分为4个Tab：Items/Services/History/Local Files
-- 右侧边栏根据元素类型动态显示工具
-- Footer集成Console/Terminal/Git/Tools/Globals/Vault
-- Postman主题色: 橙色(#FF6C37)为主色调
-- 竞品Insomnia v12.4也支持MCP Client
-- Bruno强调Git-native和本地安全
-
----
-*Update this file after every 2 view/browser/search operations*
