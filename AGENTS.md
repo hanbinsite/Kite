@@ -235,8 +235,9 @@ api-client/
 | 12-状态持久化 | 数据同步协议、冲突解决 | 存储相关时 |
 | 13-错误处理 | 28种错误码UI映射 | 错误处理时 |
 | 14-Phase2b协议支持 | gRPC/WS/MQTT/SSE/Mock UI任务 | 多协议开发时 |
+| 15-Phase4-AI模块 | AI Agent自然语言/AI生成/Agent Builder | AI模块开发时 |
 
-> **注意**：03-功能设计.md 定义了 22+ 功能模块，但 gRPC UI、WebSocket UI、MQTT UI、Mock Server UI、AI 模块的实现任务仅在 14-Phase2b 中覆盖（不在 09/10/11 中）。Phase 4+ 需要补充 AI Agent 模块任务。
+> **注意**：03-功能设计.md 定义了 22+ 功能模块，但 gRPC UI、WebSocket UI、MQTT UI、Mock Server UI、AI 模块的实现任务仅在 14-Phase2b 中覆盖（不在 09/10/11 中）。Phase 4 AI Agent 任务见 15-Phase4-AI模块任务清单.md。
 
 ---
 

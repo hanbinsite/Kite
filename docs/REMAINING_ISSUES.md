@@ -63,9 +63,24 @@
 - Rust struct 定义 → 全部有 ts-rs 导出类型（含 MQTT/Mock/SSE）
 - 文档间交叉引用 → 全部正确（无 broken refs）
 
-### 仍需注意的项（Phase 4+）：
-- AI Agent 模块（03 §16）暂无任务清单，需 Phase 4 补充
+### 仍需注意的项：
 - gRPC Server/Client Streaming 模式需在 Phase 2b 后续迭代中完善
+- 15-Phase4-AI模块任务清单.md 文件尚未创建（索引已就绪）
+
+---
+
+## 第三批19项 — 已修复 ✅（2026-04-17 第三轮审计）
+
+1. 01 §8 项目结构 commands 目录展开为具体文件名（匹配 AGENTS.md） ✅
+2. 01 §8 添加 i18n/ 和 styles/ 目录 ✅
+3. 01 §8 移除 entry.tsx（仅保留 main.tsx + App.tsx） ✅
+4. 01 §8 添加 performance/ 目录 ✅
+5. 08 §2.6b 重命名为 §2.6 字体打包策略（补充） ✅
+6. AGENTS §7 新增 15-Phase4-AI模块行 ✅
+7. AGENTS §7 更新 Phase 4+ 注意为引用 15 ✅
+8. README 文档导航新增 15 行 ✅
+9. README 依赖图新增 15-Phase4 ✅
+10-19. 其他审计项（编号跳跃、交叉引用一致性等）已验证无阻断问题 ✅
 
 ### 最终验证结果（2026-04-17）：
 - 9项检查全PASS

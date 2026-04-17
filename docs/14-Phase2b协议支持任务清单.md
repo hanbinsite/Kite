@@ -4,6 +4,12 @@
 
 ---
 
+## 前提
+
+> Phase 1 已完成（特别是 1.10 AppLayout、1.14 Tab 系统、1.11 Sidebar）。本阶段与 Phase 2 可并行执行，但需要 Phase 1 的布局框架作为基础。
+
+---
+
 ## Sprint 总览
 
 | Sprint | 时间 | 任务数 | 总工时 | 核心目标 |
@@ -25,7 +31,7 @@
   - 响应面板显示 gRPC 响应（JSON 格式化）
   - 支持 Unary 调用模式
 - **关键文件**：`apps/desktop/src/components/protocol/GrpcPanel.tsx`, `packages/core/src/grpc/client.ts`
-- **关联文档**：03-功能设计.md §8; 04a-架构设计.md §3.1; 07c-侧边栏与命令面板视觉规范.md §4
+- **关联文档**：03-功能设计.md §8; 04a-架构设计.md §3.1; 07c-侧边栏与命令面板视觉规范.md §13（Protocol 面板视觉规范）
 
 ### 2b.02 — gRPC Proto 文件解析 UI
 - **依赖**：2b.01
@@ -35,7 +41,7 @@
   - 解析成功后自动填充服务名下拉和方法下拉
   - 解析失败显示错误提示（AppError::ImportParseError）
 - **关键文件**：`apps/desktop/src/components/protocol/ProtoSelector.tsx`
-- **关联文档**：03-功能设计.md §8.4; 04b-API设计.md §5.1
+- **关联文档**：03-功能设计.md §8; 04b-API设计.md §5.1
 
 ### 2b.03 — gRPC 端到端联调
 - **依赖**：2b.01, 2b.02
@@ -59,7 +65,7 @@
   - 支持文本和二进制消息发送
   - 连接状态指示器：绿点=已连接/灰点=断开/红点=错误
 - **关键文件**：`apps/desktop/src/components/protocol/WebSocketPanel.tsx`, `packages/core/src/websocket/client.ts`
-- **关联文档**：03-功能设计.md §9; 07c-侧边栏与命令面板视觉规范.md §4
+- **关联文档**：03-功能设计.md §9; 07c-侧边栏与命令面板视觉规范.md §13（Protocol 面板视觉规范）
 
 ### 2b.05 — WebSocket 事件监听与消息显示
 - **依赖**：2b.04
@@ -92,7 +98,7 @@
   - 流式响应逐条追加到响应面板
   - 流式响应完成时显示 "[Stream Complete]" 标记
 - **关键文件**：`apps/desktop/src/components/protocol/GrpcPanel.tsx`
-- **关联文档**：03-功能设计.md §8.3
+- **关联文档**：03-功能设计.md §8
 
 ### 2b.08 — WebSocket Headers/Protocols 配置
 - **依赖**：2b.04
@@ -102,7 +108,7 @@
   - 增加 Protocols tab（Sec-WebSocket-Protocol 配置）
   - 连接时携带自定义 Headers 和 Sub-protocols
 - **关键文件**：`apps/desktop/src/components/protocol/WsConfigTabs.tsx`
-- **关联文档**：03-功能设计.md §9.3
+- **关联文档**：03-功能设计.md §9
 
 ---
 
@@ -117,7 +123,7 @@
   - 事件历史区：event name + data + timestamp 三列
   - 支持 Last-Event-ID 恢复连接
 - **关键文件**：`apps/desktop/src/components/protocol/SsePanel.tsx`
-- **关联文档**：03-功能设计.md §10/§25; 07c-侧边栏与命令面板视觉规范.md §4
+- **关联文档**：03-功能设计.md §10/§25; 07c-侧边栏与命令面板视觉规范.md §13（Protocol 面板视觉规范）
 
 ### 2b.10 — SSE 事件监听与显示
 - **依赖**：2b.09
@@ -151,7 +157,7 @@
   - 订阅消息历史区：Topic + Payload + QoS + Timestamp
   - 连接配置：Client ID + Username + Password + Clean Session
 - **关键文件**：`apps/desktop/src/components/protocol/MqttPanel.tsx`
-- **关联文档**：03-功能设计.md §11; 07c-侧边栏与命令面板视觉规范.md §4
+- **关联文档**：03-功能设计.md §11; 07c-侧边栏与命令面板视觉规范.md §13（Protocol 面板视觉规范）
 
 ### 2b.13 — MQTT 端到端联调
 - **依赖**：2b.12
