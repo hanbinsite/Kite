@@ -1,0 +1,9 @@
+node_modules
+dist
+.output
+src-tauri/target
+*.js
+*.d.ts
+coverage
+.env
+.env.local
