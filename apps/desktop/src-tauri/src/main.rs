@@ -1,9 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
+mod error;
 mod storage;
 
-use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tauri::Manager;
@@ -26,6 +26,7 @@ async fn main() {
         .manage(AppState {
             storage: Arc::new(RwLock::new(None)),
         })
+        .manage(commands::http::HttpClientState::new())
         .invoke_handler(tauri::generate_handler![
             commands::http::send_http_request,
             commands::http::cancel_http_request,
@@ -34,6 +35,8 @@ async fn main() {
             commands::file_ops::delete_file,
             commands::file_ops::list_directory,
             commands::file_ops::create_directory,
+        commands::history::insert_history_entry,
+        commands::history::query_history_entries,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();

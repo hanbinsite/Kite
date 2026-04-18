@@ -72,16 +72,19 @@ export interface RequestSettings {
 
 export interface HttpResponse {
   id: string;
-  requestId: string;
+  request_id: string;
   status: number;
-  statusText: string;
+  status_text: string;
   headers: ResponseHeader[];
   body: string;
-  bodySize: number;
-  contentType: string;
-  encoding: string;
+  body_size: number;
   time: number;
-  cookies: Cookie[];
+  content_type: string;
+}
+
+export interface AppError {
+  code: string;
+  detail: string;
 }
 
 export interface ResponseHeader {

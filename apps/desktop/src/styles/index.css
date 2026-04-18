@@ -7,7 +7,7 @@
   --text-2xs: 10px;
   --text-xs: 11px;
   --text-sm: 12px;
-  --text-base: 13px;
+  --text-base: 15px;
   --text-md: 14px;
   --text-lg: 16px;
   --text-xl: 20px;
@@ -86,6 +86,9 @@
   --animate-duration-slow: 300ms;
   --animate-duration-slower: 500ms;
 
+  --animate-ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-ease-default: cubic-bezier(0.25, 0.1, 0.25, 1);
+
   --z-base: 0;
   --z-sidebar: 10;
   --z-workbench: 20;
@@ -156,6 +159,7 @@
     background-color: var(--color-bg-base);
     overflow: hidden;
     user-select: none;
+    transition: background-color var(--animate-duration-fast) var(--animate-ease-default);
   }
 
   :focus-visible {
@@ -208,6 +212,57 @@
   border: 1px solid oklch(1 0 0 / 0.06);
 }
 
+@utility animate-pulse-glow {
+  animation: pulse-glow 1.5s ease-in-out infinite;
+}
+@utility animate-fade-in-up {
+  animation: fade-in-up 180ms var(--animate-ease-smooth);
+}
+@utility animate-cmd-slide-in {
+  animation: cmd-slide-in 180ms var(--animate-ease-smooth);
+}
+@utility animate-fade-in {
+  animation: fade-in 100ms var(--animate-ease-default);
+}
+@utility animate-spin {
+  animation: spin 0.8s linear infinite;
+}
+@utility animate-slide-in-right {
+  animation: slide-in-right 180ms var(--animate-ease-smooth);
+}
+@utility animate-send-pulse {
+  animation: send-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes cmd-slide-in {
+  from {
+    transform: translateY(-8px) scale(0.98);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @keyframes slide-in-right {
   from {
     transform: translateX(100%);
@@ -253,16 +308,16 @@
 }
 
 .json-key {
-  color: #5b8def;
+	color: var(--color-accent-info);
 }
 .json-string {
-  color: #00d68f;
+	color: var(--color-accent-success);
 }
 .json-number {
-  color: #ffb800;
+	color: var(--color-accent-warning);
 }
 .json-boolean {
-  color: #bf5af2;
+	color: var(--color-method-patch);
 }
 .json-null {
   color: var(--color-fg-tertiary);

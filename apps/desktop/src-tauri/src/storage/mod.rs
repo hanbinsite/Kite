@@ -1,4 +1,4 @@
-pub mod sqlite;
+
 
 use rusqlite::{Connection, params};
 use std::path::Path;

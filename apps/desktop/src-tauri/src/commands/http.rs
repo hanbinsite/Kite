@@ -1,4 +1,4 @@
-use reqwest::{Client, header::HeaderMap};
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -6,6 +6,8 @@ use std::time::Instant;
 use tauri::State;
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
+
+use crate::error::AppError;
 
 pub struct HttpClientState {
     pub client: Client,
@@ -70,7 +72,7 @@ pub struct BodyConfig {
     pub content_type: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RequestSettings {
     #[serde(default = "default_timeout")]
     pub timeout_ms: u64,
@@ -91,6 +93,7 @@ pub struct HttpResponse {
     pub status_text: String,
     pub headers: Vec<ResponseHeader>,
     pub body: String,
+    pub body_size: u64,
     pub time: u64,
     pub content_type: String,
 }
@@ -101,18 +104,16 @@ pub struct ResponseHeader {
     pub value: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AppError {
-    pub code: String,
-    pub detail: String,
-}
-
+#[tauri::command]
 pub async fn send_http_request(
     state: State<'_, HttpClientState>,
     config: HttpRequestConfig,
-) -> Result<HttpResponse, String> {
-    let start = Instant::now();
+) -> Result<HttpResponse, AppError> {
     let request_id = config.id.clone();
+    let start = Instant::now();
+
+    let cancel_token = CancellationToken::new();
+    state.cancellation_tokens.write().await.insert(request_id.clone(), cancel_token.clone());
 
     let mut url = config.url.clone();
     let params: Vec<(&str, &str)> = config
@@ -121,9 +122,9 @@ pub async fn send_http_request(
         .filter(|p| !p.disabled && !p.key.is_empty())
         .map(|p| (p.key.as_str(), p.value.as_str()))
         .collect();
-    
+
     if !params.is_empty() {
-        let query_string = serde_urlencoded::to_string(&params).map_err(|e| e.to_string())?;
+        let query_string = serde_urlencoded::to_string(&params).map_err(|e| AppError::internal(e.to_string()))?;
         if url.contains('?') {
             url = format!("{}&{}", url, query_string);
         } else {
@@ -156,13 +157,21 @@ pub async fn send_http_request(
 
     request_builder = request_builder.timeout(std::time::Duration::from_millis(config.settings.timeout_ms));
 
-    let mut response = request_builder.send().await.map_err(|e| {
+    let response_result = request_builder.send().await;
+
+    state.cancellation_tokens.write().await.remove(&request_id);
+
+    if cancel_token.is_cancelled() {
+        return Err(AppError::net_cancelled());
+    }
+
+    let response = response_result.map_err(|e| {
         if e.is_timeout() {
-            format!("Request timeout after {}ms", config.settings.timeout_ms)
+            AppError::net_timeout(config.settings.timeout_ms)
         } else if e.is_connect() {
-            format!("Connection failed: {}", e)
+            AppError::net_connect_failed(e.to_string())
         } else {
-            e.to_string()
+            AppError::internal(e.to_string())
         }
     })?;
 
@@ -185,7 +194,8 @@ pub async fn send_http_request(
         })
         .collect();
 
-    let body = response.text().await.map_err(|e| e.to_string())?;
+    let body = response.text().await.map_err(|e| AppError::internal(e.to_string()))?;
+    let body_size = body.len() as u64;
 
     Ok(HttpResponse {
         id: uuid::Uuid::new_v4().to_string(),
@@ -194,15 +204,17 @@ pub async fn send_http_request(
         status_text,
         headers,
         body,
+        body_size,
         time: elapsed,
         content_type,
     })
 }
 
+#[tauri::command]
 pub async fn cancel_http_request(
     state: State<'_, HttpClientState>,
     request_id: String,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let mut tokens = state.cancellation_tokens.write().await;
     if let Some(token) = tokens.remove(&request_id) {
         token.cancel();

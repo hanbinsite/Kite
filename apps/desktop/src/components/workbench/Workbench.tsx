@@ -16,9 +16,9 @@ export function Workbench() {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      <UrlBar />
+    <div className="flex-1 flex flex-col">
       <TabBar />
+      <UrlBar />
       <SplitPane
         top={<RequestPanel />}
         bottom={<ResponsePanel />}

@@ -37,13 +37,13 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
         );
       }
       return (
-        <div className="flex items-center justify-center h-screen bg-[--color-bg-base] text-[--color-fg-primary]">
+        <div className="flex items-center justify-center h-screen bg-bg-base text-fg-primary">
           <div className="text-center">
             <h1 className="text-xl font-semibold mb-2">Something went wrong</h1>
-            <p className="text-[--color-fg-secondary] mb-4">{this.state.error?.message}</p>
+            <p className="text-fg-secondary mb-4">{this.state.error?.message}</p>
             <button
               onClick={() => this.setState({ hasError: false, error: null })}
-              className="px-4 py-2 bg-[--color-brand] text-white rounded-md hover:bg-[--color-brand-hover] transition-colors"
+              className="px-4 py-2 bg-brand text-white rounded-md hover:bg-brand-hover transition-colors"
             >
               Retry
             </button>

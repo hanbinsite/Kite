@@ -12,13 +12,13 @@ export function SendButton({ state, disabled, onClick }: SendButtonProps) {
   return (
     <button
       onClick={onClick}
-      disabled={disabled || state === "loading"}
+      disabled={disabled}
       className={`
         flex items-center gap-1.5 h-8 px-4 rounded-md font-medium text-sm transition-all
         ${state === "loading" ? "animate-pulse-glow bg-brand text-white pointer-events-none" : ""}
         ${state === "success" ? "bg-accent-success text-white" : ""}
         ${state === "error" ? "bg-accent-danger text-white" : ""}
-        ${state === "idle" ? "bg-brand text-white hover:bg-brand-hover hover:scale-[1.02] hover:shadow-glow-brand" : ""}
+        ${state === "idle" ? "bg-brand text-white hover:bg-brand-hover hover:scale-[1.02] hover:glow-brand" : ""}
         disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none
       `}
     >

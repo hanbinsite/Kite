@@ -3,10 +3,13 @@ import { AppLayout } from "./components/layout/AppLayout";
 import { Sidebar } from "./components/sidebar/Sidebar";
 import { Workbench } from "./components/workbench/Workbench";
 import { CommandPalette, type CommandItem } from "./components/command-palette";
+import { SettingsPage } from "./components/settings";
 import { useUIStore, useTabStore } from "@api-client/core";
 import { Plus, Settings, FolderOpen, History } from "lucide-react";
+import { useTheme } from "./hooks";
 
 export function App() {
+  useTheme();
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const openTab = useTabStore((s) => s.openTab);
@@ -72,6 +75,7 @@ export function App() {
         onClose={() => setIsCommandPaletteOpen(false)}
         items={commands}
       />
+      <SettingsPage />
     </>
   );
 }

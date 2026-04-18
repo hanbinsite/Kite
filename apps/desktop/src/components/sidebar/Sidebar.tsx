@@ -1,15 +1,54 @@
-import { useState } from "react";
-import { Search, Plus, ChevronDown, ChevronRight, Folder, Clock, Settings } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import {
+  Search,
+  Plus,
+  ChevronDown,
+  ChevronRight,
+  Folder,
+  FolderOpen,
+  Settings,
+  X,
+  FileText,
+} from "lucide-react";
 import { useUIStore, useTabStore } from "@api-client/core";
 import { useEnvironmentStore } from "../../stores/environment-store";
+import { queryHistoryEntries } from "@api-client/core/http";
+import type { HistoryEntry } from "@api-client/core/http";
+import { ThemeToggle } from "./ThemeToggle";
+import { ContextMenu } from "./ContextMenu";
+
+interface CollectionRequest {
+  id: string;
+  method: string;
+  name: string;
+  url: string;
+}
+
+interface CollectionItem {
+  id: string;
+  name: string;
+  requests: CollectionRequest[];
+}
+
+interface ContextMenuState {
+  x: number;
+  y: number;
+  target: { type: "collection" | "request"; id: string; parentId?: string };
+}
 
 interface SidebarSectionProps {
   title: string;
   defaultOpen?: boolean;
   children: React.ReactNode;
+  action?: React.ReactNode;
 }
 
-function SidebarSection({ title, defaultOpen = false, children }: SidebarSectionProps) {
+function SidebarSection({
+  title,
+  defaultOpen = false,
+  children,
+  action,
+}: SidebarSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
@@ -18,24 +57,268 @@ function SidebarSection({ title, defaultOpen = false, children }: SidebarSection
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center gap-1 px-3 h-7 hover:bg-bg-hover transition-colors text-xs font-semibold uppercase tracking-wider text-fg-secondary"
       >
-        {isOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-        <span>{title}</span>
+        {isOpen ? (
+          <ChevronDown className="w-3 h-3" />
+        ) : (
+          <ChevronRight className="w-3 h-3" />
+        )}
+        <span className="flex-1 text-left">{title}</span>
+        {action}
       </button>
       {isOpen && <div className="pb-2">{children}</div>}
     </div>
   );
 }
 
+const METHOD_COLORS: Record<string, string> = {
+  GET: "text-method-get",
+  POST: "text-method-post",
+  PUT: "text-method-put",
+  PATCH: "text-method-patch",
+  DELETE: "text-method-delete",
+  HEAD: "text-method-head",
+};
+
+function getMethodColor(method: string) {
+  return METHOD_COLORS[method.toUpperCase()] || "text-fg-secondary";
+}
+
 export function Sidebar() {
-  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
-  const sidebarWidth = useUIStore((s) => s.sidebarWidth);
+  const openSettings = useUIStore((s) => s.openSettings);
   const activeEnvId = useEnvironmentStore((s) => s.activeEnvironmentId);
   const environments = useEnvironmentStore((s) => s.environments);
   const setActiveEnvironment = useEnvironmentStore((s) => s.setActiveEnvironment);
   const openTab = useTabStore((s) => s.openTab);
 
+  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
+
+  const [collections, setCollections] = useState<CollectionItem[]>([
+    { id: "default", name: "My Collection", requests: [] },
+  ]);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const editInputRef = useRef<HTMLInputElement>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+
+  useEffect(() => {
+    if (!contextMenu) return;
+    const handleClose = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-context-menu]")) {
+        setContextMenu(null);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setContextMenu(null);
+    };
+    document.addEventListener("mousedown", handleClose);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClose);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [contextMenu]);
+
+  const loadHistory = () => {
+    queryHistoryEntries(50).then(setHistoryEntries).catch(() => {});
+  };
+
+  useEffect(() => {
+    loadHistory();
+  }, []);
+
+  useEffect(() => {
+    if (editingId && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [editingId]);
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const addCollection = () => {
+    const id = crypto.randomUUID();
+    setCollections((prev) => [
+      ...prev,
+      { id, name: "New Collection", requests: [] },
+    ]);
+    setEditingId(id);
+    setEditingName("New Collection");
+  };
+
+  const deleteCollection = (id: string) => {
+    setCollections((prev) => prev.filter((c) => c.id !== id));
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
+
+  const startEditing = (id: string, name: string) => {
+    setEditingId(id);
+    setEditingName(name);
+  };
+
+  const commitEdit = () => {
+    if (editingId && editingName.trim()) {
+      let found = false;
+      setCollections((prev) =>
+        prev.map((c) => {
+          if (c.id === editingId) {
+            found = true;
+            return { ...c, name: editingName.trim() };
+          }
+          return c;
+        })
+      );
+      if (!found) {
+        setCollections((prev) =>
+          prev.map((c) => ({
+            ...c,
+            requests: c.requests.map((r) =>
+              r.id === editingId ? { ...r, name: editingName.trim() } : r
+            ),
+          }))
+        );
+      }
+    }
+    setEditingId(null);
+    setEditingName("");
+  };
+
+  const addRequestToCollection = (collectionId: string) => {
+    const reqId = crypto.randomUUID();
+    setCollections((prev) =>
+      prev.map((c) =>
+        c.id === collectionId
+          ? {
+              ...c,
+              requests: [
+                ...c.requests,
+                { id: reqId, method: "GET", name: "New Request", url: "" },
+              ],
+            }
+          : c
+      )
+    );
+    setExpandedIds((prev) => new Set(prev).add(collectionId));
+  };
+
+  const deleteRequest = (collectionId: string, requestId: string) => {
+    setCollections((prev) =>
+      prev.map((c) =>
+        c.id === collectionId
+          ? { ...c, requests: c.requests.filter((r) => r.id !== requestId) }
+          : c
+      )
+    );
+  };
+
+  const handleContextMenuAction = (action: string, target: { type: "collection" | "request"; id: string; parentId?: string }) => {
+    setContextMenu(null);
+    if (target.type === "collection") {
+      const col = collections.find((c) => c.id === target.id);
+      if (!col) return;
+      switch (action) {
+        case "rename":
+          startEditing(target.id, col.name);
+          break;
+        case "add-request":
+          addRequestToCollection(target.id);
+          break;
+        case "add-folder": {
+          const id = crypto.randomUUID();
+          setCollections((prev) => [...prev, { id, name: "New Folder", requests: [] }]);
+          setEditingId(id);
+          setEditingName("New Folder");
+          break;
+        }
+        case "delete":
+          deleteCollection(target.id);
+          break;
+      }
+    } else {
+      switch (action) {
+        case "rename": {
+          for (const col of collections) {
+            const req = col.requests.find((r) => r.id === target.id);
+            if (req) {
+              startEditing(target.id, req.name);
+              return;
+            }
+          }
+          break;
+        }
+        case "duplicate": {
+          const parentId = target.parentId;
+          if (!parentId) return;
+          for (const col of collections) {
+            if (col.id !== parentId) continue;
+            const req = col.requests.find((r) => r.id === target.id);
+            if (!req) return;
+            const dupId = crypto.randomUUID();
+            setCollections((prev) =>
+              prev.map((c) =>
+                c.id === parentId
+                  ? {
+                      ...c,
+                      requests: [...c.requests, { ...req, id: dupId, name: `${req.name} (copy)` }],
+                    }
+                  : c
+              )
+            );
+            return;
+          }
+          break;
+        }
+        case "delete": {
+          const parentId = target.parentId;
+          if (!parentId) return;
+          deleteRequest(parentId, target.id);
+          break;
+        }
+      }
+    }
+  };
+
+  const groupHistory = (entries: HistoryEntry[]) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today.getTime() - 86400000);
+    const todayGroup: { label: string; items: HistoryEntry[] } = {
+      label: "Today",
+      items: [],
+    };
+    const yesterdayGroup: { label: string; items: HistoryEntry[] } = {
+      label: "Yesterday",
+      items: [],
+    };
+    const earlierGroup: { label: string; items: HistoryEntry[] } = {
+      label: "Earlier",
+      items: [],
+    };
+    for (const entry of entries) {
+      const d = new Date(entry.created_at);
+      if (d >= today) todayGroup.items.push(entry);
+      else if (d >= yesterday) yesterdayGroup.items.push(entry);
+      else earlierGroup.items.push(entry);
+    }
+    return [todayGroup, yesterdayGroup, earlierGroup].filter(
+      (g) => g.items.length > 0
+    );
+  };
+
   return (
-    <div className="h-full flex flex-col bg-bg-surface" style={{ width: sidebarWidth }}>
+    <div className="h-full flex flex-col bg-bg-surface">
       <div className="flex items-center gap-2 px-3 h-11 border-b border-border-muted">
         <Search className="w-4 h-4 text-fg-tertiary" />
         <input
@@ -52,18 +335,205 @@ export function Sidebar() {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <SidebarSection title="Collections" defaultOpen>
-          <div className="px-3 py-1 text-sm text-fg-secondary hover:text-fg-primary cursor-pointer flex items-center gap-2">
-            <Folder className="w-4 h-4 text-brand" />
-            <span>My Collection</span>
-          </div>
+        <SidebarSection
+          title="Collections"
+          defaultOpen
+          action={
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                addCollection();
+              }}
+              className="p-0.5 hover:bg-bg-hover rounded transition-colors"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
+          }
+        >
+          {collections.map((col) => {
+            const isExpanded = expandedIds.has(col.id);
+            const isEditing = editingId === col.id;
+            return (
+              <div key={col.id}>
+                <div
+                  className="group flex items-center gap-1 px-3 py-1 text-sm hover:bg-bg-hover cursor-pointer"
+                  onClick={() => toggleExpand(col.id)}
+                  onDoubleClick={() => startEditing(col.id, col.name)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setContextMenu({ x: e.clientX, y: e.clientY, target: { type: "collection", id: col.id } });
+                  }}
+                >
+                  {isExpanded ? (
+                    <FolderOpen className="w-4 h-4 text-brand shrink-0" />
+                  ) : (
+                    <Folder className="w-4 h-4 text-brand shrink-0" />
+                  )}
+                  {isEditing ? (
+                    <input
+                      ref={editInputRef}
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onBlur={commitEdit}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitEdit();
+                        if (e.key === "Escape") {
+                          setEditingId(null);
+                          setEditingName("");
+                        }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex-1 bg-bg-input border border-border-focus rounded px-1 text-sm text-fg-primary outline-none"
+                    />
+                  ) : (
+                    <span className="flex-1 text-fg-primary truncate">
+                      {col.name}
+                    </span>
+                  )}
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addRequestToCollection(col.id);
+                      }}
+                      className="p-0.5 hover:bg-bg-hover rounded"
+                      title="Add request"
+                    >
+                      <Plus className="w-3 h-3 text-fg-tertiary" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteCollection(col.id);
+                      }}
+                      className="p-0.5 hover:bg-bg-hover rounded"
+                      title="Delete collection"
+                    >
+                      <X className="w-3 h-3 text-fg-tertiary" />
+                    </button>
+                  </div>
+                </div>
+                {isExpanded && col.requests.length > 0 && (
+                  <div className="ml-5">
+                    {col.requests.map((req) => {
+                      const isReqEditing = editingId === req.id;
+                      return (
+                        <div
+                          key={req.id}
+                          className="group flex items-center gap-2 px-3 py-0.5 text-[11px] hover:bg-bg-hover cursor-pointer font-mono"
+                          onClick={() =>
+                            openTab({
+                              name: req.name,
+                              method: req.method,
+                              url: req.url,
+                            })
+                          }
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            setContextMenu({ x: e.clientX, y: e.clientY, target: { type: "request", id: req.id, parentId: col.id } });
+                          }}
+                        >
+                          {isReqEditing ? (
+                            <input
+                              ref={editInputRef}
+                              value={editingName}
+                              onChange={(e) => setEditingName(e.target.value)}
+                              onBlur={commitEdit}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") commitEdit();
+                                if (e.key === "Escape") {
+                                  setEditingId(null);
+                                  setEditingName("");
+                                }
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex-1 bg-bg-input border border-border-focus rounded px-1 text-[11px] text-fg-primary outline-none"
+                            />
+                          ) : (
+                            <>
+                              <span
+                                className={`font-semibold min-w-[32px] ${getMethodColor(req.method)}`}
+                              >
+                                {req.method}
+                              </span>
+                              <FileText className="w-3 h-3 text-fg-tertiary shrink-0" />
+                              <span className="flex-1 text-fg-primary truncate">
+                                {req.name}
+                              </span>
+                            </>
+                          )}
+                          {!isReqEditing && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteRequest(col.id, req.id);
+                              }}
+                              className="p-0.5 opacity-0 group-hover:opacity-100 hover:bg-bg-hover rounded"
+                              title="Delete request"
+                            >
+                              <X className="w-3 h-3 text-fg-tertiary" />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {isExpanded && col.requests.length === 0 && (
+                  <div className="ml-5 px-3 py-1 text-[10px] text-fg-tertiary">
+                    No requests
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </SidebarSection>
 
         <SidebarSection title="History">
-          <div className="px-3 py-1 text-sm text-fg-secondary hover:text-fg-primary cursor-pointer flex items-center gap-2">
-            <Clock className="w-4 h-4" />
-            <span>GET /api/users</span>
-          </div>
+          {historyEntries.length === 0 ? (
+            <div className="px-3 py-2 text-xs text-fg-tertiary">No history yet</div>
+          ) : (
+            groupHistory(historyEntries).map((group) => (
+              <div key={group.label}>
+                <div className="px-3 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-fg-tertiary">
+                  {group.label}
+                </div>
+                {group.items.map((entry) => {
+                  let urlPath: string;
+                  try {
+                    urlPath = new URL(entry.url).pathname;
+                  } catch {
+                    urlPath = entry.url;
+                  }
+                  return (
+                    <button
+                      key={entry.id}
+                      onClick={() =>
+                        openTab({
+                          name: `${entry.method} ${urlPath}`,
+                          method: entry.method,
+                          url: entry.url,
+                        })
+                      }
+                      className="w-full px-3 py-1 text-[11px] text-left hover:bg-bg-hover cursor-pointer flex items-center gap-2 font-mono"
+                    >
+                      <span
+                        className={`font-semibold min-w-[32px] ${getMethodColor(entry.method)}`}
+                      >
+                        {entry.method}
+                      </span>
+                      <span className="text-fg-primary truncate flex-1">
+                        {urlPath}
+                      </span>
+                      <span className="text-fg-tertiary text-[10px] font-sans shrink-0">
+                        {entry.duration}ms
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))
+          )}
         </SidebarSection>
 
         <SidebarSection title="Environments">
@@ -78,7 +548,11 @@ export function Sidebar() {
                   env.id === activeEnvId ? "bg-brand" : "bg-fg-tertiary"
                 }`}
               />
-              <span className={env.id === activeEnvId ? "text-fg-primary" : "text-fg-secondary"}>
+              <span
+                className={
+                  env.id === activeEnvId ? "text-fg-primary" : "text-fg-secondary"
+                }
+              >
                 {env.name}
               </span>
             </button>
@@ -86,15 +560,25 @@ export function Sidebar() {
         </SidebarSection>
       </div>
 
-      <div className="h-10 border-t border-border-muted flex items-center justify-end px-3">
+      <div className="h-10 border-t border-border-muted flex items-center justify-between px-3">
+        <ThemeToggle />
         <button
-          onClick={toggleSidebar}
+          onClick={openSettings}
           className="p-1.5 hover:bg-bg-hover rounded transition-colors"
-          title="Toggle Sidebar"
+          title="Settings"
         >
           <Settings className="w-4 h-4 text-fg-tertiary" />
         </button>
       </div>
+
+    {contextMenu && (
+      <ContextMenu
+        x={contextMenu.x}
+        y={contextMenu.y}
+        target={contextMenu.target}
+        onAction={handleContextMenuAction}
+      />
+    )}
     </div>
   );
 }

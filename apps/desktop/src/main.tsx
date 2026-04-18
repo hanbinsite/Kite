@@ -2,7 +2,10 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
 import { ErrorBoundary } from "@api-client/ui";
+import { markStart, markEnd } from "@api-client/core";
 import "./styles/index.css";
+
+markStart("app:ready");
 
 window.addEventListener("error", (event) => {
   console.error("Uncaught error:", event.error);
@@ -21,4 +24,5 @@ if (root) {
       </ErrorBoundary>
     </React.StrictMode>,
   );
+  markEnd("app:ready");
 }

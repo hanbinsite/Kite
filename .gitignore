@@ -8,8 +8,15 @@ dist
 build
 
 # Rust build
-src-tauri/target
+apps/desktop/src-tauri/target
+apps/desktop/src-tauri/gen
 Cargo.lock
+
+# Tauri generated icons (keep source icon, ignore gen)
+apps/desktop/src-tauri/icons/
+
+# Turbo cache
+.turbo
 
 # IDE
 .idea
@@ -38,3 +45,6 @@ coverage
 # Temporary
 *.tmp
 *.temp
+
+# TypeScript build info
+*.tsbuildinfo

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { measureSync } from "../performance";
 
 export type Theme = "dark" | "light" | "system";
 
@@ -7,6 +8,7 @@ export interface UIState {
   sidebarVisible: boolean;
   sidebarWidth: number;
   splitRatio: number;
+  settingsOpen: boolean;
 }
 
 export interface UIActions {
@@ -14,6 +16,8 @@ export interface UIActions {
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
   setSplitRatio: (ratio: number) => void;
+  openSettings: () => void;
+  closeSettings: () => void;
 }
 
 export type UIStore = UIState & UIActions;
@@ -23,6 +27,8 @@ interface UIStoreImpl extends UIStore {
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
   setSplitRatio: (ratio: number) => void;
+  openSettings: () => void;
+  closeSettings: () => void;
 }
 
 export const useUIStore = create<UIStoreImpl>()((set) => ({
@@ -30,9 +36,12 @@ export const useUIStore = create<UIStoreImpl>()((set) => ({
   sidebarVisible: true,
   sidebarWidth: 220,
   splitRatio: 0.5,
+  settingsOpen: false,
 
   setTheme: (theme) => set({ theme }),
-  toggleSidebar: () => set((state) => ({ sidebarVisible: !state.sidebarVisible })),
+  toggleSidebar: () => measureSync("sidebar:toggle", () => set((state) => ({ sidebarVisible: !state.sidebarVisible }))),
   setSidebarWidth: (width) => set({ sidebarWidth: width }),
   setSplitRatio: (ratio) => set({ splitRatio: ratio }),
+  openSettings: () => set({ settingsOpen: true }),
+  closeSettings: () => set({ settingsOpen: false }),
 }));

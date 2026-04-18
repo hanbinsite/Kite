@@ -1,6 +1,14 @@
 import { Zap, Clock, FolderOpen } from "lucide-react";
 import { useTabStore, useUIStore } from "@api-client/core";
 
+const METHOD_BG: Record<string, string> = {
+	get: "bg-method-get",
+	post: "bg-method-post",
+	put: "bg-method-put",
+	patch: "bg-method-patch",
+	delete: "bg-method-delete",
+};
+
 export function HomePage() {
   const openTab = useTabStore((s) => s.openTab);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
@@ -69,7 +77,7 @@ export function HomePage() {
                 className="w-full flex items-center gap-3 p-3 bg-bg-surface border border-border-default rounded-lg hover:border-brand transition-colors"
               >
                 <span
-                  className={`px-1.5 py-0.5 rounded text-[10px] font-bold text-white bg-method-${item.method.toLowerCase()}`}
+                  className={`px-1.5 py-0.5 rounded text-2xs font-bold text-white ${METHOD_BG[item.method.toLowerCase()] || "bg-fg-tertiary"}`}
                 >
                   {item.method}
                 </span>
