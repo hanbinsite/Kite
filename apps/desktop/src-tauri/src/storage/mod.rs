@@ -121,3 +121,80 @@ pub struct HistoryEntry {
     pub duration: i32,
     pub created_at: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Storage;
+    use tempfile::TempDir;
+
+    fn setup() -> (TempDir, Storage) {
+        let dir = TempDir::new().unwrap();
+        let storage = Storage::new(dir.path()).unwrap();
+        (dir, storage)
+    }
+
+    #[test]
+    fn test_storage_init() {
+        let (dir, _) = setup();
+        assert!(dir.path().join("api_client.db").exists());
+    }
+
+    #[test]
+    fn test_insert_and_query_history() {
+        let (_, storage) = setup();
+
+        let id1 = storage.insert_history("GET", "https://api.example.com/users", 200, 150).unwrap();
+        let id2 = storage.insert_history("POST", "https://api.example.com/users", 201, 300).unwrap();
+        assert!(id1 > 0);
+        assert!(id2 > id1);
+
+        let entries = storage.query_history(10).unwrap();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].method, "POST");
+        assert_eq!(entries[0].status, 201);
+        assert_eq!(entries[1].method, "GET");
+    }
+
+    #[test]
+    fn test_history_limit() {
+        let (_, storage) = setup();
+        for i in 0..20 {
+            storage.insert_history("GET", &format!("https://api.example.com/item/{}", i), 200, 100).unwrap();
+        }
+        let entries = storage.query_history(5).unwrap();
+        assert_eq!(entries.len(), 5);
+    }
+
+    #[test]
+    fn test_settings_crud() {
+        let (_, storage) = setup();
+
+        assert!(storage.get_setting("theme").unwrap().is_none());
+
+        storage.set_setting("theme", "dark").unwrap();
+        assert_eq!(storage.get_setting("theme").unwrap(), Some("dark".to_string()));
+
+        storage.set_setting("theme", "light").unwrap();
+        assert_eq!(storage.get_setting("theme").unwrap(), Some("light".to_string()));
+    }
+
+    #[test]
+    fn test_concurrent_access() {
+        let dir = TempDir::new().unwrap();
+        let storage = Storage::new(dir.path()).unwrap();
+
+        let results: Vec<_> = (0..10)
+            .map(|i| {
+                let s = &storage;
+                s.insert_history("GET", &format!("url{}", i), 200, i * 10)
+            })
+            .collect();
+
+        for r in results {
+            assert!(r.is_ok());
+        }
+
+        let entries = storage.query_history(100).unwrap();
+        assert_eq!(entries.len(), 10);
+    }
+}

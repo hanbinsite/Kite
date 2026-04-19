@@ -1,1 +1,2 @@
-export type { Collection, CollectionItem, Environment, Variable } from "./types";
+export type { Collection, CollectionItem } from "./types";
+export type { Environment, Variable } from "@api-client/types";

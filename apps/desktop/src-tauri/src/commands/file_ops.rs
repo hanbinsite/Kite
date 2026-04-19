@@ -3,7 +3,7 @@ use tauri::Manager;
 
 use crate::error::AppError;
 
-fn validate_path_within_app_data(app_data_dir: &Path, target_path: &Path) -> Result<(), AppError> {
+pub fn validate_path_within_app_data(app_data_dir: &Path, target_path: &Path) -> Result<(), AppError> {
     let canonical_app = app_data_dir.canonicalize().map_err(|e| AppError::internal(format!("Cannot resolve app data dir: {}", e)))?;
     let target_normalized = target_path.to_path_buf();
     let canonical_target = if target_path.exists() {
@@ -131,4 +131,52 @@ pub struct DirEntry {
     pub name: String,
     pub is_directory: bool,
     pub is_file: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_path_within_app_data;
+    use std::path::PathBuf;
+
+    fn setup_dirs() -> (PathBuf, PathBuf) {
+        let dir = tempfile::TempDir::new().unwrap();
+        let app_data = dir.path().to_path_buf();
+        std::fs::create_dir_all(app_data.join("subdir")).unwrap();
+        std::fs::write(app_data.join("test.txt"), "hello").unwrap();
+        std::fs::write(app_data.join("subdir/nested.txt"), "nested").unwrap();
+        (app_data, dir.keep())
+    }
+
+    #[test]
+    fn test_valid_paths() {
+        let (app_data, _) = setup_dirs();
+
+        assert!(validate_path_within_app_data(&app_data, &app_data.join("test.txt")).is_ok());
+        assert!(validate_path_within_app_data(&app_data, &app_data.join("subdir")).is_ok());
+        assert!(validate_path_within_app_data(&app_data, &app_data.join("subdir/nested.txt")).is_ok());
+        assert!(validate_path_within_app_data(&app_data, &app_data.join("newfile.txt")).is_ok());
+        assert!(validate_path_within_app_data(&app_data, &app_data.join("newdir/newfile.txt")).is_ok());
+    }
+
+    #[test]
+    fn test_path_traversal_blocked() {
+        let (app_data, _) = setup_dirs();
+
+        let traversal = app_data.join("../../etc/passwd");
+        let canonical_app = app_data.canonicalize().unwrap();
+        let result = validate_path_within_app_data(&canonical_app, &traversal);
+        assert!(result.is_err());
+        if let Err(e) = result {
+            assert!(e.code == "STORAGE_PATH_TRAVERSAL" || e.code == "INTERNAL");
+        }
+    }
+
+    #[test]
+    fn test_path_within_works_for_nonexistent_deep_paths() {
+        let (app_data, _) = setup_dirs();
+        let canonical_app = app_data.canonicalize().unwrap();
+
+        let deep_new = canonical_app.join("collections").join("col-123").join("collection.json");
+        assert!(validate_path_within_app_data(&canonical_app, &deep_new).is_ok());
+    }
 }

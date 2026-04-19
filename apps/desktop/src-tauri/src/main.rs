@@ -1,16 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod commands;
-mod error;
-mod storage;
-
-use std::sync::Arc;
+use api_client_lib::{AppState, commands, storage};
 use tokio::sync::RwLock;
+use std::sync::Arc;
 use tauri::Manager;
-
-pub struct AppState {
-    pub storage: Arc<RwLock<Option<storage::Storage>>>,
-}
 
 #[tokio::main]
 async fn main() {
@@ -35,17 +28,28 @@ async fn main() {
             commands::file_ops::delete_file,
             commands::file_ops::list_directory,
             commands::file_ops::create_directory,
-        commands::history::insert_history_entry,
-        commands::history::query_history_entries,
+            commands::history::insert_history_entry,
+            commands::history::query_history_entries,
+            commands::collection::list_collections,
+            commands::collection::get_collection,
+            commands::collection::save_collection,
+            commands::collection::delete_collection,
+            commands::environment::list_environments,
+            commands::environment::get_environment,
+            commands::environment::save_environment,
+            commands::environment::delete_environment,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 if let Ok(data_dir) = app_handle.path().app_data_dir() {
-                    if let Ok(storage) = storage::Storage::new(&data_dir) {
+                    let _ = tokio::fs::create_dir_all(data_dir.join("collections")).await;
+                    let _ = tokio::fs::create_dir_all(data_dir.join("environments")).await;
+
+                    if let Ok(s) = storage::Storage::new(&data_dir) {
                         let state = app_handle.state::<AppState>();
                         let mut storage_lock = state.storage.write().await;
-                        *storage_lock = Some(storage);
+                        *storage_lock = Some(s);
                         tracing::info!("Storage initialized at {:?}", data_dir);
                     }
                 }

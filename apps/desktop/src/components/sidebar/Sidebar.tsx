@@ -12,23 +12,11 @@ import {
 } from "lucide-react";
 import { useUIStore, useTabStore } from "@api-client/core";
 import { useEnvironmentStore } from "../../stores/environment-store";
+import { useCollectionStore } from "../../stores/collection-store";
 import { queryHistoryEntries } from "@api-client/core/http";
 import type { HistoryEntry } from "@api-client/core/http";
 import { ThemeToggle } from "./ThemeToggle";
 import { ContextMenu } from "./ContextMenu";
-
-interface CollectionRequest {
-  id: string;
-  method: string;
-  name: string;
-  url: string;
-}
-
-interface CollectionItem {
-  id: string;
-  name: string;
-  requests: CollectionRequest[];
-}
 
 interface ContextMenuState {
   x: number;
@@ -88,13 +76,20 @@ export function Sidebar() {
   const activeEnvId = useEnvironmentStore((s) => s.activeEnvironmentId);
   const environments = useEnvironmentStore((s) => s.environments);
   const setActiveEnvironment = useEnvironmentStore((s) => s.setActiveEnvironment);
+  const loadEnvironments = useEnvironmentStore((s) => s.loadFromDisk);
   const openTab = useTabStore((s) => s.openTab);
 
-  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
+  const collections = useCollectionStore((s) => s.collections);
+  const addCollection = useCollectionStore((s) => s.addCollection);
+  const deleteCollection = useCollectionStore((s) => s.deleteCollection);
+  const renameCollection = useCollectionStore((s) => s.renameCollection);
+  const addRequestToCollection = useCollectionStore((s) => s.addRequestToCollection);
+  const deleteRequest = useCollectionStore((s) => s.deleteRequest);
+  const renameRequest = useCollectionStore((s) => s.renameRequest);
+  const duplicateRequest = useCollectionStore((s) => s.duplicateRequest);
+  const loadCollections = useCollectionStore((s) => s.loadFromDisk);
 
-  const [collections, setCollections] = useState<CollectionItem[]>([
-    { id: "default", name: "My Collection", requests: [] },
-  ]);
+  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
@@ -120,12 +115,10 @@ export function Sidebar() {
     };
   }, [contextMenu]);
 
-  const loadHistory = () => {
-    queryHistoryEntries(50).then(setHistoryEntries).catch(() => {});
-  };
-
   useEffect(() => {
-    loadHistory();
+    loadCollections();
+    loadEnvironments();
+    queryHistoryEntries(50).then(setHistoryEntries).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -144,23 +137,11 @@ export function Sidebar() {
     });
   };
 
-  const addCollection = () => {
+  const handleAddCollection = () => {
     const id = crypto.randomUUID();
-    setCollections((prev) => [
-      ...prev,
-      { id, name: "New Collection", requests: [] },
-    ]);
+    addCollection(id, "New Collection");
     setEditingId(id);
     setEditingName("New Collection");
-  };
-
-  const deleteCollection = (id: string) => {
-    setCollections((prev) => prev.filter((c) => c.id !== id));
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
   };
 
   const startEditing = (id: string, name: string) => {
@@ -170,57 +151,27 @@ export function Sidebar() {
 
   const commitEdit = () => {
     if (editingId && editingName.trim()) {
-      let found = false;
-      setCollections((prev) =>
-        prev.map((c) => {
-          if (c.id === editingId) {
-            found = true;
-            return { ...c, name: editingName.trim() };
+      const trimmed = editingName.trim();
+      const col = collections.find((c) => c.id === editingId);
+      if (col) {
+        renameCollection(editingId, trimmed);
+      } else {
+        for (const c of collections) {
+          if (c.requests.some((r) => r.id === editingId)) {
+            renameRequest(c.id, editingId, trimmed);
+            break;
           }
-          return c;
-        })
-      );
-      if (!found) {
-        setCollections((prev) =>
-          prev.map((c) => ({
-            ...c,
-            requests: c.requests.map((r) =>
-              r.id === editingId ? { ...r, name: editingName.trim() } : r
-            ),
-          }))
-        );
+        }
       }
     }
     setEditingId(null);
     setEditingName("");
   };
 
-  const addRequestToCollection = (collectionId: string) => {
+  const handleAddRequest = (collectionId: string) => {
     const reqId = crypto.randomUUID();
-    setCollections((prev) =>
-      prev.map((c) =>
-        c.id === collectionId
-          ? {
-              ...c,
-              requests: [
-                ...c.requests,
-                { id: reqId, method: "GET", name: "New Request", url: "" },
-              ],
-            }
-          : c
-      )
-    );
+    addRequestToCollection(collectionId, { id: reqId, method: "GET", name: "New Request", url: "" });
     setExpandedIds((prev) => new Set(prev).add(collectionId));
-  };
-
-  const deleteRequest = (collectionId: string, requestId: string) => {
-    setCollections((prev) =>
-      prev.map((c) =>
-        c.id === collectionId
-          ? { ...c, requests: c.requests.filter((r) => r.id !== requestId) }
-          : c
-      )
-    );
   };
 
   const handleContextMenuAction = (action: string, target: { type: "collection" | "request"; id: string; parentId?: string }) => {
@@ -233,11 +184,11 @@ export function Sidebar() {
           startEditing(target.id, col.name);
           break;
         case "add-request":
-          addRequestToCollection(target.id);
+          handleAddRequest(target.id);
           break;
         case "add-folder": {
           const id = crypto.randomUUID();
-          setCollections((prev) => [...prev, { id, name: "New Folder", requests: [] }]);
+          addCollection(id, "New Folder");
           setEditingId(id);
           setEditingName("New Folder");
           break;
@@ -260,30 +211,12 @@ export function Sidebar() {
         }
         case "duplicate": {
           const parentId = target.parentId;
-          if (!parentId) return;
-          for (const col of collections) {
-            if (col.id !== parentId) continue;
-            const req = col.requests.find((r) => r.id === target.id);
-            if (!req) return;
-            const dupId = crypto.randomUUID();
-            setCollections((prev) =>
-              prev.map((c) =>
-                c.id === parentId
-                  ? {
-                      ...c,
-                      requests: [...c.requests, { ...req, id: dupId, name: `${req.name} (copy)` }],
-                    }
-                  : c
-              )
-            );
-            return;
-          }
+          if (parentId) duplicateRequest(parentId, target.id);
           break;
         }
         case "delete": {
           const parentId = target.parentId;
-          if (!parentId) return;
-          deleteRequest(parentId, target.id);
+          if (parentId) deleteRequest(parentId, target.id);
           break;
         }
       }
@@ -342,7 +275,7 @@ export function Sidebar() {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                addCollection();
+                handleAddCollection();
               }}
               className="p-0.5 hover:bg-bg-hover rounded transition-colors"
             >
@@ -394,7 +327,7 @@ export function Sidebar() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        addRequestToCollection(col.id);
+                        handleAddRequest(col.id);
                       }}
                       className="p-0.5 hover:bg-bg-hover rounded"
                       title="Add request"
@@ -571,14 +504,14 @@ export function Sidebar() {
         </button>
       </div>
 
-    {contextMenu && (
-      <ContextMenu
-        x={contextMenu.x}
-        y={contextMenu.y}
-        target={contextMenu.target}
-        onAction={handleContextMenuAction}
-      />
-    )}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          target={contextMenu.target}
+          onAction={handleContextMenuAction}
+        />
+      )}
     </div>
   );
 }
