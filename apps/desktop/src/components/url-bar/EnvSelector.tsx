@@ -27,8 +27,9 @@ const DEFAULT_STYLE = {
   border: "border-border-muted",
 };
 
-function getEnvKey(id: string): string {
-  const lower = id.toLowerCase();
+function getEnvKey(env?: { id: string; envType?: string }): string {
+  if (env?.envType) return env.envType;
+  const lower = env?.id?.toLowerCase() ?? "";
   if (lower.includes("dev")) return "dev";
   if (lower.includes("staging")) return "staging";
   if (lower.includes("prod")) return "production";
@@ -46,7 +47,7 @@ export function EnvSelector() {
   const deleteEnvironment = useEnvironmentStore((s) => s.deleteEnvironment);
 
   const activeEnv = environments.find((e) => e.id === activeEnvId);
-  const envKey = activeEnvId ? getEnvKey(activeEnvId) : "";
+  const envKey = getEnvKey(activeEnv);
   const style = ENV_STYLES[envKey] || DEFAULT_STYLE;
 
   const close = useCallback(() => setIsOpen(false), []);
@@ -102,9 +103,9 @@ export function EnvSelector() {
             className="w-[220px] bg-bg-elevated rounded-lg border border-border-muted shadow-lg py-1 z-dropdown animate-fade-in"
             style={dropdownStyle}
           >
-            {environments.map((env) => {
-              const envK = getEnvKey(env.id);
-              const dotColor = ENV_STYLES[envK]?.text || "text-fg-tertiary";
+    {environments.map((env) => {
+      const envK = getEnvKey(env);
+      const dotColor = ENV_STYLES[envK]?.text || "text-fg-tertiary";
               const isActive = env.id === activeEnvId;
               return (
                 <div

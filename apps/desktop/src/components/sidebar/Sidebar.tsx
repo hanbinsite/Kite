@@ -12,9 +12,11 @@ import {
 } from "lucide-react";
 import { useUIStore, useTabStore } from "@api-client/core";
 import { useEnvironmentStore } from "../../stores/environment-store";
+import { useRequestStore } from "../../stores/request-store";
 import { useCollectionStore, type CollectionTreeNode } from "../../stores/collection-store";
-import { queryHistoryEntries } from "@api-client/core/http";
+import { queryHistoryEntries, getCollection, type IpcCollectionItem } from "@api-client/core/http";
 import type { HistoryEntry } from "@api-client/core/http";
+import type { Header, QueryParam, BodyConfig, AuthConfig, RequestSettings } from "@api-client/types";
 import { ThemeToggle } from "./ThemeToggle";
 import { ContextMenu } from "./ContextMenu";
 
@@ -97,6 +99,7 @@ interface CollectionTreeItemsProps {
   getMethodColor: (method: string) => string;
   expandedIds: Set<string>;
   toggleExpand: (id: string) => void;
+  onLoadRequestData: (requestId: string, collectionId: string) => void;
 }
 
 function CollectionTreeItems({
@@ -114,6 +117,7 @@ function CollectionTreeItems({
   getMethodColor,
   expandedIds,
   toggleExpand,
+  onLoadRequestData,
 }: CollectionTreeItemsProps) {
   return (
     <>
@@ -157,22 +161,23 @@ function CollectionTreeItems({
               </div>
               {isFolderExpanded && item.items.length > 0 && (
                 <div className="ml-4">
-                  <CollectionTreeItems
-                    items={item.items}
-                    collectionId={collectionId}
-                    editingId={editingId}
-                    editingName={editingName}
-                    editInputRef={editInputRef}
-                    setEditingName={setEditingName}
-                    commitEdit={commitEdit}
-                    startEditing={startEditing}
-                    setContextMenu={setContextMenu}
-                    openTab={openTab}
-                    deleteRequest={deleteRequest}
-                    getMethodColor={getMethodColor}
-                    expandedIds={expandedIds}
-                    toggleExpand={toggleExpand}
-                  />
+                <CollectionTreeItems
+                  items={item.items}
+                  collectionId={collectionId}
+                  editingId={editingId}
+                  editingName={editingName}
+                  editInputRef={editInputRef}
+                  setEditingName={setEditingName}
+                  commitEdit={commitEdit}
+                  startEditing={startEditing}
+                  setContextMenu={setContextMenu}
+                  openTab={openTab}
+                  deleteRequest={deleteRequest}
+                  getMethodColor={getMethodColor}
+                  expandedIds={expandedIds}
+                  toggleExpand={toggleExpand}
+                  onLoadRequestData={onLoadRequestData}
+                />
                 </div>
               )}
             </div>
@@ -184,14 +189,15 @@ function CollectionTreeItems({
           <div
             key={item.id}
             className="group flex items-center gap-2 px-3 py-0.5 text-[11px] hover:bg-bg-hover cursor-pointer font-mono"
-            onClick={() =>
-  openTab({
-    name: item.name,
-    method: item.method,
-    url: item.url,
-    requestId: item.id,
-  })
-}
+      onClick={() => {
+        openTab({
+          name: item.name,
+          method: item.method,
+          url: item.url,
+          requestId: item.id,
+        });
+        onLoadRequestData(item.id, collectionId);
+      }}
             onContextMenu={(e) => {
               e.preventDefault();
               setContextMenu({ x: e.clientX, y: e.clientY, target: { type: "request", id: item.id, parentId: collectionId } });
@@ -247,6 +253,7 @@ export function Sidebar() {
   const setActiveEnvironment = useEnvironmentStore((s) => s.setActiveEnvironment);
   const loadEnvironments = useEnvironmentStore((s) => s.loadFromDisk);
   const openTab = useTabStore((s) => s.openTab);
+  const initTabData = useRequestStore((s) => s.initTabData);
 
   const collections = useCollectionStore((s) => s.collections);
   const addCollection = useCollectionStore((s) => s.addCollection);
@@ -263,8 +270,9 @@ const deleteRequest = useCollectionStore((s) => s.deleteRequest);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
-  const editInputRef = useRef<HTMLInputElement>(null);
+  const editInputRef = useRef<HTMLInputElement | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const responses = useRequestStore((s) => s.responses);
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -292,6 +300,12 @@ const deleteRequest = useCollectionStore((s) => s.deleteRequest);
   }, []);
 
   useEffect(() => {
+    if (Object.keys(responses).length > 0) {
+      queryHistoryEntries(50).then(setHistoryEntries).catch(() => {});
+    }
+  }, [responses]);
+
+  useEffect(() => {
     if (editingId && editInputRef.current) {
       editInputRef.current.focus();
       editInputRef.current.select();
@@ -305,6 +319,54 @@ const deleteRequest = useCollectionStore((s) => s.deleteRequest);
       else next.add(id);
       return next;
     });
+  };
+
+  const handleLoadRequestData = (requestId: string, collectionId: string) => {
+    getCollection(collectionId).then((file) => {
+      const findItem = (items: IpcCollectionItem[]): IpcCollectionItem | undefined => {
+        for (const item of items) {
+          if (item.type === "request" && item.id === requestId) return item;
+          if (item.type === "folder" && item.items) {
+            const found = findItem(item.items);
+            if (found) return found;
+          }
+        }
+        return undefined;
+      };
+      const item = findItem(file.items);
+      if (!item) return;
+      const headers: Header[] = (item.headers ?? []).map((h) => ({
+        key: h.key, value: h.value, disabled: h.disabled, description: h.description,
+      }));
+      const params: QueryParam[] = (item.params ?? []).map((p) => ({
+        key: p.key, value: p.value, disabled: p.disabled, description: p.description,
+      }));
+      let body: BodyConfig | null = null;
+      if (item.body && item.body.mode !== "none") {
+        if (item.body.mode === "raw") {
+          body = { mode: "raw", raw: { language: (item.body.language as RawLanguage) ?? "json", content: item.body.content ?? "" } };
+        } else if (item.body.mode === "formdata") {
+          body = { mode: "formdata", formdata: (item.body.formdata ?? []).map((f) => ({ key: f.key, value: f.value, type: (f.param_type === "file" ? "file" : "text") as "text" | "file", disabled: f.disabled })) };
+        } else if (item.body.mode === "urlencoded") {
+          body = { mode: "urlencoded", urlencoded: (item.body.urlencoded ?? []).map((u) => ({ key: u.key, value: u.value, disabled: u.disabled })) };
+        } else if (item.body.mode === "graphql") {
+          body = { mode: "graphql", graphql: { query: item.body.graphql_query ?? "", variables: item.body.graphql_variables ?? "" } };
+        } else if (item.body.mode === "binary") {
+          body = { mode: "binary", binary: item.body.content ?? "" };
+        }
+      }
+      let auth: AuthConfig = { type: "none", config: {} };
+      if (item.auth && item.auth.type) {
+        const authType = item.auth.type as AuthConfig["type"];
+        const authConfig = (item.auth.config ?? {}) as Record<string, unknown>;
+        auth = { type: authType, config: authConfig } as AuthConfig;
+      }
+      let settings: RequestSettings = { timeoutMs: item.settings?.timeout_ms ?? 30000, followRedirects: item.settings?.follow_redirects ?? true, maxRedirects: item.settings?.max_redirects ?? 10, verifySsl: item.settings?.verify_ssl ?? true };
+      const tabId = useTabStore.getState().activeTabId;
+      if (tabId) {
+        initTabData(tabId, { headers, params, body, auth, settings });
+      }
+    }).catch(() => {});
   };
 
   const handleAddCollection = () => {
@@ -520,22 +582,23 @@ const commitEdit = () => {
                 </div>
 {isExpanded && col.items.length > 0 && (
   <div className="ml-5">
-    <CollectionTreeItems
-      items={col.items}
-      collectionId={col.id}
-      editingId={editingId}
-      editingName={editingName}
-      editInputRef={editInputRef}
-      setEditingName={setEditingName}
-      commitEdit={commitEdit}
-      startEditing={startEditing}
-      setContextMenu={setContextMenu}
-      openTab={openTab}
-      deleteRequest={deleteRequest}
-      getMethodColor={getMethodColor}
-      expandedIds={expandedIds}
-      toggleExpand={toggleExpand}
-    />
+                <CollectionTreeItems
+                  items={col.items}
+                  collectionId={col.id}
+                  editingId={editingId}
+                  editingName={editingName}
+                  editInputRef={editInputRef}
+                  setEditingName={setEditingName}
+                  commitEdit={commitEdit}
+                  startEditing={startEditing}
+                  setContextMenu={setContextMenu}
+                  openTab={openTab}
+                  deleteRequest={deleteRequest}
+                  getMethodColor={getMethodColor}
+                  expandedIds={expandedIds}
+                  toggleExpand={toggleExpand}
+                  onLoadRequestData={handleLoadRequestData}
+                />
   </div>
 )}
 {isExpanded && col.items.length === 0 && (

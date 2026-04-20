@@ -1,7 +1,7 @@
 import { useRef, useCallback, useEffect, useState } from "react";
 import { Menu, ChevronLeft, ChevronRight } from "lucide-react";
 import { useUIStore, useTabStore } from "@api-client/core";
-import { useRequestStore, useEnvironmentStore } from "../../stores";
+import { useRequestStore } from "../../stores";
 import { MethodSelector } from "./MethodSelector";
 import { SendButton, type SendButtonState } from "./SendButton";
 import { VariableAutocomplete } from "./VariableHighlight";
@@ -17,10 +17,9 @@ export function UrlBar() {
   const activeTabId = useTabStore((s) => s.activeTabId);
   const activeTab = useTabStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
   const updateTab = useTabStore((s) => s.updateTab);
-  const isLoading = useRequestStore((s) => s.isLoading);
+  const isLoading = useRequestStore((s) => activeTabId ? !!s.loadingTabs[activeTabId] : false);
   const sendRequest = useRequestStore((s) => s.sendRequest);
   const cancelRequest = useRequestStore((s) => s.cancelRequest);
-  const getVariable = useEnvironmentStore((s) => s.getVariable);
 
   const method = (activeTab?.method ?? "GET") as HttpMethod;
   const url = activeTab?.url ?? "";
@@ -55,14 +54,7 @@ export function UrlBar() {
       return;
     }
 
-    let resolvedUrl = url;
-    const variablePattern = /\{\{(\w+)\}\}/g;
-    resolvedUrl = resolvedUrl.replace(variablePattern, (_, key) => {
-      const value = getVariable(key);
-      return value !== undefined ? value : `{{${key}}}`;
-    });
-
-    if (!/^https?:\/\//i.test(resolvedUrl)) {
+    if (!/^https?:\/\//i.test(url)) {
       setUrlError("URL must start with http:// or https://");
       return;
     }
@@ -71,7 +63,7 @@ export function UrlBar() {
     setSendState("loading");
 
     try {
-      await sendRequest(activeTabId, method, resolvedUrl);
+      await sendRequest(activeTabId, method, url);
       setSendState("success");
     } catch {
       setSendState("error");

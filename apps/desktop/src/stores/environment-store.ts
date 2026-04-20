@@ -49,6 +49,7 @@ const DEFAULT_ENVS: Environment[] = [
       { key: "api_key", value: "dev-key-123", enabled: true },
     ],
     isActive: false,
+    envType: "dev",
   },
   {
     id: "env-staging",
@@ -58,6 +59,7 @@ const DEFAULT_ENVS: Environment[] = [
       { key: "api_key", value: "staging-key-456", enabled: true },
     ],
     isActive: false,
+    envType: "staging",
   },
   {
     id: "env-prod",
@@ -67,6 +69,7 @@ const DEFAULT_ENVS: Environment[] = [
       { key: "api_key", value: "", enabled: false },
     ],
     isActive: false,
+    envType: "production",
   },
 ];
 
@@ -104,7 +107,9 @@ export const useEnvironmentStore = create<EnvironmentStore>()(
         state.environments = state.environments.filter((e) => e.id !== id);
         if (state.activeEnvironmentId === id) state.activeEnvironmentId = null;
       });
-      deleteEnvironmentIpc(id).catch(() => {});
+      deleteEnvironmentIpc(id).catch((e) => {
+        console.error(`Failed to delete environment ${id}:`, e);
+      });
     },
 
     setGlobalVariable: (key, value) =>
@@ -170,14 +175,18 @@ export const useEnvironmentStore = create<EnvironmentStore>()(
       const state = get();
       const env = state.environments.find((e) => e.id === id);
       if (env) {
-        saveEnvironment(toIpcEnv(env)).catch(() => {});
+        saveEnvironment(toIpcEnv(env)).catch((e) => {
+          console.error(`Failed to persist environment "${env.name}" (${id}):`, e);
+        });
       }
     },
 
     persistAll: () => {
       const state = get();
       for (const env of state.environments) {
-        saveEnvironment(toIpcEnv(env)).catch(() => {});
+        saveEnvironment(toIpcEnv(env)).catch((e) => {
+          console.error(`Failed to persist environment "${env.name}" (${env.id}):`, e);
+        });
       }
     },
   })),

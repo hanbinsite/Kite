@@ -13,21 +13,21 @@ pub struct InsertHistoryRequest {
 
 #[tauri::command]
 pub async fn insert_history_entry(
-    app_handle: tauri::AppHandle,
-    request: InsertHistoryRequest,
+  app_handle: tauri::AppHandle,
+  request: InsertHistoryRequest,
 ) -> Result<i64, AppError> {
-    let storage = app_handle.state::<crate::AppState>().storage.clone();
-    tokio::task::spawn_blocking(move || {
-        let storage_lock = storage.blocking_read();
-        let storage = storage_lock
-            .as_ref()
-            .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
-        storage
-            .insert_history(&request.method, &request.url, request.status, request.duration)
-            .map_err(AppError::storage_write_failed)
-    })
-    .await
-    .map_err(|e| AppError::internal(e.to_string()))?
+  let storage = app_handle.state::<crate::AppState>().storage.clone();
+  tokio::task::spawn_blocking(move || {
+    let storage_lock = storage.blocking_write();
+    let storage = storage_lock
+      .as_ref()
+      .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
+    storage
+      .insert_history(&request.method, &request.url, request.status, request.duration)
+      .map_err(AppError::storage_write_failed)
+  })
+  .await
+  .map_err(|e| AppError::internal(e.to_string()))?
 }
 
 #[tauri::command]
@@ -71,101 +71,101 @@ pub async fn search_history_entries(
 
 #[tauri::command]
 pub async fn delete_history_entry(
-    app_handle: tauri::AppHandle,
-    id: i64,
+  app_handle: tauri::AppHandle,
+  id: i64,
 ) -> Result<(), AppError> {
-    let storage = app_handle.state::<crate::AppState>().storage.clone();
-    tokio::task::spawn_blocking(move || {
-        let storage_lock = storage.blocking_read();
-        let storage = storage_lock
-            .as_ref()
-            .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
-        storage
-            .delete_history(id)
-            .map_err(AppError::storage_write_failed)
-    })
-    .await
-    .map_err(|e| AppError::internal(e.to_string()))?
+  let storage = app_handle.state::<crate::AppState>().storage.clone();
+  tokio::task::spawn_blocking(move || {
+    let storage_lock = storage.blocking_write();
+    let storage = storage_lock
+      .as_ref()
+      .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
+    storage
+      .delete_history(id)
+      .map_err(AppError::storage_write_failed)
+  })
+  .await
+  .map_err(|e| AppError::internal(e.to_string()))?
 }
 
 #[tauri::command]
 pub async fn clear_history(
-    app_handle: tauri::AppHandle,
+  app_handle: tauri::AppHandle,
 ) -> Result<(), AppError> {
-    let storage = app_handle.state::<crate::AppState>().storage.clone();
-    tokio::task::spawn_blocking(move || {
-        let storage_lock = storage.blocking_read();
-        let storage = storage_lock
-            .as_ref()
-            .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
-        storage
-            .clear_history()
-            .map_err(AppError::storage_write_failed)
-    })
-    .await
-    .map_err(|e| AppError::internal(e.to_string()))?
+  let storage = app_handle.state::<crate::AppState>().storage.clone();
+  tokio::task::spawn_blocking(move || {
+    let storage_lock = storage.blocking_write();
+    let storage = storage_lock
+      .as_ref()
+      .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
+    storage
+      .clear_history()
+      .map_err(AppError::storage_write_failed)
+  })
+  .await
+  .map_err(|e| AppError::internal(e.to_string()))?
 }
 
 // --- Settings Commands ---
 
 #[tauri::command]
 pub async fn get_setting(
-    app_handle: tauri::AppHandle,
-    key: String,
+  app_handle: tauri::AppHandle,
+  key: String,
 ) -> Result<Option<String>, AppError> {
-    let storage = app_handle.state::<crate::AppState>().storage.clone();
-    tokio::task::spawn_blocking(move || {
-        let storage_lock = storage.blocking_read();
-        let storage = storage_lock
-            .as_ref()
-            .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
-        storage
-            .get_setting(&key)
-            .map_err(AppError::storage_read_failed)
-    })
-    .await
-    .map_err(|e| AppError::internal(e.to_string()))?
+  let storage = app_handle.state::<crate::AppState>().storage.clone();
+  tokio::task::spawn_blocking(move || {
+    let storage_lock = storage.blocking_read();
+    let storage = storage_lock
+      .as_ref()
+      .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
+    storage
+      .get_setting(&key)
+      .map_err(AppError::storage_read_failed)
+  })
+  .await
+  .map_err(|e| AppError::internal(e.to_string()))?
 }
 
 #[tauri::command]
 pub async fn set_setting(
-    app_handle: tauri::AppHandle,
-    key: String,
-    value: String,
+  app_handle: tauri::AppHandle,
+  key: String,
+  value: String,
 ) -> Result<(), AppError> {
-    let storage = app_handle.state::<crate::AppState>().storage.clone();
-    tokio::task::spawn_blocking(move || {
-        let storage_lock = storage.blocking_read();
-        let storage = storage_lock
-            .as_ref()
-            .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
-        storage
-            .set_setting(&key, &value)
-            .map_err(AppError::storage_write_failed)
-    })
-    .await
-    .map_err(|e| AppError::internal(e.to_string()))?
+  let storage = app_handle.state::<crate::AppState>().storage.clone();
+  tokio::task::spawn_blocking(move || {
+    let storage_lock = storage.blocking_write();
+    let storage = storage_lock
+      .as_ref()
+      .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
+    storage
+      .set_setting(&key, &value)
+      .map_err(AppError::storage_write_failed)
+  })
+  .await
+  .map_err(|e| AppError::internal(e.to_string()))?
 }
 
 // --- Cookie Commands ---
 
 #[tauri::command]
 pub async fn insert_cookie(
-    app_handle: tauri::AppHandle,
-    cookie: CookieEntry,
+  app_handle: tauri::AppHandle,
+  cookie: CookieEntry,
 ) -> Result<i64, AppError> {
-    let storage = app_handle.state::<crate::AppState>().storage.clone();
-    tokio::task::spawn_blocking(move || {
-        let storage_lock = storage.blocking_read();
-        let storage = storage_lock
-            .as_ref()
-            .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
-        storage
-            .insert_cookie(&cookie)
-            .map_err(AppError::storage_write_failed)
-    })
-    .await
-    .map_err(|e| AppError::internal(e.to_string()))?
+  let storage = app_handle.state::<crate::AppState>().storage.clone();
+  tokio::task::spawn_blocking(move || {
+    let storage_lock = storage.blocking_write();
+    let storage = storage_lock
+      .as_ref()
+      .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
+    storage
+      .insert_cookie(&cookie)
+      .map_err(AppError::storage_write_failed)
+  })
+  .await
+  .map_err(|e| AppError::internal(e.to_string()))?
 }
 
 #[tauri::command]
@@ -189,37 +189,37 @@ pub async fn query_cookies(
 
 #[tauri::command]
 pub async fn delete_cookie(
-    app_handle: tauri::AppHandle,
-    id: i64,
+  app_handle: tauri::AppHandle,
+  id: i64,
 ) -> Result<(), AppError> {
-    let storage = app_handle.state::<crate::AppState>().storage.clone();
-    tokio::task::spawn_blocking(move || {
-        let storage_lock = storage.blocking_read();
-        let storage = storage_lock
-            .as_ref()
-            .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
-        storage
-            .delete_cookie(id)
-            .map_err(AppError::storage_write_failed)
-    })
-    .await
-    .map_err(|e| AppError::internal(e.to_string()))?
+  let storage = app_handle.state::<crate::AppState>().storage.clone();
+  tokio::task::spawn_blocking(move || {
+    let storage_lock = storage.blocking_write();
+    let storage = storage_lock
+      .as_ref()
+      .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
+    storage
+      .delete_cookie(id)
+      .map_err(AppError::storage_write_failed)
+  })
+  .await
+  .map_err(|e| AppError::internal(e.to_string()))?
 }
 
 #[tauri::command]
 pub async fn clear_cookies(
-    app_handle: tauri::AppHandle,
+  app_handle: tauri::AppHandle,
 ) -> Result<(), AppError> {
-    let storage = app_handle.state::<crate::AppState>().storage.clone();
-    tokio::task::spawn_blocking(move || {
-        let storage_lock = storage.blocking_read();
-        let storage = storage_lock
-            .as_ref()
-            .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
-        storage
-            .clear_cookies()
-            .map_err(AppError::storage_write_failed)
-    })
-    .await
-    .map_err(|e| AppError::internal(e.to_string()))?
+  let storage = app_handle.state::<crate::AppState>().storage.clone();
+  tokio::task::spawn_blocking(move || {
+    let storage_lock = storage.blocking_write();
+    let storage = storage_lock
+      .as_ref()
+      .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
+    storage
+      .clear_cookies()
+      .map_err(AppError::storage_write_failed)
+  })
+  .await
+  .map_err(|e| AppError::internal(e.to_string()))?
 }

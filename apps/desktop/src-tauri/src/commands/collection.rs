@@ -267,72 +267,68 @@ pub async fn delete_collection(
 
 #[cfg(test)]
 mod tests {
-    use super::CollectionFile;
-    use super::SavedRequest;
-    use super::SavedSettings;
-    use super::SavedScripts;
-    use super::CollectionVariable;
-    use tempfile::TempDir;
+  use super::{CollectionFile, CollectionItem, SavedRequest, SavedSettings, SavedScripts, CollectionVariable};
+  use tempfile::TempDir;
 
-    fn sample_collection(id: &str, name: &str) -> CollectionFile {
-        CollectionFile {
-            id: id.to_string(),
-            name: name.to_string(),
-            description: None,
-            items: vec![
-                CollectionItem::Request(SavedRequest {
-                    id: "req-1".to_string(),
-                    name: "Get Users".to_string(),
-                    method: "GET".to_string(),
-                    url: "https://api.example.com/users".to_string(),
-                    headers: vec![],
-                    params: vec![],
-                    body: None,
-                    auth: None,
-                    scripts: SavedScripts::default(),
-                    settings: SavedSettings::default(),
-                }),
-            ],
-            variables: Some(vec![
-                CollectionVariable { key: "base_url".to_string(), value: "https://api.example.com".to_string(), enabled: true },
-            ]),
-            created_at: "2026-01-01T00:00:00Z".to_string(),
-            updated_at: "2026-01-01T00:00:00Z".to_string(),
-        }
+  fn sample_collection(id: &str, name: &str) -> CollectionFile {
+    CollectionFile {
+      id: id.to_string(),
+      name: name.to_string(),
+      description: None,
+      items: vec![
+        CollectionItem::Request(SavedRequest {
+          id: "req-1".to_string(),
+          name: "Get Users".to_string(),
+          method: "GET".to_string(),
+          url: "https://api.example.com/users".to_string(),
+          headers: vec![],
+          params: vec![],
+          body: None,
+          auth: None,
+          scripts: SavedScripts::default(),
+          settings: SavedSettings::default(),
+        }),
+      ],
+      variables: Some(vec![
+        CollectionVariable { key: "base_url".to_string(), value: "https://api.example.com".to_string(), enabled: true },
+      ]),
+      created_at: "2026-01-01T00:00:00Z".to_string(),
+      updated_at: "2026-01-01T00:00:00Z".to_string(),
     }
+  }
 
-    #[test]
-    fn test_collection_serde_roundtrip() {
-        let col = sample_collection("col-1", "Test Collection");
-        let json = serde_json::to_string_pretty(&col).unwrap();
-        let parsed: CollectionFile = serde_json::from_str(&json).unwrap();
-        assert_eq!(parsed.id, "col-1");
-        assert_eq!(parsed.name, "Test Collection");
-        assert_eq!(parsed.items.len(), 1);
-        match &parsed.items[0] {
-            CollectionItem::Request(req) => assert_eq!(req.method, "GET"),
-            _ => panic!("Expected Request item"),
-        }
-        assert_eq!(parsed.variables.unwrap().len(), 1);
+  #[test]
+  fn test_collection_serde_roundtrip() {
+    let col = sample_collection("col-1", "Test Collection");
+    let json = serde_json::to_string_pretty(&col).unwrap();
+    let parsed: CollectionFile = serde_json::from_str(&json).unwrap();
+    assert_eq!(parsed.id, "col-1");
+    assert_eq!(parsed.name, "Test Collection");
+    assert_eq!(parsed.items.len(), 1);
+    match &parsed.items[0] {
+      CollectionItem::Request(req) => assert_eq!(req.method, "GET"),
+      _ => panic!("Expected Request item"),
     }
+    assert_eq!(parsed.variables.unwrap().len(), 1);
+  }
 
-    #[tokio::test]
-    async fn test_collection_file_write_read() {
-        let dir = TempDir::new().unwrap();
-        let col_dir = dir.path().join("collections").join("col-1");
-        tokio::fs::create_dir_all(&col_dir).await.unwrap();
+  #[tokio::test]
+  async fn test_collection_file_write_read() {
+    let dir = TempDir::new().unwrap();
+    let col_dir = dir.path().join("collections").join("col-1");
+    tokio::fs::create_dir_all(&col_dir).await.unwrap();
 
-        let col = sample_collection("col-1", "Test");
-        let json = serde_json::to_string_pretty(&col).unwrap();
-        let path = col_dir.join("collection.json");
+    let col = sample_collection("col-1", "Test");
+    let json = serde_json::to_string_pretty(&col).unwrap();
+    let path = col_dir.join("collection.json");
 
-        let tmp = path.with_extension("json.tmp");
-        tokio::fs::write(&tmp, &json).await.unwrap();
-        tokio::fs::rename(&tmp, &path).await.unwrap();
+    let tmp = path.with_extension("json.tmp");
+    tokio::fs::write(&tmp, &json).await.unwrap();
+    tokio::fs::rename(&tmp, &path).await.unwrap();
 
-        let content = tokio::fs::read_to_string(&path).await.unwrap();
-        let parsed: CollectionFile = serde_json::from_str(&content).unwrap();
-        assert_eq!(parsed.id, col.id);
-        assert_eq!(parsed.requests.len(), col.requests.len());
-    }
+    let content = tokio::fs::read_to_string(&path).await.unwrap();
+    let parsed: CollectionFile = serde_json::from_str(&content).unwrap();
+    assert_eq!(parsed.id, col.id);
+    assert_eq!(parsed.items.len(), col.items.len());
+  }
 }

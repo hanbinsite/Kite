@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import { sendHttpRequest, cancelHttpRequest, insertHistoryEntry } from "@api-client/core/http";
+import { buildIpcAuth as buildIpcAuthUtil } from "@api-client/core/http";
 import { markStart, markEnd, VariableResolver, variablesToRecord } from "@api-client/core";
 import type { VariableScope } from "@api-client/core";
 import type {
@@ -28,7 +29,7 @@ export interface RequestData {
 }
 
 export interface RequestState {
-  isLoading: boolean;
+  loadingTabs: Record<string, boolean>;
   responses: Record<string, HttpResponse>;
   error: string | null;
   requestDataMap: Record<string, RequestData>;
@@ -36,7 +37,7 @@ export interface RequestState {
 }
 
 export interface RequestActions {
-  setLoading: (loading: boolean) => void;
+  setTabLoading: (tabId: string, loading: boolean) => void;
   setResponse: (tabId: string, response: HttpResponse) => void;
   setError: (error: string | null) => void;
   clearResponse: (tabId: string) => void;
@@ -49,6 +50,7 @@ export interface RequestActions {
   setRequestSettings: (settings: RequestSettings) => void;
   sendRequest: (tabId: string, method: HttpMethod, url: string) => Promise<void>;
   cancelRequest: (tabId: string) => Promise<void>;
+  initTabData: (tabId: string, data?: Partial<RequestData>) => void;
 }
 
 export type RequestStore = RequestState & RequestActions;
@@ -160,21 +162,25 @@ function buildIpcSettings(settings: RequestSettings): IpcRequestSettings {
 }
 
 function buildIpcAuth(auth: AuthConfig): IpcAuthConfig {
-  return {
-    type: auth.type,
-    config: auth.config as Record<string, unknown>,
-  };
+  return buildIpcAuthUtil(auth.type, auth.config as Record<string, unknown>);
 }
 
 export const useRequestStore = create<RequestStore>()(
   immer((set, get) => ({
-    isLoading: false,
-    responses: {},
-    error: null,
-    requestDataMap: {},
-    currentTabId: null,
+  loadingTabs: {},
+  responses: {},
+  error: null,
+  requestDataMap: {},
+  currentTabId: null,
 
-    setLoading: (loading) => set({ isLoading: loading }),
+  setTabLoading: (tabId, loading) =>
+    set((state) => {
+      if (loading) {
+        state.loadingTabs[tabId] = true;
+      } else {
+        delete state.loadingTabs[tabId];
+      }
+    }),
 
     setResponse: (tabId, response) =>
       set((state) => {
@@ -239,9 +245,12 @@ export const useRequestStore = create<RequestStore>()(
 
     sendRequest: async (tabId, method, url) => {
       const state = get();
-      if (state.isLoading) return;
+      if (state.loadingTabs[tabId]) return;
 
-      set({ isLoading: true, error: null });
+      set((state) => {
+        state.loadingTabs[tabId] = true;
+        state.error = null;
+      });
 
       const requestData = state.requestDataMap[tabId] || DEFAULT_REQUEST_DATA;
 
@@ -277,16 +286,18 @@ export const useRequestStore = create<RequestStore>()(
         markStart("request:send", { method, url });
         const response = await sendHttpRequest(ipcConfig);
         markEnd("request:send", { status: response.status, time: response.time });
-        set((state) => {
-          state.responses[tabId] = response;
-          state.isLoading = false;
-        });
-        insertHistoryEntry({
-          method,
-          url: resolvedUrl,
-          status: response.status,
-          duration: response.time,
-        }).catch(() => {});
+      set((state) => {
+        state.responses[tabId] = response;
+        delete state.loadingTabs[tabId];
+      });
+      insertHistoryEntry({
+        method,
+        url: resolvedUrl,
+        status: response.status,
+        duration: response.time,
+      }).catch((e) => {
+        console.error("Failed to insert history entry:", e);
+      });
       } catch (err: unknown) {
         const errorDetail =
           typeof err === "object" && err !== null && "detail" in err
@@ -294,10 +305,10 @@ export const useRequestStore = create<RequestStore>()(
             : typeof err === "string"
               ? err
               : "Request failed";
-        set((state) => {
-          state.error = errorDetail;
-          state.isLoading = false;
-        });
+      set((state) => {
+        state.error = errorDetail;
+        delete state.loadingTabs[tabId];
+      });
       }
     },
 
@@ -305,12 +316,24 @@ export const useRequestStore = create<RequestStore>()(
       try {
         await cancelHttpRequest(tabId);
       } catch {
-        // ignore cancellation errors
       }
       set((state) => {
-        state.isLoading = false;
+        delete state.loadingTabs[tabId];
         state.error = "Request cancelled";
       });
     },
+
+    initTabData: (tabId, data) =>
+      set((state) => {
+        if (!state.requestDataMap[tabId]) {
+          state.requestDataMap[tabId] = {
+            headers: data?.headers ?? [],
+            params: data?.params ?? [],
+            body: data?.body ?? null,
+            auth: data?.auth ?? { ...DEFAULT_AUTH },
+            settings: data?.settings ?? { timeoutMs: 30000, followRedirects: true, maxRedirects: 10, verifySsl: true },
+          };
+        }
+      }),
   })),
 );

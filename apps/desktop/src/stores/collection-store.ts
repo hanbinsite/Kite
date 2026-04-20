@@ -127,14 +127,19 @@ function findAndRenameNode(items: CollectionTreeNode[], id: string, name: string
 }
 
 function findAndDuplicateNode(items: CollectionTreeNode[], requestId: string): CollectionTreeNode[] {
-    for (const item of items) {
-        if (item.type === "request" && item.id === requestId) {
-            items.push({ ...item, id: crypto.randomUUID(), name: `${item.name} (copy)` });
-            break;
-        }
-        if (item.type === "folder") { findAndDuplicateNode(item.items, requestId); }
+  for (const item of items) {
+    if (item.type === "request" && item.id === requestId) {
+      const copy: CollectionTreeNode = { ...item, id: crypto.randomUUID(), name: `${item.name} (copy)` };
+      items.push(copy);
+      break;
     }
-    return items;
+    if (item.type === "folder") {
+      const before = item.items.length;
+      findAndDuplicateNode(item.items, requestId);
+      if (item.items.length > before) break;
+    }
+  }
+  return items;
 }
 
 export const useCollectionStore = create<CollectionStore>()(
@@ -151,12 +156,14 @@ export const useCollectionStore = create<CollectionStore>()(
             get().persistCollection(id);
         },
 
-        deleteCollection: (id) => {
-            set((state) => {
-                state.collections = state.collections.filter((c) => c.id !== id);
-            });
-            deleteCollectionIpc(id).catch(() => {});
-        },
+  deleteCollection: (id) => {
+    set((state) => {
+      state.collections = state.collections.filter((c) => c.id !== id);
+    });
+    deleteCollectionIpc(id).catch((e) => {
+      console.error(`Failed to delete collection ${id}:`, e);
+    });
+  },
 
         renameCollection: (id, name) => {
             set((state) => {
@@ -237,12 +244,14 @@ export const useCollectionStore = create<CollectionStore>()(
             }
         },
 
-        persistCollection: (id) => {
-            const state = get();
-            const col = state.collections.find((c) => c.id === id);
-            if (col) {
-                saveCollection(toIpcCollection(col)).catch(() => {});
-            }
-        },
+  persistCollection: (id) => {
+    const state = get();
+    const col = state.collections.find((c) => c.id === id);
+    if (col) {
+      saveCollection(toIpcCollection(col)).catch((e) => {
+        console.error(`Failed to persist collection "${col.name}" (${id}):`, e);
+      });
+    }
+  },
     })),
 );

@@ -140,16 +140,28 @@ export function RequestPanel() {
   const setRequestAuth = useRequestStore((s) => s.setRequestAuth);
   const setRequestSettings = useRequestStore((s) => s.setRequestSettings);
 
-    const [params, setParams] = useState<KeyValue[]>(ensureEmptyRow(paramsToKv(storeParams)));
-    const [headers, setHeaders] = useState<KeyValue[]>(ensureEmptyRow(headersToKv(storeHeaders)));
-    const [bodyConfig, setBodyConfig] = useState<BodyConfig>(storeBody ?? { mode: "none" });
-    const [rawLanguage, setRawLanguage] = useState<RawLanguage>(storeBody?.raw?.language ?? "json");
-    const [rawContent, setRawContent] = useState(storeBody?.raw?.content ?? "");
-    const [formdataKvs, setFormdataKvs] = useState<KeyValue[]>(ensureEmptyRow(formdataToKv(storeBody?.formdata ?? [])));
-    const [urlencodedKvs, setUrlencodedKvs] = useState<KeyValue[]>(ensureEmptyRow(paramsToKv(storeBody?.urlencoded ?? [])));
-    const [graphqlQuery, setGraphqlQuery] = useState(storeBody?.graphql?.query ?? "");
-    const [graphqlVariables, setGraphqlVariables] = useState(storeBody?.graphql?.variables ?? "");
-    const [langDropdownOpen, setLangDropdownOpen] = useState(false);
+  const [params, setParams] = useState<KeyValue[]>(() => ensureEmptyRow(paramsToKv(storeParams)));
+  const [headers, setHeaders] = useState<KeyValue[]>(() => ensureEmptyRow(headersToKv(storeHeaders)));
+  const [bodyConfig, setBodyConfig] = useState<BodyConfig>(() => storeBody ?? { mode: "none" });
+  const [rawLanguage, setRawLanguage] = useState<RawLanguage>(() => storeBody?.raw?.language ?? "json");
+  const [rawContent, setRawContent] = useState(() => storeBody?.raw?.content ?? "");
+  const [formdataKvs, setFormdataKvs] = useState<KeyValue[]>(() => ensureEmptyRow(formdataToKv(storeBody?.formdata ?? [])));
+  const [urlencodedKvs, setUrlencodedKvs] = useState<KeyValue[]>(() => ensureEmptyRow(paramsToKv(storeBody?.urlencoded ?? [])));
+  const [graphqlQuery, setGraphqlQuery] = useState(() => storeBody?.graphql?.query ?? "");
+  const [graphqlVariables, setGraphqlVariables] = useState(() => storeBody?.graphql?.variables ?? "");
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    setParams(ensureEmptyRow(paramsToKv(storeParams)));
+    setHeaders(ensureEmptyRow(headersToKv(storeHeaders)));
+    setBodyConfig(storeBody ?? { mode: "none" });
+    setRawLanguage(storeBody?.raw?.language ?? "json");
+    setRawContent(storeBody?.raw?.content ?? "");
+    setFormdataKvs(ensureEmptyRow(formdataToKv(storeBody?.formdata ?? [])));
+    setUrlencodedKvs(ensureEmptyRow(paramsToKv(storeBody?.urlencoded ?? [])));
+    setGraphqlQuery(storeBody?.graphql?.query ?? "");
+    setGraphqlVariables(storeBody?.graphql?.variables ?? "");
+  }, [currentTabId]);
 
     const handleParamsChange = (newItems: KeyValue[]) => {
         setParams(ensureEmptyRow(newItems));
@@ -564,13 +576,45 @@ export function RequestPanel() {
                                 />
                             )}
 
-                            {bodyConfig.mode === "binary" && (
-                                <div className="flex items-center justify-center h-full">
-                                    <div className="binary-upload-zone w-[280px] h-[160px] border-[1.5px] border-dashed border-border-default rounded-lg flex flex-col items-center justify-center gap-[8px] cursor-pointer transition-all duration-[180ms] hover:border-brand hover:bg-brand-muted">
-                                        <span className="text-fg-tertiary text-[12px]">Click to select a file</span>
-                                    </div>
-                                </div>
-                            )}
+        {bodyConfig.mode === "binary" && (
+          <div className="flex items-center justify-center h-full">
+            <div
+              className="binary-upload-zone w-[280px] h-[160px] border-[1.5px] border-dashed border-border-default rounded-lg flex flex-col items-center justify-center gap-[8px] cursor-pointer transition-all duration-[180ms] hover:border-brand hover:bg-brand-muted"
+              onClick={() => {
+                const input = document.createElement("input");
+                input.type = "file";
+                input.onchange = (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      const result = reader.result as ArrayBuffer;
+                      handleBodyConfigChange({ mode: "binary", binary: String.fromCharCode(...new Uint8Array(result)) });
+                    };
+                    reader.readAsArrayBuffer(file);
+                  }
+                };
+                input.click();
+              }}
+              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const file = e.dataTransfer.files[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    const result = reader.result as ArrayBuffer;
+                    handleBodyConfigChange({ mode: "binary", binary: String.fromCharCode(...new Uint8Array(result)) });
+                  };
+                  reader.readAsArrayBuffer(file);
+                }
+              }}
+            >
+              <span className="text-fg-tertiary text-[12px]">Click or drop a file</span>
+            </div>
+          </div>
+        )}
 
                             {bodyConfig.mode === "graphql" && (
                                 <div className="graphql-editor grid grid-cols-2 h-full">

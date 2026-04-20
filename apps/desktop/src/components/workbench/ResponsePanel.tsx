@@ -34,7 +34,7 @@ export function ResponsePanel() {
 
   const activeTabId = useTabStore((s) => s.activeTabId);
   const response = useRequestStore((s) => (activeTabId ? s.responses[activeTabId] : undefined)) as HttpResponse | undefined;
-  const isLoading = useRequestStore((s) => s.isLoading);
+  const isLoading = useRequestStore((s) => activeTabId ? !!s.loadingTabs[activeTabId] : false);
   const error = useRequestStore((s) => s.error);
 
   const tabRefs = useRef<Partial<Record<ResponseTabId, HTMLButtonElement | null>>>({});
@@ -147,7 +147,7 @@ checked={!useRequestStore.getState().requestDataMap[useRequestStore.getState().c
         <div className="flex-1 flex flex-col overflow-hidden bg-bg-surface">
             <div className="response-bar flex items-center h-[32px] px-3 gap-2 bg-bg-surface border-t border-border-muted border-b border-border-muted">
                 <span className={`response-status-pill flex items-center gap-[4px] h-[20px] px-2 rounded-full font-mono text-[11px] font-semibold ${getStatusClass(response.status)}`}>
-                    {response.status} {response.status_text}
+                    {response.status} {response.statusText}
                 </span>
                 <span className="response-meta font-sans text-[11px] text-fg-tertiary flex items-center gap-1">
                     <Clock size={12} />
@@ -155,7 +155,7 @@ checked={!useRequestStore.getState().requestDataMap[useRequestStore.getState().c
                 </span>
                 <span className="response-meta font-sans text-[11px] text-fg-tertiary flex items-center gap-1">
                     <HardDrive size={12} />
-                    {formatBodySize(response.body_size)}
+                    {formatBodySize(response.bodySize)}
                 </span>
                 <div className="flex-1" />
                 <div className="response-bar-tools flex gap-[2px]">
@@ -228,12 +228,12 @@ checked={!useRequestStore.getState().requestDataMap[useRequestStore.getState().c
 
                             {bodyView === "preview" && (
                                 <div className="p-2 px-3 overflow-auto h-full">
-                                    <iframe
-                                        srcDoc={response.body}
-                                        className="w-full h-full min-h-[200px] bg-white"
-                                        sandbox="allow-same-origin"
-                                        title="Response Preview"
-                                    />
+                    <iframe
+                      srcDoc={response.body}
+                      className="w-full h-full min-h-[200px] bg-white"
+                      sandbox=""
+                      title="Response Preview"
+                    />
                                 </div>
                             )}
                         </div>

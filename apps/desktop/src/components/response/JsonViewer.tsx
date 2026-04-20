@@ -1,18 +1,25 @@
 import { useState, useMemo, useCallback } from "react";
 
 interface JsonNodeProps {
-    keyName: string | null;
-    value: unknown;
-    depth: number;
-    defaultCollapsed: number;
-    path: string;
-    onPathClick: (path: string) => void;
+  keyName: string | null;
+  value: unknown;
+  depth: number;
+  defaultCollapsed: number;
+  path: string;
+  onPathClick: (path: string) => void;
+  searchTerm: string;
 }
 
-function JsonNode({ keyName, value, depth, defaultCollapsed, path, onPathClick }: JsonNodeProps) {
-    const [collapsed, setCollapsed] = useState(depth >= defaultCollapsed);
-    const isObject = value !== null && typeof value === "object";
-    const isArray = Array.isArray(value);
+function JsonNode({ keyName, value, depth, defaultCollapsed, path, onPathClick, searchTerm }: JsonNodeProps) {
+  const [collapsed, setCollapsed] = useState(depth >= defaultCollapsed);
+  const isObject = value !== null && typeof value === "object";
+  const isArray = Array.isArray(value);
+
+  const lowerSearch = searchTerm.toLowerCase();
+  const matchesSearch = searchTerm && (
+    (keyName !== null && keyName.toLowerCase().includes(lowerSearch)) ||
+    (!isObject && String(value).toLowerCase().includes(lowerSearch))
+  );
 
     const toggle = useCallback(() => {
         setCollapsed((c) => !c);
@@ -22,41 +29,41 @@ function JsonNode({ keyName, value, depth, defaultCollapsed, path, onPathClick }
         onPathClick(path);
     }, [path, onPathClick]);
 
-    if (!isObject) {
-        return (
-            <div className="json-line flex items-start font-mono text-[12px] leading-[18px] pl-[calc(var(--depth)*16px)]" style={{ "--depth": depth } as React.CSSProperties}>
-                {keyName !== null && (
-                    <>
-                        <span className="json-key text-method-get cursor-pointer hover:underline" onClick={handlePathClick}>&quot;{keyName}&quot;</span>
-                        <span className="text-fg-secondary">: </span>
-                    </>
-                )}
-                <JsonValue value={value} />
-            </div>
-        );
-    }
+  if (!isObject) {
+    return (
+      <div className={`json-line flex items-start font-mono text-[12px] leading-[18px] pl-[calc(var(--depth)*16px)] ${matchesSearch ? "bg-accent-warning/15" : ""}`} style={{ "--depth": depth } as React.CSSProperties}>
+        {keyName !== null && (
+          <>
+            <span className="json-key text-method-get cursor-pointer hover:underline" onClick={handlePathClick}>&quot;{keyName}&quot;</span>
+            <span className="text-fg-secondary">: </span>
+          </>
+        )}
+        <JsonValue value={value} />
+      </div>
+    );
+  }
 
     const entries = isArray ? value.map((v: unknown, i: number) => [String(i), v] as const) : Object.entries(value as Record<string, unknown>);
     const bracketOpen = isArray ? "[" : "{";
     const bracketClose = isArray ? "]" : "}";
     const count = entries.length;
 
-    if (collapsed) {
-        return (
-            <div className="json-line flex items-start font-mono text-[12px] leading-[18px] pl-[calc(var(--depth)*16px)]" style={{ "--depth": depth } as React.CSSProperties}>
-                <button onClick={toggle} className="json-toggle w-[16px] h-[18px] flex items-center justify-center text-fg-tertiary hover:text-fg-secondary shrink-0 cursor-pointer">▶</button>
-                {keyName !== null && (
-                    <>
-                        <span className="json-key text-method-get cursor-pointer hover:underline" onClick={handlePathClick}>&quot;{keyName}&quot;</span>
-                        <span className="text-fg-secondary">: </span>
-                    </>
-                )}
-                <span className="text-fg-tertiary">{bracketOpen}</span>
-                <span className="text-fg-tertiary ml-1">{count} {isArray ? "items" : "keys"}</span>
-                <span className="text-fg-tertiary ml-1">{bracketClose}</span>
-            </div>
-        );
-    }
+  if (collapsed) {
+    return (
+      <div className={`json-line flex items-start font-mono text-[12px] leading-[18px] pl-[calc(var(--depth)*16px)] ${matchesSearch ? "bg-accent-warning/15" : ""}`} style={{ "--depth": depth } as React.CSSProperties}>
+        <button onClick={toggle} className="json-toggle w-[16px] h-[18px] flex items-center justify-center text-fg-tertiary hover:text-fg-secondary shrink-0 cursor-pointer">▶</button>
+        {keyName !== null && (
+          <>
+            <span className="json-key text-method-get cursor-pointer hover:underline" onClick={handlePathClick}>&quot;{keyName}&quot;</span>
+            <span className="text-fg-secondary">: </span>
+          </>
+        )}
+        <span className="text-fg-tertiary">{bracketOpen}</span>
+        <span className="text-fg-tertiary ml-1">{count} {isArray ? "items" : "keys"}</span>
+        <span className="text-fg-tertiary ml-1">{bracketClose}</span>
+      </div>
+    );
+  }
 
     return (
         <div>
@@ -70,17 +77,18 @@ function JsonNode({ keyName, value, depth, defaultCollapsed, path, onPathClick }
                 )}
                 <span className="text-fg-tertiary">{bracketOpen}</span>
             </div>
-            {entries.map(([k, v]) => (
-                <JsonNode
-                    key={k}
-                    keyName={isArray ? null : k}
-                    value={v}
-                    depth={depth + 1}
-                    defaultCollapsed={defaultCollapsed}
-                    path={`${path}${isArray ? `[${k}]` : `.${k}`}`}
-                    onPathClick={onPathClick}
-                />
-            ))}
+    {entries.map(([k, v]) => (
+      <JsonNode
+        key={k}
+        keyName={isArray ? null : k}
+        value={v}
+        depth={depth + 1}
+        defaultCollapsed={defaultCollapsed}
+        path={`${path}${isArray ? `[${k}]` : `.${k}`}`}
+        onPathClick={onPathClick}
+        searchTerm={searchTerm}
+      />
+    ))}
             <div className="json-line font-mono text-[12px] leading-[18px] pl-[calc(var(--depth)*16px)]" style={{ "--depth": depth } as React.CSSProperties}>
                 <span className="ml-[16px] text-fg-tertiary">{bracketClose}</span>
             </div>
@@ -157,14 +165,15 @@ export function JsonViewer({ data, defaultCollapsed = 4 }: JsonViewerProps) {
                 </button>
             </div>
             <div className="flex-1 overflow-auto p-3">
-                <JsonNode
-                    keyName={null}
-                    value={parsed}
-                    depth={0}
-                    defaultCollapsed={defaultCollapsed}
-                    path="$"
-                    onPathClick={handlePathClick}
-                />
+      <JsonNode
+        keyName={null}
+        value={parsed}
+        depth={0}
+        defaultCollapsed={defaultCollapsed}
+        path="$"
+        onPathClick={handlePathClick}
+        searchTerm={searchTerm}
+      />
             </div>
         </div>
     );

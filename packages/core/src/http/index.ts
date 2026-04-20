@@ -2,13 +2,13 @@ import { invoke } from "@tauri-apps/api/core";
 import type { HttpResponse } from "@api-client/types";
 
 export interface IpcBodyConfig {
-    mode: string;
-    content: string | null;
-    content_type: string | null;
-    formdata?: IpcFormDataParam[];
-    urlencoded?: IpcUrlEncodedParam[];
-    graphql_query?: string;
-    graphql_variables?: string;
+  mode: string;
+  content: string | ArrayBuffer | null;
+  content_type: string | null;
+  formdata?: IpcFormDataParam[];
+  urlencoded?: IpcUrlEncodedParam[];
+  graphql_query?: string;
+  graphql_variables?: string;
 }
 
 export interface IpcFormDataParam {
@@ -33,8 +33,27 @@ export interface IpcRequestSettings {
 }
 
 export interface IpcAuthConfig {
-    type: string;
-    config: Record<string, unknown> | null;
+  type: string;
+  config: Record<string, unknown> | null;
+}
+
+export function buildIpcAuth(type: string, config: Record<string, unknown> | null): IpcAuthConfig {
+  const requiredFields: Record<string, string[]> = {
+    bearer: ["token"],
+    basic: ["username", "password"],
+    apikey: ["key", "value"],
+    jwt: ["token"],
+    oauth2: ["accessToken"],
+  };
+  const required = requiredFields[type];
+  if (required && config) {
+    for (const field of required) {
+      if (config[field] === undefined || config[field] === null) {
+        console.warn(`IpcAuthConfig: missing required field "${field}" for auth type "${type}"`);
+      }
+    }
+  }
+  return { type, config };
 }
 
 export interface IpcHttpRequestConfig {
@@ -129,16 +148,16 @@ export async function clearCookies(): Promise<void> {
 // Collection IPC
 
 export interface IpcSavedRequest {
-    id: string;
-    name: string;
-    method: string;
-    url: string;
-    headers: { key: string; value: string; disabled: boolean; description?: string }[];
-    params: { key: string; value: string; disabled: boolean; description?: string }[];
-    body?: { mode: string; content?: string; content_type?: string; language?: string; formdata: IpcFormDataParam[]; urlencoded: IpcUrlEncodedParam[]; graphql_query?: string; graphql_variables?: string };
-    auth?: IpcAuthConfig;
-    scripts: { pre_request?: string; post_response?: string };
-    settings: IpcRequestSettings;
+  id: string;
+  name: string;
+  method: string;
+  url: string;
+  headers: { key: string; value: string; disabled: boolean; description?: string }[];
+  params: { key: string; value: string; disabled: boolean; description?: string }[];
+  body?: { mode: string; content?: string; content_type?: string; language?: string; formdata: IpcFormDataParam[]; urlencoded: IpcUrlEncodedParam[]; graphql_query?: string; graphql_variables?: string };
+  auth?: IpcAuthConfig;
+  scripts: { pre_request?: string; post_response?: string };
+  settings: IpcRequestSettings;
 }
 
 export interface IpcCollectionItem {

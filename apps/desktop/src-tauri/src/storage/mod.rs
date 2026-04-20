@@ -31,18 +31,19 @@ impl Storage {
                 value TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS cookie_jar (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                domain TEXT NOT NULL,
-                name TEXT NOT NULL,
-                value TEXT NOT NULL,
-                path TEXT DEFAULT '/',
-                expires TEXT,
-                secure INTEGER DEFAULT 0,
-                http_only INTEGER DEFAULT 0,
-                same_site TEXT DEFAULT 'Lax',
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
-            );
+        CREATE TABLE IF NOT EXISTS cookie_jar (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  domain TEXT NOT NULL,
+  name TEXT NOT NULL,
+  value TEXT NOT NULL,
+  path TEXT DEFAULT '/',
+  expires TEXT,
+  secure INTEGER DEFAULT 0,
+  http_only INTEGER DEFAULT 0,
+  same_site TEXT DEFAULT 'Lax',
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(domain, name, path)
+);
             CREATE INDEX IF NOT EXISTS idx_cookie_domain ON cookie_jar(domain);
             CREATE INDEX IF NOT EXISTS idx_cookie_name ON cookie_jar(name);
 
@@ -73,7 +74,7 @@ impl Storage {
             .prepare("SELECT id, method, url, status, duration, created_at FROM history ORDER BY created_at DESC LIMIT ?1")
             .map_err(|e| e.to_string())?;
 
-        let entries = stmt
+        let entries: Vec<HistoryEntry> = stmt
             .query_map([limit], |row| {
                 Ok(HistoryEntry {
                     id: row.get(0)?,
@@ -85,8 +86,8 @@ impl Storage {
                 })
             })
             .map_err(|e| e.to_string())?
-            .filter_map(|r| r.ok())
-            .collect();
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
 
         Ok(entries)
     }
@@ -98,7 +99,7 @@ impl Storage {
             .prepare("SELECT id, method, url, status, duration, created_at FROM history WHERE url LIKE ?1 OR method LIKE ?1 ORDER BY created_at DESC LIMIT ?2")
             .map_err(|e| e.to_string())?;
 
-        let entries = stmt
+        let entries: Vec<HistoryEntry> = stmt
             .query_map(params![pattern, limit], |row| {
                 Ok(HistoryEntry {
                     id: row.get(0)?,
@@ -110,8 +111,8 @@ impl Storage {
                 })
             })
             .map_err(|e| e.to_string())?
-            .filter_map(|r| r.ok())
-            .collect();
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
 
         Ok(entries)
     }
@@ -174,13 +175,15 @@ impl Storage {
 
     pub fn query_cookies(&self, domain: Option<&str>) -> Result<Vec<CookieEntry>, String> {
         let conn = self.conn.lock().map_err(|e| e.to_string())?;
-        let entries = if let Some(d) = domain {
-            let pattern = format!("%{}%", d);
+        if let Some(d) = domain {
+            let exact = d.to_string();
+            let dot_prefix = if d.starts_with('.') { format!("{}%", d) } else { format!(".{}%", d) };
+            let host_match = if !d.starts_with('.') { format!("{}%", d) } else { String::new() };
             let mut stmt = conn
-                .prepare("SELECT id, domain, name, value, path, expires, secure, http_only, same_site FROM cookie_jar WHERE domain LIKE ?1 ORDER BY domain, name")
+                .prepare("SELECT id, domain, name, value, path, expires, secure, http_only, same_site FROM cookie_jar WHERE domain = ?1 OR domain LIKE ?2 OR (?3 != '' AND domain LIKE ?3) ORDER BY domain, name")
                 .map_err(|e| e.to_string())?;
             let rows: Vec<CookieEntry> = stmt
-                .query_map(params![pattern], |row| {
+                .query_map(params![exact, dot_prefix, host_match], |row| {
                     Ok(CookieEntry {
                         id: row.get(0)?,
                         domain: row.get(1)?,
@@ -194,9 +197,9 @@ impl Storage {
                     })
                 })
                 .map_err(|e| e.to_string())?
-                .filter_map(|r| r.ok())
-                .collect();
-            rows
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| e.to_string())?;
+            Ok(rows)
         } else {
             let mut stmt = conn
                 .prepare("SELECT id, domain, name, value, path, expires, secure, http_only, same_site FROM cookie_jar ORDER BY domain, name")
@@ -216,11 +219,10 @@ impl Storage {
                     })
                 })
                 .map_err(|e| e.to_string())?
-                .filter_map(|r| r.ok())
-                .collect();
-            rows
-        };
-        Ok(entries)
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| e.to_string())?;
+            Ok(rows)
+        }
     }
 
     pub fn delete_cookie(&self, id: i64) -> Result<(), String> {
@@ -240,8 +242,15 @@ impl Storage {
     pub fn upsert_cookie(&self, cookie: &CookieEntry) -> Result<(), String> {
         let conn = self.conn.lock().map_err(|e| e.to_string())?;
         conn.execute(
-            "INSERT OR REPLACE INTO cookie_jar (id, domain, name, value, path, expires, secure, http_only, same_site) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-            params![cookie.id, cookie.domain, cookie.name, cookie.value, cookie.path, cookie.expires, cookie.secure, cookie.http_only, cookie.same_site],
+            "INSERT INTO cookie_jar (domain, name, value, path, expires, secure, http_only, same_site)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+             ON CONFLICT(domain, name, path) DO UPDATE SET
+             value = excluded.value,
+             expires = excluded.expires,
+             secure = excluded.secure,
+             http_only = excluded.http_only,
+             same_site = excluded.same_site",
+            params![cookie.domain, cookie.name, cookie.value, cookie.path, cookie.expires, cookie.secure, cookie.http_only, cookie.same_site],
         ).map_err(|e| e.to_string())?;
         Ok(())
     }

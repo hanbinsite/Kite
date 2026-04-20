@@ -223,16 +223,17 @@ fn default_redirects() -> u32 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct HttpResponse {
-    pub id: String,
-    pub request_id: String,
-    pub status: u16,
-    pub status_text: String,
-    pub headers: Vec<ResponseHeader>,
-    pub body: String,
-    pub body_size: u64,
-    pub time: u64,
-    pub content_type: String,
+  pub id: String,
+  pub request_id: String,
+  pub status: u16,
+  pub status_text: String,
+  pub headers: Vec<ResponseHeader>,
+  pub body: String,
+  pub body_size: u64,
+  pub time: u64,
+  pub content_type: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -459,13 +460,15 @@ pub async fn send_http_request(
         }
     }
 
-    let response_result = request_builder.send().await;
+    let response_result = tokio::select! {
+        res = request_builder.send() => res,
+        _ = cancel_token.cancelled() => {
+            _state.cancellation_tokens.write().await.remove(&request_id);
+            return Err(AppError::net_cancelled());
+        }
+    };
 
     _state.cancellation_tokens.write().await.remove(&request_id);
-
-    if cancel_token.is_cancelled() {
-        return Err(AppError::net_cancelled());
-    }
 
     let response = response_result.map_err(|e| {
         if e.is_timeout() {

@@ -73,14 +73,14 @@ export interface RequestSettings {
 
 export interface HttpResponse {
   id: string;
-  request_id: string;
+  requestId: string;
   status: number;
-  status_text: string;
+  statusText: string;
   headers: ResponseHeader[];
   body: string;
-  body_size: number;
+  bodySize: number;
   time: number;
-  content_type: string;
+  contentType: string;
 }
 
 export interface AppError {
@@ -185,21 +185,11 @@ export interface Environment {
   name: string;
   variables: Variable[];
   isActive: boolean;
+  envType?: "dev" | "staging" | "production";
 }
 
 export interface Variable {
   key: string;
   value: string;
   enabled: boolean;
-}
-
-// Tab Types
-export interface Tab {
-  id: string;
-  name: string;
-  method: HttpMethod;
-  url: string;
-  isModified: boolean;
-  response?: HttpResponse;
-  requestConfig?: HttpRequestConfig;
 }

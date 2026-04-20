@@ -14,7 +14,6 @@ import { css } from "@codemirror/lang-css";
 import { oneDark } from "@codemirror/theme-one-dark";
 import type { Extension } from "@codemirror/state";
 import type { RawLanguage } from "@api-client/types";
-
 const languageExtensions: Record<string, () => unknown> = {
     json: json,
     javascript: javascript,
@@ -84,42 +83,44 @@ interface InlineEditorProps {
 }
 
 export function InlineEditor({ value, language, onChange, placeholder, readOnly }: InlineEditorProps) {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const viewRef = useRef<EditorView | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<EditorView | null>(null);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
-    useEffect(() => {
-        if (!containerRef.current) return;
+  useEffect(() => {
+    if (!containerRef.current) return;
 
-        const langExt = languageExtensions[language]?.() ?? [];
-        const extensions: Extension[] = [
-            ...baseExtensions,
-            langExt as Extension,
-            EditorView.updateListener.of((update) => {
-                if (update.docChanged && !readOnly) {
-                    onChange(update.state.doc.toString());
-                }
-            }),
-        ];
-        if (readOnly) extensions.push(EditorState.readOnly.of(true));
-        if (placeholder) extensions.push(cmPlaceholder(placeholder));
+    const langExt = languageExtensions[language]?.() ?? [];
+    const extensions: Extension[] = [
+      ...baseExtensions,
+      langExt as Extension,
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged && !readOnly) {
+          onChangeRef.current(update.state.doc.toString());
+        }
+      }),
+    ];
+    if (readOnly) extensions.push(EditorState.readOnly.of(true));
+    if (placeholder) extensions.push(cmPlaceholder(placeholder));
 
-        const state = EditorState.create({
-            doc: value,
-            extensions,
-        });
+    const state = EditorState.create({
+      doc: value,
+      extensions,
+    });
 
-        const view = new EditorView({
-            state,
-            parent: containerRef.current,
-        });
+    const view = new EditorView({
+      state,
+      parent: containerRef.current,
+    });
 
-        viewRef.current = view;
+    viewRef.current = view;
 
-        return () => {
-            view.destroy();
-            viewRef.current = null;
-        };
-    }, [language, readOnly, placeholder]);
+    return () => {
+      view.destroy();
+      viewRef.current = null;
+    };
+  }, [language, readOnly, placeholder]);
 
     useEffect(() => {
         const view = viewRef.current;

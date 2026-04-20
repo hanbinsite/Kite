@@ -17,7 +17,7 @@ function getStatusClass(status: number): string {
 
 export function ResponseStatus() {
   const activeTabId = useTabStore((s) => s.activeTabId);
-  const isLoading = useRequestStore((s) => s.isLoading);
+  const isLoading = useRequestStore((s) => activeTabId ? !!s.loadingTabs[activeTabId] : false);
   const response = useRequestStore(
     (s) => (activeTabId ? s.responses[activeTabId] : undefined)
   );
@@ -38,7 +38,7 @@ export function ResponseStatus() {
           <span
             className={`response-status-pill h-5 px-2 rounded-full text-xs font-mono font-semibold inline-flex items-center ${getStatusClass(response.status)}`}
           >
-            {response.status} {response.status_text}
+            {response.status} {response.statusText}
           </span>
           <span className="response-meta text-xs text-fg-tertiary flex items-center gap-1">
             <Clock size={12} />
@@ -46,9 +46,9 @@ export function ResponseStatus() {
           </span>
           <span className="response-meta text-xs text-fg-tertiary flex items-center gap-1">
             <HardDrive size={12} />
-            {response.body_size > 1024
-              ? `${(response.body_size / 1024).toFixed(1)} KB`
-              : `${response.body_size} B`}
+        {response.bodySize > 1024
+          ? `${(response.bodySize / 1024).toFixed(1)} KB`
+          : `${response.bodySize} B`}
           </span>
           <div className="flex-1" />
           <div className="flex items-center gap-1">
