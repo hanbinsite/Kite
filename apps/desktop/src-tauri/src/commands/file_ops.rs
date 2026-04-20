@@ -40,7 +40,7 @@ pub fn validate_path_within_app_data(app_data_dir: &Path, target_path: &Path) ->
     if canonical_target.starts_with(&canonical_app) {
         Ok(())
     } else {
-        Err(AppError::internal(format!("Path traversal detected: target {} is outside app data dir {}", target_normalized.display(), canonical_app.display())))
+        Err(AppError::storage_path_traversal(format!("Path traversal detected: target {} is outside app data dir {}", target_normalized.display(), canonical_app.display())))
     }
 }
 

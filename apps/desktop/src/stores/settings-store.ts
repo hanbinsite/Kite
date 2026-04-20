@@ -6,6 +6,7 @@ export interface AppSettings {
   fontSize: string;
   timeout: string;
   followRedirects: boolean;
+  maxRedirects: string;
   verifySSL: boolean;
   proxyUrl: string;
   bypassList: string;
@@ -20,6 +21,7 @@ const defaults: AppSettings = {
   fontSize: "15",
   timeout: "30000",
   followRedirects: true,
+  maxRedirects: "10",
   verifySSL: true,
   proxyUrl: "",
   bypassList: "",

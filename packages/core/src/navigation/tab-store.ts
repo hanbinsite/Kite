@@ -6,6 +6,7 @@ export interface Tab {
   method: string;
   url: string;
   isModified: boolean;
+  requestId?: string;
   response?: unknown;
 }
 
@@ -40,18 +41,25 @@ export const useTabStore = create<TabStoreImpl>()((set) => ({
 
   openTab: (tabData) =>
     set((state) => {
-      let existing: Tab | undefined;
-      if (tabData.url) {
-        existing = state.tabs.find(
-          (t) => t.method === tabData.method && t.url === tabData.url
-        );
-      } else if (tabData.name && tabData.name !== "New Request") {
-        existing = state.tabs.find(
-          (t) => t.method === tabData.method && t.name === tabData.name && !t.url
-        );
-      }
-      if (existing) {
-        return { activeTabId: existing.id };
+      if (tabData.requestId) {
+        const existing = state.tabs.find((t) => t.requestId === tabData.requestId);
+        if (existing) {
+          return { activeTabId: existing.id };
+        }
+      } else {
+        let existing: Tab | undefined;
+        if (tabData.url) {
+          existing = state.tabs.find(
+            (t) => t.method === tabData.method && t.url === tabData.url && !t.requestId
+          );
+        } else if (tabData.name && tabData.name !== "New Request") {
+          existing = state.tabs.find(
+            (t) => t.method === tabData.method && t.name === tabData.name && !t.url && !t.requestId
+          );
+        }
+        if (existing) {
+          return { activeTabId: existing.id };
+        }
       }
       const id = crypto.randomUUID();
       return {

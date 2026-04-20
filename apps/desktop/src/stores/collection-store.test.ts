@@ -32,7 +32,7 @@ describe("collection-store", () => {
     expect(useCollectionStore.getState().collections.length).toBe(prevLen + 1);
     const col = useCollectionStore.getState().collections.find((c) => c.id === "col-test");
     expect(col?.name).toBe("Test Collection");
-    expect(col?.requests.length).toBe(0);
+    expect(col?.items.length).toBe(0);
   });
 
   it("deleteCollection should remove a collection", async () => {
@@ -69,8 +69,9 @@ describe("collection-store", () => {
       url: "https://api.example.com/users",
     });
     const col = useCollectionStore.getState().collections.find((c) => c.id === "col-req");
-    expect(col!.requests).toHaveLength(1);
-    expect(col!.requests[0]!.name).toBe("Get Users");
+    const reqs = col!.items.filter((i) => i.type === "request");
+    expect(reqs).toHaveLength(1);
+    expect(reqs[0]!.name).toBe("Get Users");
   });
 
   it("deleteRequest should remove request from collection", async () => {
@@ -87,7 +88,8 @@ describe("collection-store", () => {
     });
     useCollectionStore.getState().deleteRequest("col-dr", "req-dr");
     const col = useCollectionStore.getState().collections.find((c) => c.id === "col-dr");
-    expect(col?.requests.length).toBe(0);
+    const reqs = col?.items.filter((i) => i.type === "request");
+    expect(reqs?.length).toBe(0);
   });
 
   it("renameRequest should update request name", async () => {
@@ -104,7 +106,8 @@ describe("collection-store", () => {
     });
     useCollectionStore.getState().renameRequest("col-rn", "req-rn", "Renamed");
     const col = useCollectionStore.getState().collections.find((c) => c.id === "col-rn");
-    expect(col!.requests[0]!.name).toBe("Renamed");
+    const req = col!.items.find((i) => i.type === "request" && i.id === "req-rn");
+    expect(req!.name).toBe("Renamed");
   });
 
   it("duplicateRequest should copy request with new id", async () => {
@@ -121,8 +124,9 @@ describe("collection-store", () => {
     });
     useCollectionStore.getState().duplicateRequest("col-dup", "req-dup");
     const col = useCollectionStore.getState().collections.find((c) => c.id === "col-dup");
-    expect(col!.requests).toHaveLength(2);
-    expect(col!.requests[1]!.name).toBe("Original (copy)");
-    expect(col!.requests[1]!.id).not.toBe("req-dup");
+    const reqs = col!.items.filter((i) => i.type === "request");
+    expect(reqs).toHaveLength(2);
+    expect(reqs[1]!.name).toBe("Original (copy)");
+    expect(reqs[1]!.id).not.toBe("req-dup");
   });
 });

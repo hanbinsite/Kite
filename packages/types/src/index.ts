@@ -67,6 +67,7 @@ export interface GraphQLBody {
 export interface RequestSettings {
   timeoutMs: number;
   followRedirects: boolean;
+  maxRedirects: number;
   verifySsl: boolean;
 }
 
@@ -124,6 +125,7 @@ export interface ApiKeyAuth {
 
 export interface BearerAuth {
   token: string;
+  prefix?: string;
 }
 
 export interface BasicAuth {

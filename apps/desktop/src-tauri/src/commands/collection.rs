@@ -8,11 +8,29 @@ pub struct CollectionFile {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    pub requests: Vec<SavedRequest>,
+    #[serde(default, rename = "items")]
+    pub items: Vec<CollectionItem>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub variables: Option<Vec<CollectionVariable>>,
     pub created_at: String,
     pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum CollectionItem {
+    Folder(CollectionFolder),
+    Request(SavedRequest),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CollectionFolder {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub items: Vec<CollectionItem>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -133,6 +151,13 @@ pub struct CollectionSummary {
     pub updated_at: String,
 }
 
+fn count_requests(items: &[CollectionItem]) -> usize {
+    items.iter().map(|item| match item {
+        CollectionItem::Request(_) => 1,
+        CollectionItem::Folder(f) => count_requests(&f.items),
+    }).sum()
+}
+
 #[tauri::command]
 pub async fn list_collections(
     app_handle: tauri::AppHandle,
@@ -165,13 +190,13 @@ pub async fn list_collections(
                 .map_err(|e| AppError::storage_read_failed(e.to_string()))?;
             let collection: CollectionFile = serde_json::from_str(&content)
                 .map_err(|e| AppError::internal(format!("Failed to parse collection: {}", e)))?;
-            summaries.push(CollectionSummary {
-                id: collection.id,
-                name: collection.name,
-                description: collection.description,
-                request_count: collection.requests.len(),
-                updated_at: collection.updated_at,
-            });
+    summaries.push(CollectionSummary {
+            id: collection.id,
+            name: collection.name,
+            description: collection.description,
+            request_count: count_requests(&collection.items),
+            updated_at: collection.updated_at,
+        });
         }
     }
 
@@ -254,8 +279,8 @@ mod tests {
             id: id.to_string(),
             name: name.to_string(),
             description: None,
-            requests: vec![
-                SavedRequest {
+            items: vec![
+                CollectionItem::Request(SavedRequest {
                     id: "req-1".to_string(),
                     name: "Get Users".to_string(),
                     method: "GET".to_string(),
@@ -266,7 +291,7 @@ mod tests {
                     auth: None,
                     scripts: SavedScripts::default(),
                     settings: SavedSettings::default(),
-                },
+                }),
             ],
             variables: Some(vec![
                 CollectionVariable { key: "base_url".to_string(), value: "https://api.example.com".to_string(), enabled: true },
@@ -283,8 +308,11 @@ mod tests {
         let parsed: CollectionFile = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.id, "col-1");
         assert_eq!(parsed.name, "Test Collection");
-        assert_eq!(parsed.requests.len(), 1);
-        assert_eq!(parsed.requests[0].method, "GET");
+        assert_eq!(parsed.items.len(), 1);
+        match &parsed.items[0] {
+            CollectionItem::Request(req) => assert_eq!(req.method, "GET"),
+            _ => panic!("Expected Request item"),
+        }
         assert_eq!(parsed.variables.unwrap().len(), 1);
     }
 

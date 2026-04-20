@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useUIStore, useTabStore } from "@api-client/core";
 import { useEnvironmentStore } from "../../stores/environment-store";
-import { useCollectionStore } from "../../stores/collection-store";
+import { useCollectionStore, type CollectionTreeNode } from "../../stores/collection-store";
 import { queryHistoryEntries } from "@api-client/core/http";
 import type { HistoryEntry } from "@api-client/core/http";
 import { ThemeToggle } from "./ThemeToggle";
@@ -21,7 +21,7 @@ import { ContextMenu } from "./ContextMenu";
 interface ContextMenuState {
   x: number;
   y: number;
-  target: { type: "collection" | "request"; id: string; parentId?: string };
+  target: { type: "collection" | "request" | "folder"; id: string; parentId?: string };
 }
 
 interface SidebarSectionProps {
@@ -71,6 +71,175 @@ function getMethodColor(method: string) {
   return METHOD_COLORS[method.toUpperCase()] || "text-fg-secondary";
 }
 
+function findNodeInTree(items: CollectionTreeNode[], id: string): CollectionTreeNode | undefined {
+  for (const item of items) {
+    if (item.id === id) return item;
+    if (item.type === "folder") {
+      const found = findNodeInTree(item.items, id);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
+interface CollectionTreeItemsProps {
+  items: CollectionTreeNode[];
+  collectionId: string;
+  editingId: string | null;
+  editingName: string;
+  editInputRef: React.RefObject<HTMLInputElement | null>;
+  setEditingName: (name: string) => void;
+  commitEdit: () => void;
+  startEditing: (id: string, name: string) => void;
+  setContextMenu: (menu: ContextMenuState | null) => void;
+  openTab: (tab: { name: string; method: string; url: string; requestId?: string }) => void;
+  deleteRequest: (collectionId: string, requestId: string) => void;
+  getMethodColor: (method: string) => string;
+  expandedIds: Set<string>;
+  toggleExpand: (id: string) => void;
+}
+
+function CollectionTreeItems({
+  items,
+  collectionId,
+  editingId,
+  editingName,
+  editInputRef,
+  setEditingName,
+  commitEdit,
+  startEditing,
+  setContextMenu,
+  openTab,
+  deleteRequest,
+  getMethodColor,
+  expandedIds,
+  toggleExpand,
+}: CollectionTreeItemsProps) {
+  return (
+    <>
+      {items.map((item) => {
+        if (item.type === "folder") {
+          const isFolderExpanded = expandedIds.has(item.id);
+          return (
+            <div key={item.id}>
+              <div
+                className="group flex items-center gap-1 px-3 py-0.5 text-[11px] hover:bg-bg-hover cursor-pointer"
+                onClick={() => toggleExpand(item.id)}
+                onDoubleClick={() => startEditing(item.id, item.name)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setContextMenu({ x: e.clientX, y: e.clientY, target: { type: "collection", id: item.id } });
+                }}
+              >
+                {isFolderExpanded ? (
+                  <FolderOpen className="w-3 h-3 text-brand shrink-0" />
+                ) : (
+                  <Folder className="w-3 h-3 text-brand shrink-0" />
+                )}
+                {editingId === item.id ? (
+                  <input
+                    ref={editInputRef}
+                    value={editingName}
+                    onChange={(e) => setEditingName(e.target.value)}
+                    onBlur={commitEdit}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitEdit();
+                      if (e.key === "Escape") {
+                        startEditing("", "");
+                      }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex-1 bg-bg-input border border-border-focus rounded px-1 text-[11px] text-fg-primary outline-none"
+                  />
+                ) : (
+                  <span className="flex-1 text-fg-secondary truncate">{item.name}</span>
+                )}
+              </div>
+              {isFolderExpanded && item.items.length > 0 && (
+                <div className="ml-4">
+                  <CollectionTreeItems
+                    items={item.items}
+                    collectionId={collectionId}
+                    editingId={editingId}
+                    editingName={editingName}
+                    editInputRef={editInputRef}
+                    setEditingName={setEditingName}
+                    commitEdit={commitEdit}
+                    startEditing={startEditing}
+                    setContextMenu={setContextMenu}
+                    openTab={openTab}
+                    deleteRequest={deleteRequest}
+                    getMethodColor={getMethodColor}
+                    expandedIds={expandedIds}
+                    toggleExpand={toggleExpand}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        const isReqEditing = editingId === item.id;
+        return (
+          <div
+            key={item.id}
+            className="group flex items-center gap-2 px-3 py-0.5 text-[11px] hover:bg-bg-hover cursor-pointer font-mono"
+            onClick={() =>
+  openTab({
+    name: item.name,
+    method: item.method,
+    url: item.url,
+    requestId: item.id,
+  })
+}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setContextMenu({ x: e.clientX, y: e.clientY, target: { type: "request", id: item.id, parentId: collectionId } });
+            }}
+          >
+            {isReqEditing ? (
+              <input
+                ref={editInputRef}
+                value={editingName}
+                onChange={(e) => setEditingName(e.target.value)}
+                onBlur={commitEdit}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitEdit();
+                  if (e.key === "Escape") {
+                    startEditing("", "");
+                  }
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="flex-1 bg-bg-input border border-border-focus rounded px-1 text-[11px] text-fg-primary outline-none"
+              />
+            ) : (
+              <>
+                <span className={`font-semibold min-w-[32px] ${getMethodColor(item.method)}`}>
+                  {item.method}
+                </span>
+                <FileText className="w-3 h-3 text-fg-tertiary shrink-0" />
+                <span className="flex-1 text-fg-primary truncate">{item.name}</span>
+              </>
+            )}
+            {!isReqEditing && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteRequest(collectionId, item.id);
+                }}
+                className="p-0.5 opacity-0 group-hover:opacity-100 hover:bg-bg-hover rounded"
+                title="Delete request"
+              >
+                <X className="w-3 h-3 text-fg-tertiary" />
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 export function Sidebar() {
   const openSettings = useUIStore((s) => s.openSettings);
   const activeEnvId = useEnvironmentStore((s) => s.activeEnvironmentId);
@@ -83,8 +252,9 @@ export function Sidebar() {
   const addCollection = useCollectionStore((s) => s.addCollection);
   const deleteCollection = useCollectionStore((s) => s.deleteCollection);
   const renameCollection = useCollectionStore((s) => s.renameCollection);
-  const addRequestToCollection = useCollectionStore((s) => s.addRequestToCollection);
-  const deleteRequest = useCollectionStore((s) => s.deleteRequest);
+const addRequestToCollection = useCollectionStore((s) => s.addRequestToCollection);
+const addFolderToCollection = useCollectionStore((s) => s.addFolderToCollection);
+const deleteRequest = useCollectionStore((s) => s.deleteRequest);
   const renameRequest = useCollectionStore((s) => s.renameRequest);
   const duplicateRequest = useCollectionStore((s) => s.duplicateRequest);
   const loadCollections = useCollectionStore((s) => s.loadFromDisk);
@@ -149,24 +319,25 @@ export function Sidebar() {
     setEditingName(name);
   };
 
-  const commitEdit = () => {
-    if (editingId && editingName.trim()) {
-      const trimmed = editingName.trim();
-      const col = collections.find((c) => c.id === editingId);
-      if (col) {
-        renameCollection(editingId, trimmed);
-      } else {
-        for (const c of collections) {
-          if (c.requests.some((r) => r.id === editingId)) {
-            renameRequest(c.id, editingId, trimmed);
-            break;
-          }
+const commitEdit = () => {
+  if (editingId && editingName.trim()) {
+    const trimmed = editingName.trim();
+    const col = collections.find((c) => c.id === editingId);
+    if (col) {
+      renameCollection(editingId, trimmed);
+    } else {
+      for (const c of collections) {
+        const found = findNodeInTree(c.items, editingId);
+        if (found) {
+          renameRequest(c.id, editingId, trimmed);
+          break;
         }
       }
     }
-    setEditingId(null);
-    setEditingName("");
-  };
+  }
+  setEditingId(null);
+  setEditingName("");
+};
 
   const handleAddRequest = (collectionId: string) => {
     const reqId = crypto.randomUUID();
@@ -174,7 +345,7 @@ export function Sidebar() {
     setExpandedIds((prev) => new Set(prev).add(collectionId));
   };
 
-  const handleContextMenuAction = (action: string, target: { type: "collection" | "request"; id: string; parentId?: string }) => {
+  const handleContextMenuAction = (action: string, target: { type: "collection" | "request" | "folder"; id: string; parentId?: string }) => {
     setContextMenu(null);
     if (target.type === "collection") {
       const col = collections.find((c) => c.id === target.id);
@@ -187,9 +358,10 @@ export function Sidebar() {
           handleAddRequest(target.id);
           break;
         case "add-folder": {
-          const id = crypto.randomUUID();
-          addCollection(id, "New Folder");
-          setEditingId(id);
+          const folderId = crypto.randomUUID();
+          addFolderToCollection(target.id, folderId, "New Folder");
+          setExpandedIds((prev) => new Set(prev).add(target.id));
+          setEditingId(folderId);
           setEditingName("New Folder");
           break;
         }
@@ -197,18 +369,18 @@ export function Sidebar() {
           deleteCollection(target.id);
           break;
       }
-    } else {
-      switch (action) {
-        case "rename": {
-          for (const col of collections) {
-            const req = col.requests.find((r) => r.id === target.id);
-            if (req) {
-              startEditing(target.id, req.name);
-              return;
-            }
+} else {
+    switch (action) {
+      case "rename": {
+        for (const col of collections) {
+          const found = findNodeInTree(col.items, target.id);
+          if (found && found.type === "request") {
+            startEditing(target.id, found.name);
+            return;
           }
-          break;
         }
+        break;
+      }
         case "duplicate": {
           const parentId = target.parentId;
           if (parentId) duplicateRequest(parentId, target.id);
@@ -346,81 +518,33 @@ export function Sidebar() {
                     </button>
                   </div>
                 </div>
-                {isExpanded && col.requests.length > 0 && (
-                  <div className="ml-5">
-                    {col.requests.map((req) => {
-                      const isReqEditing = editingId === req.id;
-                      return (
-                        <div
-                          key={req.id}
-                          className="group flex items-center gap-2 px-3 py-0.5 text-[11px] hover:bg-bg-hover cursor-pointer font-mono"
-                          onClick={() =>
-                            openTab({
-                              name: req.name,
-                              method: req.method,
-                              url: req.url,
-                            })
-                          }
-                          onContextMenu={(e) => {
-                            e.preventDefault();
-                            setContextMenu({ x: e.clientX, y: e.clientY, target: { type: "request", id: req.id, parentId: col.id } });
-                          }}
-                        >
-                          {isReqEditing ? (
-                            <input
-                              ref={editInputRef}
-                              value={editingName}
-                              onChange={(e) => setEditingName(e.target.value)}
-                              onBlur={commitEdit}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") commitEdit();
-                                if (e.key === "Escape") {
-                                  setEditingId(null);
-                                  setEditingName("");
-                                }
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                              className="flex-1 bg-bg-input border border-border-focus rounded px-1 text-[11px] text-fg-primary outline-none"
-                            />
-                          ) : (
-                            <>
-                              <span
-                                className={`font-semibold min-w-[32px] ${getMethodColor(req.method)}`}
-                              >
-                                {req.method}
-                              </span>
-                              <FileText className="w-3 h-3 text-fg-tertiary shrink-0" />
-                              <span className="flex-1 text-fg-primary truncate">
-                                {req.name}
-                              </span>
-                            </>
-                          )}
-                          {!isReqEditing && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteRequest(col.id, req.id);
-                              }}
-                              className="p-0.5 opacity-0 group-hover:opacity-100 hover:bg-bg-hover rounded"
-                              title="Delete request"
-                            >
-                              <X className="w-3 h-3 text-fg-tertiary" />
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-                {isExpanded && col.requests.length === 0 && (
-                  <div className="ml-5 px-3 py-1 text-[10px] text-fg-tertiary">
-                    No requests
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </SidebarSection>
+{isExpanded && col.items.length > 0 && (
+  <div className="ml-5">
+    <CollectionTreeItems
+      items={col.items}
+      collectionId={col.id}
+      editingId={editingId}
+      editingName={editingName}
+      editInputRef={editInputRef}
+      setEditingName={setEditingName}
+      commitEdit={commitEdit}
+      startEditing={startEditing}
+      setContextMenu={setContextMenu}
+      openTab={openTab}
+      deleteRequest={deleteRequest}
+      getMethodColor={getMethodColor}
+      expandedIds={expandedIds}
+      toggleExpand={toggleExpand}
+    />
+  </div>
+)}
+{isExpanded && col.items.length === 0 && (
+          <div className="ml-5 px-3 py-1 text-[10px] text-fg-tertiary">No requests</div>
+        )}
+      </div>
+    );
+  })}
+</SidebarSection>
 
         <SidebarSection title="History">
           {historyEntries.length === 0 ? (

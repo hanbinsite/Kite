@@ -16,9 +16,7 @@ async fn main() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        .manage(AppState {
-            storage: Arc::new(RwLock::new(None)),
-        })
+        .manage(AppState { storage: Arc::new(RwLock::new(None)) })
         .manage(commands::http::HttpClientState::new())
         .invoke_handler(tauri::generate_handler![
             commands::http::send_http_request,
@@ -30,6 +28,15 @@ async fn main() {
             commands::file_ops::create_directory,
             commands::history::insert_history_entry,
             commands::history::query_history_entries,
+            commands::history::search_history_entries,
+            commands::history::delete_history_entry,
+            commands::history::clear_history,
+            commands::history::get_setting,
+            commands::history::set_setting,
+            commands::history::insert_cookie,
+            commands::history::query_cookies,
+            commands::history::delete_cookie,
+            commands::history::clear_cookies,
             commands::collection::list_collections,
             commands::collection::get_collection,
             commands::collection::save_collection,

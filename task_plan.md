@@ -1,116 +1,224 @@
-# Task Plan: API Client - Postman-like Modern API Client
+# Task Plan — Phase 1 Bug 修复 + Phase 2 核心请求功能
 
-## Goal
-设计并规划一个类似 Postman 的现代化 API 客户端应用，包含完整的 UI 设计、功能设计、技术方案和操作流程文档。
+> 目标：修复 Phase 1 遗留问题，完成 Phase 2 核心请求功能（2.01-2.22）
+> 创建时间: 2026-04-20
 
-## Current Phase
-全部完成 ✅ → 进入开发阶段
+---
 
-## Phases
+## Phase 0: Phase 1 遗留 Bug 修复
 
-### Phase 1: Postman 研究 & 需求分析
-- [x] 深入研究最新版 Postman 的 UI 布局和交互设计
-- [x] 研究最新版 Postman 的核心功能模块
-- [x] 研究最新版 Postman 的新特性 (AI, GraphQL, WebSocket 等)
-- [x] 分析竞品 (Insomnia, Thunder Client, Hoppscotch)
-- [x] 整理研究成果到 findings.md
-- **Status:** completed
+### 0.1 修复 path traversal 返回错误码
+- **文件**: `apps/desktop/src-tauri/src/commands/file_ops.rs:43`
+- **问题**: `validate_path_within_app_data` 返回 `AppError::internal(...)` 而非 `AppError::storage_path_traversal(...)`
+- **修复**: 改为 `AppError::storage_path_traversal(...)`
+- **状态**: pending
 
-### Phase 2: 整体规划文档
-- [x] 编写项目整体规划文档 (01-整体规划.md)
-- [x] 定义项目愿景、目标用户、核心价值
-- [x] 规划开发阶段和里程碑
-- **Status:** completed
+### 0.2 修复 follow_redirects / verify_ssl 死代码
+- **文件**: `apps/desktop/src-tauri/src/commands/http.rs`
+- **问题**: `RequestSettings.follow_redirects` 和 `verify_ssl` 字段存在但从未应用到 reqwest
+- **修复**: 
+  - 每次请求时根据 settings 构建新 Client（或使用 `ClientBuilder` 配置 redirect policy）
+  - `verify_ssl=false` 时调用 `.danger_accept_invalid_certs(true)`
+  - `follow_redirects=false` 时使用 `.redirect(Policy::none())`
+  - 添加 `max_redirects` 字段
+- **状态**: pending
 
-### Phase 3: UI 设计文档
-- [x] 编写 UI 设计文档 (02-UI设计.md)
-- [x] 设计整体布局和导航结构
-- [x] 设计各页面和组件
-- [x] 定义设计系统 (颜色、字体、间距、组件库)
-- **Status:** completed
+### 0.3 移除未使用的 chrono 依赖
+- **文件**: `apps/desktop/src-tauri/Cargo.toml`
+- **问题**: chrono 声明但从未使用
+- **修复**: 从 Cargo.toml 移除 chrono
+- **状态**: pending
 
-### Phase 4: 功能设计文档
-- [x] 编写功能设计文档 (03-功能设计.md)
-- [x] 详细设计每个功能模块
-- [x] 定义数据模型和接口
-- [x] 设计工作流和状态管理
-- **Status:** completed
+### 0.4 添加 settings get/set Tauri Commands
+- **文件**: `apps/desktop/src-tauri/src/commands/history.rs` (新建 `settings` 模块或放在 history 中)
+- **问题**: `Storage::get_setting/set_setting` 方法存在但无 Tauri 命令暴露
+- **修复**: 新增 `get_setting` / `set_setting` commands
+- **状态**: pending
 
-### Phase 5: 技术方案文档
-- [x] 编写技术方案文档（拆分为 04a-架构设计.md + 04b-API设计.md + 04c-安全与性能.md）
-- [x] 选定技术栈
-- [x] 设计架构和目录结构
-- [x] 规划性能、安全、测试方案
-- **Status:** completed
+### 0.5 添加 cookie_jar CRUD 到 Storage + Commands
+- **文件**: `apps/desktop/src-tauri/src/storage/mod.rs`, 新建 `commands/cookie.rs`
+- **问题**: cookie_jar 表存在但无 CRUD 方法和命令
+- **修复**: 添加 insert/query/delete/clear cookies + 注册 Tauri commands
+- **状态**: pending
 
-### Phase 6: UI 操作流程文档
-- [x] 编写 UI 操作流程文档 (05-UI操作流程.md)
-- [x] 设计核心用户流程
-- [x] 设计交互细节和动画
-- [x] 定义快捷键和操作规范
-- **Status:** completed
+### 0.6 类型去重 — 统一 IPC 接口类型
+- **文件**: `packages/types/src/index.ts`, `packages/core/src/http/index.ts`, `apps/desktop/src/stores/request-store.ts`
+- **问题**: Header/QueryParam/BodyConfig 等类型在 types 和 core/http 中重复定义
+- **修复**: 以 `@api-client/types` 为权威来源，core/http 的 IPC 接口只定义 snake_case 映射层
+- **状态**: pending
 
-### Phase 7: 评审 & 交付
-- [x] 评审所有文档的完整性和一致性
-- [x] 确保文档间交叉引用正确
-- [x] 交付最终文档集
-- **Status:** completed
+### 0.7 补全历史命令 — search + clear + delete
+- **文件**: `apps/desktop/src-tauri/src/commands/history.rs`, `storage/mod.rs`
+- **问题**: 历史只有 insert/query，无 search/clear/delete
+- **修复**: 添加 `search_history`, `clear_history`, `delete_history` 方法 + commands
+- **状态**: pending
 
-### Phase 8: 优化 & 最终校验（额外）
-- [x] 创建 AGENTS.md（AI 开发入口文件）
-- [x] 修正 AuthConfig serde 标签策略（untagged → externally tagged）
-- [x] 替换 sodiumoxide 为 argon2 + aes-gcm（全文档集）
-- [x] 添加 data-testid 到组件清单 + 页面级 testid 补充表
-- [x] 拆分 04-技术方案.md → 04a/04b/04c（避免 AI 上下文溢出）
-- [x] 拆分 07-核心页面视觉规范.md → 07a/07b/07c（避免 AI 上下文溢出）
-- [x] 补充字体打包策略（Geist + JetBrains Mono 本地 woff2）
-- [x] 补充 CI 类型同步校验完整工作流（GitHub Actions + pre-commit）
-- [x] 审查并修正 Phase 2/3 任务清单（依赖缺失、路径错误、文档引用更新）
-- [x] 更新 README.md 文档索引反映拆分后的结构
-- [x] 更新所有文档间交叉引用（04→04a/04b/04c, 07→07a/07b/07c）
-- [x] 更新 06-深度分析报告中的 sodiumoxide 引用
-- [x] 更新 01-整体规划中的加密库版本
-- [x] 更新 03-功能设计中 AuthConfig TypeScript 定义（配合 Rust serde 变更）
-- **Status:** completed
+---
 
-## Key Decisions Made
-| Decision | Rationale |
-|----------|-----------|
-| 桌面端应用 | API 调试工具需要本地网络访问能力 |
-| 现代化 UI | 参考 Postman 最新设计，超越其 UI 体验 |
-| Tauri 2.x + React 19.x | 包体小、性能高、安全，Rust 后端处理所有网络请求 |
-| AuthConfig 使用外部标签 `#[serde(tag="type", content="config")]` | 避免 untagged 枚举反序列化歧义 |
-| argon2 + aes-gcm 替代 sodiumoxide | OWASP 推荐 KDF + NIST 推荐 AEAD，更现代更安全 |
-| 文档拆分（04→04a/04b/04c, 07→07a/07b/07c） | 单文档超 2000/6000 行，AI 上下文易溢出 |
-| 本地字体打包（woff2） | 零 FOUC、离线可用、不依赖外部 CDN |
+## Phase 1: Rust HTTP 客户端完整实现 (2.06 + 2.07)
 
-## Final Document Structure
-```
-docs/
-├── README.md                           # 文档索引
-├── 01-整体规划.md                        # 项目愿景、选型
-├── 02-UI设计.md                          # 设计系统
-├── 03-功能设计.md                         # 数据模型、业务逻辑
-├── 04a-架构设计.md                        # 技术栈、架构、Rust/前端
-├── 04b-API设计.md                        # Tauri Commands、事件定义
-├── 04c-安全与性能.md                      # 安全、OAuth、性能、测试
-├── 05-UI操作流程.md                       # 交互流程
-├── 06-技术方案深度分析报告.md               # 问题修正记录
-├── 07a-首页视觉规范.md                     # 首页像素级CSS
-├── 07b-请求编辑视觉规范.md                  # 请求/响应编辑像素级CSS
-├── 07c-侧边栏与命令面板视觉规范.md           # 侧边栏/命令面板像素级CSS
-├── 08-开发指南.md                         # 初始化、配置、结构体、组件、testid
-├── 09-Phase1任务清单.md                    # 基础框架40任务
-├── 10-Phase2任务清单.md                    # 核心请求26任务
-├── 11-Phase3任务清单.md                    # 高级功能23任务
-├── 12-状态持久化与变量同步策略.md            # 数据同步协议
-├── 13-错误处理与用户反馈完整设计.md          # 28种错误码UI映射
-└── AGENTS.md                             # AI开发入口（根目录）
-```
+### 1.1 Auth 注入到 HTTP 请求
+- **文件**: `apps/desktop/src-tauri/src/commands/http.rs`
+- **内容**: 
+  - 新增 `AuthConfig` 结构体（使用 `#[serde(tag = "type", content = "config")]` 外部标签）
+  - `HttpRequestConfig` 添加 `auth` 字段
+  - send_http_request 中根据 auth type 注入 Header/Query：
+    - Bearer → `Authorization: Bearer {token}`
+    - Basic → `Authorization: Basic base64(user:pass)`
+    - APIKey → 根据 addTo 注入 header 或 query param
+- **状态**: pending
 
-## Notes
-- 参考对象为 Postman 最新版 (v11+)
-- UI 要求现代化、简洁、高效
-- 功能齐全，不输 Postman 核心功能
-- 所有文档已作为后续开发标准，可直接开始 Phase 1 开发
-- 文档集已通过完整审查和优化，所有交叉引用、依赖关系、代码约定一致
+### 1.2 Multipart/form-data Body 支持
+- **文件**: `apps/desktop/src-tauri/src/commands/http.rs`
+- **内容**:
+  - BodyConfig 新增 `formdata: Vec<FormDataParam>` 字段
+  - mode=formdata 时构建 `reqwest::multipart::Form`
+  - text 字段用 `.text()`, file 字段用 `.file()` 或 `.part()`
+- **状态**: pending
+
+### 1.3 URL-encoded Body 支持
+- **文件**: `apps/desktop/src-tauri/src/commands/http.rs`
+- **内容**:
+  - BodyConfig 新增 `urlencoded: Vec<UrlEncodedParam>` 字段
+  - mode=urlencoded 时构建 `reqwest::Body::from(urlencoded_string)`
+- **状态**: pending
+
+### 1.4 请求设置完全生效
+- **文件**: `apps/desktop/src-tauri/src/commands/http.rs`
+- **内容**:
+  - RequestSettings 新增 `max_redirects: u32` 字段
+  - follow_redirects=false → `.redirect(Policy::none())`
+  - follow_redirects=true → `.redirect(Policy::limited(max_redirects))`
+  - verify_ssl=false → `.danger_accept_invalid_certs(true)`
+  - 每次请求构建新的 Client（因 redirect/SSL 是 Client 级别配置）
+- **状态**: pending
+
+### 1.5 前端 Auth 配置接入 Store + IPC
+- **文件**: `apps/desktop/src/stores/request-store.ts`, `apps/desktop/src/components/workbench/RequestPanel.tsx`
+- **内容**:
+  - RequestData 新增 `auth: AuthConfig` 字段
+  - Auth tab 表单绑定到 store
+  - sendRequest 时将 auth 传入 IpcHttpRequestConfig
+- **状态**: pending
+
+### 1.6 前端 RequestSettings 接入 maxRedirects
+- **文件**: 同上
+- **内容**: Settings tab 添加 Max Redirects 输入框
+- **状态**: pending
+
+---
+
+## Phase 2: Body 编辑器实现 (2.10-2.14)
+
+### 2.1 form-data 编辑器
+- **文件**: `apps/desktop/src/components/request/FormDataEditor.tsx` (新建)
+- **内容**: Key-Value 表格 + Type(text/file) 列 + 文件选择按钮
+- **状态**: pending
+
+### 2.2 urlencoded 编辑器
+- **文件**: 复用 KeyValueEditor，添加 URL 编码/解码 + Bulk Edit
+- **状态**: pending
+
+### 2.3 Raw Body 编辑器 — CodeMirror 6 集成
+- **文件**: `apps/desktop/src/components/editor/InlineEditor.tsx` (新建)
+- **内容**: CodeMirror 6 + JSON/XML/HTML 语法高亮 + JSON 格式化 + 变量高亮
+- **状态**: pending
+
+### 2.4 GraphQL 编辑器
+- **文件**: `apps/desktop/src/components/editor/GraphQLEditor.tsx` (新建)
+- **内容**: Query + Variables 编辑器（基于 CodeMirror）
+- **状态**: pending
+
+### 2.5 Body Tab 各模式编辑器接入
+- **文件**: `apps/desktop/src/components/workbench/RequestPanel.tsx`
+- **内容**: 将 2.1-2.4 的编辑器接入 Body Tab，替换 textarea
+- **状态**: pending
+
+---
+
+## Phase 3: 变量解析引擎 (2.08)
+
+### 3.1 5 层变量解析引擎
+- **文件**: `packages/core/src/environment/resolver.ts` (新建)
+- **内容**:
+  - 解析顺序: Local > Data > Environment > Collection > Global
+  - 嵌套变量 `{{base{{env}}Url}}` 两轮解析
+  - 动态变量: `$guid`, `$timestamp`, `$randomInt`, `$randomEmail`
+  - 未找到变量保持原样
+- **状态**: pending
+
+### 3.2 变量解析接入 sendRequest 流程
+- **文件**: `apps/desktop/src/stores/request-store.ts`
+- **内容**: 发送前用 resolver 解析 URL/Headers/Body 中的 `{{var}}`
+- **状态**: pending
+
+---
+
+## Phase 4: 响应查看器增强 (2.15-2.18)
+
+### 4.1 JSON 查看器（折叠/搜索）
+- **文件**: `apps/desktop/src/components/response/JsonViewer.tsx` (新建)
+- **内容**: 树形 JSON 渲染 + 折叠/展开 + Ctrl+F 搜索 + 行号 + Copy
+- **状态**: pending
+
+### 4.2 Response Cookies 解析
+- **文件**: `apps/desktop/src/components/workbench/ResponsePanel.tsx`
+- **内容**: 从 Set-Cookie 响应头解析 cookies，在 Cookies tab 展示
+- **状态**: pending
+
+### 4.3 Response Headers 搜索 + 复制
+- **文件**: `apps/desktop/src/components/response/ResponseHeadersTab.tsx` (新建)
+- **内容**: Headers 表格 + 搜索过滤 + 单个/全部复制
+- **状态**: pending
+
+---
+
+## Phase 5: 集合管理 + 环境变量 (2.19-2.22)
+
+### 5.1 集合数据模型重构 — 文件夹嵌套
+- **文件**: `apps/desktop/src-tauri/src/commands/collection.rs`
+- **内容**: CollectionFile.requests → CollectionFile.items: Vec<CollectionItem>，支持 folder 嵌套
+- **状态**: pending
+
+### 5.2 集合树组件
+- **文件**: `apps/desktop/src/components/sidebar/CollectionTree.tsx` (新建)
+- **内容**: 树形渲染 + 展开/折叠 + dnd-kit 拖拽 + 虚拟滚动
+- **状态**: pending
+
+### 5.3 环境变量编辑器
+- **文件**: `apps/desktop/src/components/environment/EnvironmentEditor.tsx` (新建)
+- **内容**: 三列(Key/Initial/Current)表格 + secret 类型 + 对比显示
+- **状态**: pending
+
+### 5.4 环境选择器增强
+- **文件**: `apps/desktop/src/components/url-bar/EnvSelector.tsx`
+- **内容**: 新建/编辑/删除入口 + ⌘E 快捷键
+- **状态**: pending
+
+---
+
+## Phase 6: 验证
+
+### 6.1 构建验证
+- `pnpm typecheck` 零错误
+- `pnpm lint` 零 error
+- `cargo check` 零错误
+- `cargo clippy` 零 warning
+- **状态**: pending
+
+---
+
+## Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| (none yet) | | |
+
+---
+
+## Decisions
+
+1. **Client per request vs shared Client**: 因 reqwest 的 redirect/SSL 是 Client 级配置，选择每次请求构建 Client（带连接池复用的优化可后续考虑）
+2. **CodeMirror vs Monaco**: Raw/GraphQL 编辑用 CodeMirror 6（轻量），脚本编辑用 Monaco（Phase 3）
+3. **变量解析位置**: 前端渲染层 + Rust 发送前二次解析（两层都需要）
+4. **AuthConfig serde**: 使用 `#[serde(tag = "type", content = "config")]` 外部标签（AGENTS.md 要求）

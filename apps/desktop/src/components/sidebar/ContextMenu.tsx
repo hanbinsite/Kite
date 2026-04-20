@@ -1,7 +1,7 @@
 import { Pencil, Plus, FolderPlus, Copy, Trash2 } from "lucide-react";
 
 interface ContextMenuTarget {
-  type: "collection" | "request";
+  type: "collection" | "request" | "folder";
   id: string;
   parentId?: string;
 }
@@ -27,8 +27,20 @@ const REQUEST_ITEMS = [
   { action: "delete", label: "Delete", icon: Trash2 },
 ];
 
+const FOLDER_ITEMS = [
+  { action: "rename", label: "Rename", icon: Pencil },
+  { action: "add-request", label: "Add Request", icon: Plus },
+  { action: "add-folder", label: "Add Folder", icon: FolderPlus },
+  { action: "delete", label: "Delete", icon: Trash2 },
+];
+
 export function ContextMenu({ x, y, target, onAction }: ContextMenuProps) {
-  const items = target.type === "collection" ? COLLECTION_ITEMS : REQUEST_ITEMS;
+  const items =
+    target.type === "collection"
+      ? COLLECTION_ITEMS
+      : target.type === "folder"
+        ? FOLDER_ITEMS
+        : REQUEST_ITEMS;
 
   const adjustedX = Math.min(x, window.innerWidth - 180);
   const adjustedY = Math.min(y, window.innerHeight - items.length * 32 - 16);

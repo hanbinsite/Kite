@@ -168,6 +168,37 @@
 | 46 | EnvSelector下拉被overflow裁剪 | ✅ 同上Portal方案，右对齐下拉 |
 | 47 | Tab去重t.url!==""导致空URL请求重复开Tab | ✅ URL非空按method+url匹配；URL为空但name非"New Request"按method+name匹配；"New Request"始终新建 |
 
+### 类型修复 (Session 9)
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 48 | InlineEditor.tsx foldKeymap import 在文件中间 | ✅ 移入顶部 `@codemirror/language` import 语句 |
+| 49 | Sidebar.tsx 引用 `col.requests` 但 CollectionItem 已重构为 `items: CollectionTreeNode[]` | ✅ Sidebar 重写为递归树形渲染：新增 `CollectionTreeItems` 组件 + `findNodeInTree` 辅助函数，支持 folder 嵌套展开/折叠/右键菜单 |
+| 50 | ContextMenu target 类型不含 "folder" | ✅ ContextMenuTarget 扩展为 `"collection" | "request" | "folder"`，新增 FOLDER_ITEMS 菜单项 |
+| 51 | collection-store.test.ts 引用 `col.requests` | ✅ 全部改为 `col.items.filter(i => i.type === "request")` |
+| 52 | add-folder 右键菜单创建顶级 collection 而非 folder | ✅ 改为调用 `addFolderToCollection(collectionId, folderId, name)` |
+
+### Rust 编译修复 (Session 9)
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 53 | Rust 工具链未安装 | ✅ 安装 rustup stable 1.95.0 + VS Build Tools 2022 |
+| 54 | icons/icon.ico 缺失 | ✅ 创建 32x32 品牌紫色图标 |
+| 55 | http.rs multipart Part::bytes + mime_str 类型不匹配 | ✅ 拆分为：先读文件 → Part::bytes → .file_name → match mime_str |
+| 56 | storage/mod.rs query_cookies stmt 生命周期不足 | ✅ 先 collect 到局部变量 `rows` 再赋值，避免 stmt 被 drop 后迭代器悬空 |
+| 57 | http.rs base64_engine 常量命名不规范 | ✅ 改为 `BASE64_ENGINE` |
+
+### 用户反馈修复 (Session 10)
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 58 | 多Tab切换请求部分不变 | ✅ request-store 重构为 per-tab 存储：`requestDataMap: Record<tabId, RequestData>` + `switchTab()` 同步；UrlBar 的 method/url 从 tab-store 读取/写入 |
+| 59 | 左侧未改名 New Request 点击多次开多个 Tab | ✅ Tab 新增 `requestId` 字段；Sidebar 传入 `requestId: item.id`；tab-store 优先按 `requestId` 去重 |
+| 60 | EnvSelector 下拉点击不生效 | ✅ 修复 mousedown 关闭逻辑：dropdownRef 包含检查；改用 e.stopPropagation() |
+| 61 | Env 缺少 CRUD 操作 | ✅ EnvSelector 下拉底部新增 "Add Environment" 按钮 + 每项 hover 显示删除按钮 |
+| 62 | 主题切换不可见 | ✅ 已有 ThemeToggle 在侧边栏底部（Dark/Light/System 循环），无需修改 |
+| 63 | 语言切换（i18n） | 📝 Phase 3+ 规划内容，当前不修复，记录在遗留问题 |
+
 ---
 
 ## 遗留低优先级问题
@@ -177,18 +208,19 @@
 | 1 | ts-rs #[derive(TS)] 未添加 | 低 — Phase 2 |
 | 2 | Environment/Variable 类型三处重复 | 低 |
 | 3 | Tab 类型 tab-store vs types 不一致 | 低 |
-| 4 | URL/method 应存 tab store 而非 useState | 中 — Phase 2 |
+| 4 | URL/method 应存 tab store 而非 useState | ✅ UrlBar 已改为从 tab-store 读写 |
 | 5 | useGlobalShortcuts hook 未使用 | 低 |
 | 6 | 无测试文件 | 中 — Phase 2 |
 | 7 | devtools feature 应仅 debug | 低 |
 | 8 | SQLite 操作未用 spawn_blocking | 中 — 数据量小时不影响 |
-| 9 | Monaco/CodeMirror 编辑器未集成 | 中 — Phase 2 |
-| 10 | i18n多语言（中/英） | 中 |
+| 9 | Monaco/CodeMirror 编辑器未集成 | ✅ CodeMirror 6 InlineEditor 已集成 |
+| 10 | i18n多语言（中/英） | 中 — Phase 3 |
+| 11 | 右键菜单（集合/请求） | ✅ 已实现 |
 | 11 | 右键菜单（集合/请求） | ✅ 已实现 |
 | 12 | 设置持久化到localStorage/SQLite | ✅ 已实现(settings-store.ts) |
 | 13 | 字体大小设置即时生效 | 高 |
 | 14 | 集合持久化到文件系统 | 高 |
-| 10 | Sidebar 集合区域为占位内容 | 中 — Phase 2 |
+| 10 | Sidebar 集合区域为占位内容 | ✅ 已实现树形渲染+CRUD |
 
 ---
 
@@ -196,12 +228,12 @@
 
 | 检查 | 结果 |
 |------|------|
-| `pnpm typecheck` | ✅ 4 包零错误 |
-| `pnpm lint` | ✅ 零 error |
-| `pnpm build` | ✅ 292KB JS, 40KB CSS |
-| `cargo check` | ✅ 1 minor warning (unused fns) |
-| Rust 镜像 | rsproxy.cn ✅ |
-| MSVC Build Tools | VS 2022 14.44 ✅ |
+| `pnpm typecheck` | ✅ 4 包零错误 (Session 9 验证) |
+| `pnpm lint` | ✅ 零 error (Session 9 验证) |
+| `pnpm build` | ✅ 887KB JS, 36KB CSS (Session 9 验证) |
+| `cargo check` | ✅ 零 warning (Session 9 验证) |
+| Rust 工具链 | ✅ rustc 1.95.0 + VS Build Tools 2022 |
+| `tauri dev` | ✅ 应用窗口成功启动 (Session 9 验证) |
 
 ---
 

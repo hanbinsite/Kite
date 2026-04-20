@@ -1,5 +1,6 @@
 import { X, Plus } from "lucide-react";
 import { useTabStore } from "@api-client/core";
+import { useRequestStore } from "../../stores";
 import { EnvSelector } from "../url-bar/EnvSelector";
 
 export function TabBar() {
@@ -8,6 +9,12 @@ export function TabBar() {
   const openTab = useTabStore((s) => s.openTab);
   const closeTab = useTabStore((s) => s.closeTab);
   const setActiveTab = useTabStore((s) => s.setActiveTab);
+  const removeTabData = useRequestStore((s) => s.removeTabData);
+
+  const handleCloseTab = (tabId: string) => {
+    closeTab(tabId);
+    removeTabData(tabId);
+  };
 
   const handleNewTab = () => {
     openTab({ name: "New Request", method: "GET", url: "" });
@@ -28,12 +35,12 @@ export function TabBar() {
                   : "text-fg-secondary hover:text-fg-primary hover:bg-bg-hover"
               }`}
             >
-              <span className="max-w-40 truncate">{tab.name || "Untitled"}</span>
+              <span className="max-w-40 truncate">{tab.url ? `${tab.method} ${tab.url}` : tab.name || "Untitled"}</span>
               {isActive && (
                 <span
                   onClick={(e) => {
                     e.stopPropagation();
-                    closeTab(tab.id);
+                    handleCloseTab(tab.id);
                   }}
                   className="p-0.5 rounded hover:bg-bg-hover opacity-0 group-hover:opacity-100 transition-opacity"
                 >
