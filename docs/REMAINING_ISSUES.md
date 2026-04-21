@@ -138,7 +138,7 @@
 - 文件: `apps/desktop/src/components/workbench/HomePage.tsx:63-75`
 - 应调用 `queryHistoryEntries()` 获取真实历史记录
 
-**ISSUE-4.10**: Settings 页面 4 个按钮无功能 ⏳ PENDING
+**ISSUE-4.10**: Settings 页面 4 个按钮无功能 ✅ FIXED
 - 文件: `apps/desktop/src/components/settings/SettingsPage.tsx:249-268`
 - Export/Import/Clear History/Reset Settings 无 `onClick` 处理器
 
