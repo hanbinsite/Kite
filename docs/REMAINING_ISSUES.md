@@ -87,4 +87,73 @@
 - 任务1.40引用01 §15已验证正确（01确实有§15性能埋点章节）
 - 03 §16 AI模块零任务 — 已在AGENTS.md标注为Phase 4+，非阻断
 
-*最后更新：2026-04-17*
+## 第四批13项 — 已完成功能 Bug 清单（2026-04-21 代码审计）
+
+> 基于最新代码逐文件审查，发现已完成功能中存在以下问题。
+
+### 🔴 HIGH — 编译错误或数据丢失
+
+**ISSUE-4.1**: `Sidebar.tsx` 缺少 `RawLanguage` 导入 ✅ FIXED
+- 文件: `apps/desktop/src/components/sidebar/Sidebar.tsx:347`
+- 代码使用了 `as RawLanguage` 类型断言但未导入，`pnpm typecheck` 实报 `TS2304`
+- 修复: 补充 `import type { ..., RawLanguage } from "@api-client/types"`
+
+**ISSUE-4.2**: 集合保存丢失 auth + body 数据 ⏳ PENDING
+- 文件: `apps/desktop/src/stores/collection-store.ts:56-78`
+- `treeToIpcItems()` 转换请求节点时只输出了 `method/url/headers/params/scripts/settings`，完全没有 `auth` 和 `body` 字段
+- 保存集合后再加载，请求的认证配置和请求体全部丢失
+
+**ISSUE-4.3**: Rust `SavedSettings` 缺少 `max_redirects` 字段 ⏳ PENDING
+- 文件: `apps/desktop/src-tauri/src/commands/collection.rs:123-131`
+- `SavedSettings` 只有 `timeout_ms/follow_redirects/verify_ssl`，缺少 `max_redirects`
+- `RequestSettings` 有此字段，保存到集合时 `maxRedirects` 丢失
+
+**ISSUE-4.4**: Auth 子结构体 camelCase/snake_case 不匹配 ⏳ PENDING
+- 文件: `apps/desktop/src-tauri/src/commands/http.rs:164-201`
+- Rust Auth 子结构体（`OAuth1Auth`/`OAuth2Auth`/`AWSV4Auth`/`ApiKeyAuth`）使用 snake_case 字段名（如 `consumer_key`/`access_token`/`access_key_id`/`add_to`）
+- 前端 `AuthConfig` 使用 camelCase（如 `consumerKey`/`accessToken`/`accessKeyId`/`addTo`）
+- Tauri IPC 反序列化时 camelCase 无法映射到 snake_case，OAuth1/OAuth2/AWSV4/ApiKey 认证静默失败（字段变为空默认值）
+
+### 🟡 MEDIUM — 功能缺失或不完整
+
+**ISSUE-4.5**: `envType` 未持久化 ⏳ PENDING
+- 文件: `apps/desktop/src/stores/environment-store.ts:33-41`
+- `toIpcEnv()` 不含 `envType`；`loadFromDisk()` 不恢复此字段
+- 重启后环境颜色标记（dev=绿/staging=金/prod=红）丢失
+
+**ISSUE-4.6**: `Cookie` TS 类型缺少 `sameSite` 字段 ⏳ PENDING
+- 文件: `packages/types/src/index.ts:97-105`
+- Rust `CookieEntry` 有 `same_site: String`，但 TS `Cookie` 接口无此字段
+
+**ISSUE-4.7**: `VariableHighlightOverlay` 已实现但从未使用 ⏳ PENDING
+- 文件: `apps/desktop/src/components/url-bar/VariableHighlight.tsx:85-120`
+- URL 输入框是普通 `<input>`，无法渲染变量高亮
+- 设计规范要求 `{{variable}}` 显示为品牌色文字+淡底
+
+**ISSUE-4.8**: `useGlobalShortcuts` hook 定义但从未调用 ⏳ PENDING
+- 文件: `apps/desktop/src/hooks/useGlobalShortcuts.ts`
+- `App.tsx` 用内联 keydown 代替，缺少 Cmd+W（关闭Tab）、Cmd+Enter（发送请求）
+
+**ISSUE-4.9**: HomePage "Recent Requests" 使用硬编码 mock 数据 ⏳ PENDING
+- 文件: `apps/desktop/src/components/workbench/HomePage.tsx:63-75`
+- 应调用 `queryHistoryEntries()` 获取真实历史记录
+
+**ISSUE-4.10**: Settings 页面 4 个按钮无功能 ⏳ PENDING
+- 文件: `apps/desktop/src/components/settings/SettingsPage.tsx:249-268`
+- Export/Import/Clear History/Reset Settings 无 `onClick` 处理器
+
+**ISSUE-4.11**: Scripts Tab 非功能性占位 ⏳ PENDING
+- 文件: `apps/desktop/src/components/workbench/RequestPanel.tsx:671-689`
+- `InlineEditor` value 硬编码 `""`，onChange 为空函数
+- `RequestStore` 无 scripts 字段，脚本无法持久化
+
+**ISSUE-4.12**: Tab 右键上下文菜单未实现 ⏳ PENDING
+- `TabBar.tsx` 无 `onContextMenu`，缺少关闭/关闭其他/关闭全部
+
+**ISSUE-4.13**: 侧边栏折叠状态未持久化 ⏳ PENDING
+- `useUIStore.sidebarVisible` 未存 localStorage，重启后不记忆
+- 且无 52px 图标折叠模式
+
+---
+
+*最后更新：2026-04-21*

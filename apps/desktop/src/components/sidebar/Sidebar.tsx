@@ -16,7 +16,7 @@ import { useRequestStore } from "../../stores/request-store";
 import { useCollectionStore, type CollectionTreeNode } from "../../stores/collection-store";
 import { queryHistoryEntries, getCollection, type IpcCollectionItem } from "@api-client/core/http";
 import type { HistoryEntry } from "@api-client/core/http";
-import type { Header, QueryParam, BodyConfig, AuthConfig, RequestSettings } from "@api-client/types";
+import type { Header, QueryParam, BodyConfig, AuthConfig, RequestSettings, RawLanguage } from "@api-client/types";
 import { ThemeToggle } from "./ThemeToggle";
 import { ContextMenu } from "./ContextMenu";
 
