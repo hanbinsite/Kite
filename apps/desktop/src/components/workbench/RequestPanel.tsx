@@ -126,6 +126,7 @@ function ensureEmptyRow(items: KeyValue[]): KeyValue[] {
 
 export function RequestPanel() {
   const [activeTab, setActiveTab] = useState<RequestTabId>("params");
+  const [scriptTab, setScriptTab] = useState<"pre" | "post">("pre");
 
   const currentTabId = useRequestStore((s) => s.currentTabId);
   const requestData = useRequestStore((s) => currentTabId ? s.requestDataMap[currentTabId] : undefined);
@@ -139,6 +140,9 @@ export function RequestPanel() {
   const setRequestBody = useRequestStore((s) => s.setRequestBody);
   const setRequestAuth = useRequestStore((s) => s.setRequestAuth);
   const setRequestSettings = useRequestStore((s) => s.setRequestSettings);
+  const setRequestScripts = useRequestStore((s) => s.setRequestScripts);
+
+  const storeScripts = requestData?.scripts ?? { preRequest: undefined, postResponse: undefined };
 
   const [params, setParams] = useState<KeyValue[]>(() => ensureEmptyRow(paramsToKv(storeParams)));
   const [headers, setHeaders] = useState<KeyValue[]>(() => ensureEmptyRow(headersToKv(storeHeaders)));
@@ -668,26 +672,35 @@ export function RequestPanel() {
                     </div>
                 )}
 
-                {activeTab === "scripts" && (
-                    <div className="scripts-editor flex flex-col h-full">
-                        <div className="scripts-tabs flex h-[36px] border-b border-border-muted px-3 gap-0 relative">
-                            <button className="scripts-tab h-[36px] px-[14px] flex items-center font-sans text-[12px] font-medium text-fg-primary cursor-pointer active">
-                                Pre-request
-                            </button>
-                            <button className="scripts-tab h-[36px] px-[14px] flex items-center font-sans text-[12px] font-medium text-fg-secondary cursor-pointer hover:text-fg-primary">
-                                Post-response
-                            </button>
-                        </div>
-                        <div className="flex-1 overflow-hidden">
-                            <InlineEditor
-                                value=""
-                                language="javascript"
-                                onChange={() => {}}
-                                placeholder="// Write your pre-request script here..."
-                            />
-                        </div>
-                    </div>
-                )}
+  {activeTab === "scripts" && (
+  <div className="scripts-editor flex flex-col h-full">
+    <div className="scripts-tabs flex h-[36px] border-b border-border-muted px-3 gap-0 relative">
+      <button
+        onClick={() => setScriptTab("pre")}
+        className={`scripts-tab h-[36px] px-[14px] flex items-center font-sans text-[12px] font-medium cursor-pointer ${scriptTab === "pre" ? "text-fg-primary active" : "text-fg-secondary hover:text-fg-primary"}`}
+      >
+        Pre-request
+      </button>
+      <button
+        onClick={() => setScriptTab("post")}
+        className={`scripts-tab h-[36px] px-[14px] flex items-center font-sans text-[12px] font-medium cursor-pointer ${scriptTab === "post" ? "text-fg-primary active" : "text-fg-secondary hover:text-fg-primary"}`}
+      >
+        Post-response
+      </button>
+    </div>
+    <div className="flex-1 overflow-hidden">
+      <InlineEditor
+        value={scriptTab === "pre" ? (storeScripts.preRequest ?? "") : (storeScripts.postResponse ?? "")}
+        language="javascript"
+        onChange={(v) => {
+          if (scriptTab === "pre") { setRequestScripts({ ...storeScripts, preRequest: v || undefined }); }
+          else { setRequestScripts({ ...storeScripts, postResponse: v || undefined }); }
+        }}
+        placeholder={scriptTab === "pre" ? "// Write your pre-request script here..." : "// Write your post-response script here..."}
+      />
+    </div>
+  </div>
+)}
 
                 {activeTab === "settings" && (
                     <div className="flex flex-col h-full p-4 gap-3">

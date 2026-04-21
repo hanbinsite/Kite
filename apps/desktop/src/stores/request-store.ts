@@ -26,6 +26,7 @@ export interface RequestData {
   body: BodyConfig | null;
   auth: AuthConfig;
   settings: RequestSettings;
+  scripts: { preRequest?: string; postResponse?: string };
 }
 
 export interface RequestState {
@@ -48,6 +49,7 @@ export interface RequestActions {
   setRequestBody: (body: BodyConfig | null) => void;
   setRequestAuth: (auth: AuthConfig) => void;
   setRequestSettings: (settings: RequestSettings) => void;
+  setRequestScripts: (scripts: { preRequest?: string; postResponse?: string }) => void;
   sendRequest: (tabId: string, method: HttpMethod, url: string) => Promise<void>;
   cancelRequest: (tabId: string) => Promise<void>;
   initTabData: (tabId: string, data?: Partial<RequestData>) => void;
@@ -68,6 +70,7 @@ export const DEFAULT_REQUEST_DATA: RequestData = {
     maxRedirects: 10,
     verifySsl: true,
   },
+  scripts: { preRequest: undefined, postResponse: undefined },
 };
 
 function getOrCreateTabData(map: Record<string, RequestData>, tabId: string): RequestData {
@@ -78,6 +81,7 @@ function getOrCreateTabData(map: Record<string, RequestData>, tabId: string): Re
       body: null,
       auth: { ...DEFAULT_AUTH },
       settings: { timeoutMs: 30000, followRedirects: true, maxRedirects: 10, verifySsl: true },
+      scripts: { preRequest: undefined, postResponse: undefined },
     };
   }
   return map[tabId];
@@ -236,12 +240,19 @@ export const useRequestStore = create<RequestStore>()(
         }
       }),
 
-    setRequestSettings: (settings) =>
-      set((state) => {
-        if (state.currentTabId) {
-          getOrCreateTabData(state.requestDataMap, state.currentTabId).settings = settings;
-        }
-      }),
+  setRequestSettings: (settings) =>
+    set((state) => {
+      if (state.currentTabId) {
+        getOrCreateTabData(state.requestDataMap, state.currentTabId).settings = settings;
+      }
+    }),
+
+  setRequestScripts: (scripts) =>
+    set((state) => {
+      if (state.currentTabId) {
+        getOrCreateTabData(state.requestDataMap, state.currentTabId).scripts = scripts;
+      }
+    }),
 
     sendRequest: async (tabId, method, url) => {
       const state = get();
@@ -323,17 +334,18 @@ export const useRequestStore = create<RequestStore>()(
       });
     },
 
-    initTabData: (tabId, data) =>
-      set((state) => {
-        if (!state.requestDataMap[tabId]) {
-          state.requestDataMap[tabId] = {
-            headers: data?.headers ?? [],
-            params: data?.params ?? [],
-            body: data?.body ?? null,
-            auth: data?.auth ?? { ...DEFAULT_AUTH },
-            settings: data?.settings ?? { timeoutMs: 30000, followRedirects: true, maxRedirects: 10, verifySsl: true },
-          };
-        }
-      }),
+  initTabData: (tabId, data) =>
+    set((state) => {
+      if (!state.requestDataMap[tabId]) {
+        state.requestDataMap[tabId] = {
+          headers: data?.headers ?? [],
+          params: data?.params ?? [],
+          body: data?.body ?? null,
+          auth: data?.auth ?? { ...DEFAULT_AUTH },
+          settings: data?.settings ?? { timeoutMs: 30000, followRedirects: true, maxRedirects: 10, verifySsl: true },
+          scripts: data?.scripts ?? { preRequest: undefined, postResponse: undefined },
+        };
+      }
+    }),
   })),
 );

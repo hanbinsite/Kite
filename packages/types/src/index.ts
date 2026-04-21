@@ -102,6 +102,7 @@ export interface Cookie {
   expires?: string;
   secure?: boolean;
   httpOnly?: boolean;
+  sameSite?: string;
 }
 
 // Auth Types

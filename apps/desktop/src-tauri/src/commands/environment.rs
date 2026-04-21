@@ -7,6 +7,8 @@ pub struct EnvironmentFile {
     pub id: String,
     pub name: String,
     pub variables: Vec<EnvironmentVariable>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "env_type")]
+    pub env_type: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }

@@ -126,6 +126,7 @@ pub enum AuthConfig {
 pub struct EmptyAuth {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ApiKeyAuth {
     pub key: String,
     pub value: String,
@@ -162,6 +163,7 @@ pub struct JwtAuth {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct OAuth1Auth {
     pub consumer_key: String,
     pub consumer_secret: String,
@@ -176,6 +178,7 @@ fn default_hmac_sha1() -> String {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct OAuth2Auth {
     pub access_token: String,
     #[serde(default = "default_token_type")]
@@ -191,6 +194,7 @@ fn default_token_type() -> String {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AwsV4Auth {
     pub access_key_id: String,
     pub secret_access_key: String,

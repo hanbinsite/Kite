@@ -1,17 +1,37 @@
+import { useState, useEffect } from "react";
 import { Zap, Clock, FolderOpen } from "lucide-react";
 import { useTabStore, useUIStore } from "@api-client/core";
+import { queryHistoryEntries, type HistoryEntry } from "@api-client/core/http";
 
 const METHOD_BG: Record<string, string> = {
-	get: "bg-method-get",
-	post: "bg-method-post",
-	put: "bg-method-put",
-	patch: "bg-method-patch",
-	delete: "bg-method-delete",
+  get: "bg-method-get",
+  post: "bg-method-post",
+  put: "bg-method-put",
+  patch: "bg-method-patch",
+  delete: "bg-method-delete",
 };
+
+function formatTimeAgo(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "just now";
+  if (diffMin < 60) return `${diffMin} min ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  return `${diffDay}d ago`;
+}
 
 export function HomePage() {
   const openTab = useTabStore((s) => s.openTab);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+
+  useEffect(() => {
+    queryHistoryEntries(10).then(setHistory).catch(() => setHistory([]));
+  }, []);
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center bg-bg-base overflow-y-auto p-8">
@@ -59,34 +79,33 @@ export function HomePage() {
             <Clock className="w-4 h-4 text-fg-tertiary" />
             <h2 className="text-sm font-medium text-fg-secondary">Recent Requests</h2>
           </div>
-          <div className="space-y-2">
-            {[
-              { method: "GET", url: "/api/users", time: "2 min ago" },
-              { method: "POST", url: "/api/auth/login", time: "5 min ago" },
-              { method: "PUT", url: "/api/users/123", time: "10 min ago" },
-            ].map((item, i) => (
-              <button
-                key={i}
-                onClick={() =>
-                  openTab({
-                    name: item.url,
-                    method: item.method,
-                    url: `https://api.example.com${item.url}`,
-                  })
-                }
-                className="w-full flex items-center gap-3 p-3 bg-bg-surface border border-border-default rounded-lg hover:border-brand transition-colors"
-              >
-                <span
-                  className={`px-1.5 py-0.5 rounded text-2xs font-bold text-white ${METHOD_BG[item.method.toLowerCase()] || "bg-fg-tertiary"}`}
-                >
-                  {item.method}
-                </span>
-                <span className="flex-1 text-sm text-fg-primary text-left truncate">
-                  {item.url}
-                </span>
-                <span className="text-xs text-fg-tertiary">{item.time}</span>
-              </button>
-            ))}
+        <div className="space-y-2">
+        {history.length === 0 && (
+          <div className="text-xs text-fg-tertiary py-4 text-center">No recent requests yet</div>
+        )}
+        {history.map((item) => (
+          <button
+            key={item.id}
+            onClick={() =>
+              openTab({
+                name: item.url,
+                method: item.method,
+                url: item.url,
+              })
+            }
+            className="w-full flex items-center gap-3 p-3 bg-bg-surface border border-border-default rounded-lg hover:border-brand transition-colors"
+          >
+            <span
+              className={`px-1.5 py-0.5 rounded text-2xs font-bold text-white ${METHOD_BG[item.method.toLowerCase()] || "bg-fg-tertiary"}`}
+            >
+              {item.method}
+            </span>
+            <span className="flex-1 text-sm text-fg-primary text-left truncate">
+              {item.url}
+            </span>
+            <span className="text-xs text-fg-tertiary">{formatTimeAgo(item.created_at)}</span>
+          </button>
+        ))}
           </div>
         </div>
       </div>

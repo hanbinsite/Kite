@@ -3,6 +3,7 @@ import { X, Settings, Globe, Type, Database, Info } from "lucide-react";
 import { useUIStore } from "@api-client/core";
 import type { Theme } from "@api-client/core";
 import { useSettingsStore } from "../../stores/settings-store";
+import { clearHistory as clearHistoryIpc } from "@api-client/core/http";
 
 const FONT_SIZE_OPTIONS = [
   { value: "14", label: "14px" },
@@ -242,28 +243,57 @@ function FontsSection() {
 }
 
 function DataSection() {
+  const [clearConfirm, setClearConfirm] = useState(false);
+  const [resetConfirm, setResetConfirm] = useState(false);
+
+  const handleClearHistory = async () => {
+    if (!clearConfirm) { setClearConfirm(true); return; }
+    try { await clearHistoryIpc(); } catch (e) { console.error("Failed to clear history:", e); }
+    setClearConfirm(false);
+  };
+
+  const handleResetSettings = () => {
+    if (!resetConfirm) { setResetConfirm(true); return; }
+    localStorage.removeItem("api-client-settings");
+    window.location.reload();
+  };
+
   return (
     <div className="mb-6">
       <SectionTitle>Data Management</SectionTitle>
       <div className="flex flex-col gap-3">
         <Field label="Export Data" desc="Export all collections, environments, and settings">
-          <button className="h-8 px-4 rounded-md bg-bg-elevated border border-border-muted font-sans text-[13px] font-medium text-fg-primary cursor-pointer transition-all duration-[100ms] shrink-0 hover:bg-bg-hover">
+          <button
+            onClick={() => { const data = localStorage.getItem("api-client-settings") ?? "{}"; const blob = new Blob([data], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "api-client-settings.json"; a.click(); URL.revokeObjectURL(url); }}
+            className="h-8 px-4 rounded-md bg-bg-elevated border border-border-muted font-sans text-[13px] font-medium text-fg-primary cursor-pointer transition-all duration-[100ms] shrink-0 hover:bg-bg-hover"
+          >
             Export
           </button>
         </Field>
         <Field label="Import Data" desc="Import collections and settings from a file">
-          <button className="h-8 px-4 rounded-md bg-bg-elevated border border-border-muted font-sans text-[13px] font-medium text-fg-primary cursor-pointer transition-all duration-[100ms] shrink-0 hover:bg-bg-hover">
+          <button
+            onClick={() => { const input = document.createElement("input"); input.type = "file"; input.accept = ".json"; input.onchange = (e) => { const file = (e.target as HTMLInputElement).files?.[0]; if (file) { const reader = new FileReader(); reader.onload = () => { try { JSON.parse(reader.result as string); localStorage.setItem("api-client-settings", reader.result as string); window.location.reload(); } catch { console.error("Invalid JSON file"); } }; reader.readAsText(file); } }; input.click(); }}
+            className="h-8 px-4 rounded-md bg-bg-elevated border border-border-muted font-sans text-[13px] font-medium text-fg-primary cursor-pointer transition-all duration-[100ms] shrink-0 hover:bg-bg-hover"
+          >
             Import
           </button>
         </Field>
         <Field label="Clear History" desc="Remove all request history entries">
-          <button className="h-8 px-4 rounded-md bg-transparent border border-accent-danger/30 font-sans text-[13px] font-medium text-accent-danger cursor-pointer transition-all duration-[100ms] shrink-0 hover:bg-accent-danger/12 hover:border-accent-danger">
-            Clear
+          <button
+            onClick={handleClearHistory}
+            onBlur={() => setClearConfirm(false)}
+            className={`h-8 px-4 rounded-md border font-sans text-[13px] font-medium cursor-pointer transition-all duration-[100ms] shrink-0 ${clearConfirm ? "bg-accent-danger text-white border-accent-danger" : "bg-transparent border-accent-danger/30 text-accent-danger hover:bg-accent-danger/12 hover:border-accent-danger"}`}
+          >
+            {clearConfirm ? "Confirm" : "Clear"}
           </button>
         </Field>
         <Field label="Reset Settings" desc="Reset all settings to defaults">
-          <button className="h-8 px-4 rounded-md bg-transparent border border-accent-danger/30 font-sans text-[13px] font-medium text-accent-danger cursor-pointer transition-all duration-[100ms] shrink-0 hover:bg-accent-danger/12 hover:border-accent-danger">
-            Reset
+          <button
+            onClick={handleResetSettings}
+            onBlur={() => setResetConfirm(false)}
+            className={`h-8 px-4 rounded-md border font-sans text-[13px] font-medium cursor-pointer transition-all duration-[100ms] shrink-0 ${resetConfirm ? "bg-accent-danger text-white border-accent-danger" : "bg-transparent border-accent-danger/30 text-accent-danger hover:bg-accent-danger/12 hover:border-accent-danger"}`}
+          >
+            {resetConfirm ? "Confirm" : "Reset"}
           </button>
         </Field>
       </div>

@@ -6,13 +6,24 @@ import { CommandPalette, type CommandItem } from "./components/command-palette";
 import { SettingsPage } from "./components/settings";
 import { useUIStore, useTabStore } from "@api-client/core";
 import { Plus, Settings, FolderOpen, History } from "lucide-react";
-import { useTheme } from "./hooks";
+import { useTheme, useKeyboardShortcuts } from "./hooks";
+import { useRequestStore } from "./stores";
 
 export function App() {
   useTheme();
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const openTab = useTabStore((s) => s.openTab);
+  const closeTab = useTabStore((s) => s.closeTab);
+  const activeTabId = useTabStore((s) => s.activeTabId);
+  const removeTabData = useRequestStore((s) => s.removeTabData);
+  const sendRequest = useRequestStore((s) => s.sendRequest);
+  const activeTab = useTabStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
+
+  useKeyboardShortcuts([
+    { shortcut: "cmd+w", handler: () => { if (activeTabId) { closeTab(activeTabId); removeTabData(activeTabId); } } },
+    { shortcut: "cmd+enter", handler: () => { if (activeTabId && activeTab?.url) { sendRequest(activeTabId, (activeTab.method ?? "GET") as "GET", activeTab.url); } } },
+  ]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

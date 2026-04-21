@@ -126,12 +126,15 @@ pub struct SavedSettings {
     pub timeout_ms: u64,
     #[serde(default = "default_true")]
     pub follow_redirects: bool,
+    #[serde(default = "default_redirects")]
+    pub max_redirects: u32,
     #[serde(default = "default_true")]
     pub verify_ssl: bool,
 }
 
 fn default_timeout() -> u64 { 30000 }
 fn default_true() -> bool { true }
+fn default_redirects() -> u32 { 10 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CollectionVariable {

@@ -35,6 +35,7 @@ function toIpcEnv(env: Environment): IpcEnvironmentFile {
     id: env.id,
     name: env.name,
     variables: env.variables.map((v) => ({ key: v.key, value: v.value, enabled: v.enabled })),
+    env_type: env.envType,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -151,13 +152,14 @@ export const useEnvironmentStore = create<EnvironmentStore>()(
         const envs: Environment[] = [];
         for (const s of summaries) {
           try {
-            const file = await getEnvironment(s.id);
-            envs.push({
-              id: file.id,
-              name: file.name,
-              variables: file.variables.map((v) => ({ key: v.key, value: v.value, enabled: v.enabled })),
-              isActive: false,
-            });
+      const file = await getEnvironment(s.id);
+      envs.push({
+        id: file.id,
+        name: file.name,
+        variables: file.variables.map((v) => ({ key: v.key, value: v.value, enabled: v.enabled })),
+        isActive: false,
+        envType: (file.env_type as Environment["envType"]) ?? undefined,
+      });
           } catch {
             // skip broken env files
           }

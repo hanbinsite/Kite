@@ -4,7 +4,7 @@ import { useUIStore, useTabStore } from "@api-client/core";
 import { useRequestStore } from "../../stores";
 import { MethodSelector } from "./MethodSelector";
 import { SendButton, type SendButtonState } from "./SendButton";
-import { VariableAutocomplete } from "./VariableHighlight";
+import { VariableAutocomplete, VariableHighlightOverlay } from "./VariableHighlight";
 import type { HttpMethod } from "@api-client/types";
 
 export function UrlBar() {
@@ -140,8 +140,16 @@ export function UrlBar() {
 
         <MethodSelector method={method} onChange={setMethod} />
 
-        <div className="flex-1 relative">
-          <input
+          <div className="flex-1 relative">
+            {url.includes("{{") && (
+              <div
+                className="absolute inset-0 flex items-center h-8 px-3 font-mono text-sm pointer-events-none overflow-hidden whitespace-nowrap"
+                aria-hidden="true"
+              >
+                <VariableHighlightOverlay text={url} />
+              </div>
+            )}
+            <input
             ref={inputRef}
             type="text"
             value={url}
@@ -153,7 +161,7 @@ export function UrlBar() {
             onSelect={handleInputSelect}
             onBlur={() => setShowAutocomplete(false)}
             placeholder="Enter request URL"
-            className={`w-full h-8 px-3 bg-bg-input border rounded-md text-sm font-mono text-fg-primary caret-fg-primary placeholder:text-fg-tertiary focus:outline-none transition-colors ${urlError ? "border-accent-danger focus:border-accent-danger focus:ring-1 focus:ring-accent-danger" : "border-border-default focus:border-border-focus focus:ring-1 focus:ring-brand"}`}
+              className={`w-full h-8 px-3 bg-bg-input border rounded-md text-sm font-mono caret-fg-primary placeholder:text-fg-tertiary focus:outline-none transition-colors ${url.includes("{{") ? "text-transparent" : "text-fg-primary"} ${urlError ? "border-accent-danger focus:border-accent-danger focus:ring-1 focus:ring-accent-danger" : "border-border-default focus:border-border-focus focus:ring-1 focus:ring-brand"}`}
           />
           {urlError && <div className="absolute -bottom-5 left-0 text-2xs text-accent-danger font-mono whitespace-nowrap">{urlError}</div>}
           {showAutocomplete && (

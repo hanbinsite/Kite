@@ -213,11 +213,12 @@ export async function deleteCollection(collectionId: string): Promise<void> {
 // Environment IPC
 
 export interface IpcEnvironmentFile {
-    id: string;
-    name: string;
-    variables: { key: string; value: string; enabled: boolean }[];
-    created_at: string;
-    updated_at: string;
+  id: string;
+  name: string;
+  variables: { key: string; value: string; enabled: boolean }[];
+  env_type?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface IpcEnvironmentSummary {

@@ -32,14 +32,14 @@ interface UIStoreImpl extends UIStore {
 }
 
 export const useUIStore = create<UIStoreImpl>()((set) => ({
-  theme: "dark",
-  sidebarVisible: true,
+  theme: (localStorage.getItem("theme") as Theme) || "dark",
+  sidebarVisible: localStorage.getItem("sidebarVisible") !== "false",
   sidebarWidth: 220,
   splitRatio: 0.5,
   settingsOpen: false,
 
-  setTheme: (theme) => set({ theme }),
-  toggleSidebar: () => measureSync("sidebar:toggle", () => set((state) => ({ sidebarVisible: !state.sidebarVisible }))),
+  setTheme: (theme) => { localStorage.setItem("theme", theme); set({ theme }); },
+  toggleSidebar: () => measureSync("sidebar:toggle", () => set((state) => { const next = !state.sidebarVisible; localStorage.setItem("sidebarVisible", String(next)); return { sidebarVisible: next }; })),
   setSidebarWidth: (width) => set({ sidebarWidth: width }),
   setSplitRatio: (ratio) => set({ splitRatio: ratio }),
   openSettings: () => set({ settingsOpen: true }),
