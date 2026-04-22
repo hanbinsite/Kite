@@ -139,6 +139,7 @@ fn default_add_to_header() -> String {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BearerAuth {
     pub token: String,
     #[serde(default = "default_bearer_prefix")]
@@ -150,12 +151,14 @@ fn default_bearer_prefix() -> String {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BasicAuth {
     pub username: String,
     pub password: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct JwtAuth {
     pub token: String,
     #[serde(skip_serializing_if = "Option::is_none")]

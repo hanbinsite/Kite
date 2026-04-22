@@ -191,13 +191,15 @@ function findAndDuplicateNode(items: CollectionTreeNode[], requestId: string): C
   for (const item of items) {
     if (item.type === "request" && item.id === requestId) {
       const copy: CollectionTreeNode = { ...item, id: crypto.randomUUID(), name: `${item.name} (copy)` };
-      items.push(copy);
-      break;
+      return [...items, copy];
     }
     if (item.type === "folder") {
       const before = item.items.length;
-      findAndDuplicateNode(item.items, requestId);
-      if (item.items.length > before) break;
+      const newChildren = findAndDuplicateNode(item.items, requestId);
+      if (newChildren.length > before) {
+        item.items = newChildren;
+        return items;
+      }
     }
   }
   return items;
@@ -266,16 +268,16 @@ export const useCollectionStore = create<CollectionStore>()(
             get().persistCollection(collectionId);
         },
 
-        duplicateRequest: (collectionId, requestId) => {
-            const state = get();
-            const col = state.collections.find((c) => c.id === collectionId);
-            if (!col) return;
-            set((state) => {
-                const col = state.collections.find((c) => c.id === collectionId);
-                if (col) findAndDuplicateNode(col.items, requestId);
-            });
-            get().persistCollection(collectionId);
-        },
+    duplicateRequest: (collectionId, requestId) => {
+      const state = get();
+      const col = state.collections.find((c) => c.id === collectionId);
+      if (!col) return;
+      set((state) => {
+        const col = state.collections.find((c) => c.id === collectionId);
+        if (col) col.items = findAndDuplicateNode(col.items, requestId);
+      });
+      get().persistCollection(collectionId);
+    },
 
         loadFromDisk: async () => {
             if (get().isLoaded) return;

@@ -20,7 +20,7 @@ pub struct CollectionFile {
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum CollectionItem {
     Folder(CollectionFolder),
-    Request(SavedRequest),
+    Request(Box<SavedRequest>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -279,7 +279,7 @@ mod tests {
       name: name.to_string(),
       description: None,
       items: vec![
-        CollectionItem::Request(SavedRequest {
+        CollectionItem::Request(Box::new(SavedRequest {
           id: "req-1".to_string(),
           name: "Get Users".to_string(),
           method: "GET".to_string(),
@@ -290,7 +290,7 @@ mod tests {
           auth: None,
           scripts: SavedScripts::default(),
           settings: SavedSettings::default(),
-        }),
+        })),
       ],
       variables: Some(vec![
         CollectionVariable { key: "base_url".to_string(), value: "https://api.example.com".to_string(), enabled: true },

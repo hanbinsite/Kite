@@ -84,6 +84,24 @@ function findNodeInTree(items: CollectionTreeNode[], id: string): CollectionTree
   return undefined;
 }
 
+function filterTreeByQuery(items: CollectionTreeNode[], query: string): CollectionTreeNode[] {
+  if (!query) return items;
+  const lower = query.toLowerCase();
+  return items.reduce<CollectionTreeNode[]>((acc, item) => {
+    if (item.type === "request") {
+      if (item.name.toLowerCase().includes(lower) || item.url.toLowerCase().includes(lower) || item.method.toLowerCase().includes(lower)) {
+        acc.push(item);
+      }
+    } else if (item.type === "folder") {
+      const filtered = filterTreeByQuery(item.items, query);
+      if (filtered.length > 0 || item.name.toLowerCase().includes(lower)) {
+        acc.push({ ...item, items: filtered.length > 0 ? filtered : item.items });
+      }
+    }
+    return acc;
+  }, []);
+}
+
 interface CollectionTreeItemsProps {
   items: CollectionTreeNode[];
   collectionId: string;
@@ -273,6 +291,7 @@ const deleteRequest = useCollectionStore((s) => s.deleteRequest);
   const editInputRef = useRef<HTMLInputElement | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const responses = useRequestStore((s) => s.responses);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -490,6 +509,8 @@ const commitEdit = () => {
         <Search className="w-4 h-4 text-fg-tertiary" />
         <input
           type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search..."
           className="flex-1 bg-transparent text-sm text-fg-primary placeholder:text-fg-tertiary outline-none"
         />
@@ -502,24 +523,27 @@ const commitEdit = () => {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <SidebarSection
-          title="Collections"
-          defaultOpen
-          action={
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleAddCollection();
-              }}
-              className="p-0.5 hover:bg-bg-hover rounded transition-colors"
-            >
-              <Plus className="w-3 h-3" />
-            </button>
-          }
-        >
-          {collections.map((col) => {
-            const isExpanded = expandedIds.has(col.id);
-            const isEditing = editingId === col.id;
+      <SidebarSection
+        title="Collections"
+        defaultOpen
+        action={
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleAddCollection();
+            }}
+            className="p-0.5 hover:bg-bg-hover rounded transition-colors"
+          >
+            <Plus className="w-3 h-3" />
+          </button>
+        }
+      >
+        {collections.map((col) => {
+          const isExpanded = expandedIds.has(col.id);
+          const isEditing = editingId === col.id;
+          const filteredItems = filterTreeByQuery(col.items, searchQuery);
+          const showCollection = !searchQuery || filteredItems.length > 0 || col.name.toLowerCase().includes(searchQuery.toLowerCase());
+          if (!showCollection) return null;
             return (
               <div key={col.id}>
                 <div
@@ -580,11 +604,11 @@ const commitEdit = () => {
                     </button>
                   </div>
                 </div>
-{isExpanded && col.items.length > 0 && (
-  <div className="ml-5">
-                <CollectionTreeItems
-                  items={col.items}
-                  collectionId={col.id}
+        {isExpanded && col.items.length > 0 && (
+          <div className="ml-5">
+            <CollectionTreeItems
+              items={searchQuery ? filteredItems : col.items}
+              collectionId={col.id}
                   editingId={editingId}
                   editingName={editingName}
                   editInputRef={editInputRef}
@@ -609,11 +633,15 @@ const commitEdit = () => {
   })}
 </SidebarSection>
 
-        <SidebarSection title="History">
-          {historyEntries.length === 0 ? (
-            <div className="px-3 py-2 text-xs text-fg-tertiary">No history yet</div>
-          ) : (
-            groupHistory(historyEntries).map((group) => (
+      <SidebarSection title="History">
+        {(() => {
+          const filteredHistory = searchQuery
+            ? historyEntries.filter((e) => e.url.toLowerCase().includes(searchQuery.toLowerCase()) || e.method.toLowerCase().includes(searchQuery.toLowerCase()))
+            : historyEntries;
+        return filteredHistory.length === 0 ? (
+          <div className="px-3 py-2 text-xs text-fg-tertiary">No history yet</div>
+        ) : (
+          groupHistory(filteredHistory).map((group) => (
               <div key={group.label}>
                 <div className="px-3 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-fg-tertiary">
                   {group.label}
@@ -649,12 +677,13 @@ const commitEdit = () => {
                         {entry.duration}ms
                       </span>
                     </button>
-                  );
-                })}
-              </div>
-            ))
-          )}
-        </SidebarSection>
+);
+})}
+</div>
+))
+);
+})()}
+</SidebarSection>
 
         <SidebarSection title="Environments">
           {environments.map((env) => (

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { AppLayout } from "./components/layout/AppLayout";
 import { Sidebar } from "./components/sidebar/Sidebar";
+import { CollapsedSidebar } from "./components/sidebar/CollapsedSidebar";
 import { Workbench } from "./components/workbench/Workbench";
 import { CommandPalette, type CommandItem } from "./components/command-palette";
 import { SettingsPage } from "./components/settings";
@@ -80,7 +81,7 @@ export function App() {
 
   return (
     <>
-      <AppLayout sidebar={<Sidebar />} workbench={<Workbench />} />
+      <AppLayout sidebar={<Sidebar />} collapsedSidebar={<CollapsedSidebar />} workbench={<Workbench />} />
       <CommandPalette
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}

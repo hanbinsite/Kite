@@ -142,18 +142,51 @@
 - 文件: `apps/desktop/src/components/settings/SettingsPage.tsx:249-268`
 - Export/Import/Clear History/Reset Settings 无 `onClick` 处理器
 
-**ISSUE-4.11**: Scripts Tab 非功能性占位 ⏳ PENDING
-- 文件: `apps/desktop/src/components/workbench/RequestPanel.tsx:671-689`
-- `InlineEditor` value 硬编码 `""`，onChange 为空函数
-- `RequestStore` 无 scripts 字段，脚本无法持久化
+**ISSUE-4.11**: Scripts Tab 非功能性占位 ✅ FIXED
+- 文件: `apps/desktop/src/components/workbench/RequestPanel.tsx:691-698`
+- `InlineEditor` 现已连接 `storeScripts`，onChange 调用 `setRequestScripts`
+- `RequestStore` 已有 `scripts` 字段，脚本可持久化
 
-**ISSUE-4.12**: Tab 右键上下文菜单未实现 ⏳ PENDING
-- `TabBar.tsx` 无 `onContextMenu`，缺少关闭/关闭其他/关闭全部
+**ISSUE-4.12**: Tab 右键上下文菜单未实现 ✅ FIXED
+- `TabBar.tsx:33-52` 已实现 `onContextMenu` + Close Tab / Close Others / Close All
 
-**ISSUE-4.13**: 侧边栏折叠状态未持久化 ⏳ PENDING
-- `useUIStore.sidebarVisible` 未存 localStorage，重启后不记忆
-- 且无 52px 图标折叠模式
+**ISSUE-4.13**: 侧边栏折叠状态未持久化 ⏳ PARTIAL
+- `useUIStore.sidebarVisible` 已存 localStorage（重启记忆 ✅）
+- 仍缺 52px 图标折叠模式
 
 ---
 
-*最后更新：2026-04-21*
+## 第五批6项 — 2026-04-22 深度分析新发现
+
+### 🟡 MEDIUM
+
+**ISSUE-5.1**: `findAndDuplicateNode` 遍历时修改同一数组 ✅ FIXED
+- 文件: `apps/desktop/src/stores/collection-store.ts:190-204`
+- 遍历 `items` 时直接 `items.push(copy)` 修改正在遍历的数组，可能导致跳过元素或重复访问
+- 修复: 改为返回新数组 `[...items, copy]`，递归时同样返回新数组
+
+**ISSUE-5.2**: Sidebar 搜索框无功能 ✅ FIXED
+- 文件: `apps/desktop/src/components/sidebar/Sidebar.tsx:491-495`
+- Search input 无 `value`/`onChange` 绑定，无法过滤集合/历史
+- 修复: 添加搜索状态，过滤 Collections 和 History 列表
+
+**ISSUE-5.3**: 前端 Vitest 未配置，3 个 test 文件无法执行 ✅ FIXED
+- `collection-store.test.ts` / `environment-store.test.ts` / `settings-store.test.ts` 存在
+- `apps/desktop/package.json` 缺少 `test:unit` 脚本和 Vitest 依赖
+- 修复: 配置 Vitest + 添加 test:unit 脚本
+
+### 🟢 LOW
+
+**ISSUE-5.4**: `BearerAuth`/`BasicAuth` 缺少 `rename_all = "camelCase"` ✅ FIXED
+- 文件: `apps/desktop/src-tauri/src/commands/http.rs:141-156`
+- 其他 Auth 结构体（ApiKeyAuth/OAuth1Auth/OAuth2Auth/AwsV4Auth）均添加了 `rename_all`
+- BearerAuth/BasicAuth 字段全小写无实际影响，但风格不一致
+- 修复: 统一添加 `#[serde(rename_all = "camelCase")]`
+
+**ISSUE-5.5**: 侧边栏缺少 52px 图标折叠模式 ✅ FIXED
+- `sidebarVisible` 切换为 false 时完全隐藏，无图标模式
+- 修复: 添加 `sidebarCollapsed` 状态，折叠时显示 52px 图标列
+
+---
+
+*最后更新：2026-04-22*
