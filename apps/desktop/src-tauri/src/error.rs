@@ -48,6 +48,7 @@ impl AppError {
     pub fn proxy_not_running() -> Self { Self { code: "PROXY_NOT_RUNNING".into(), detail: "Proxy server is not running".into() } }
 
     // General
+    pub fn not_found(detail: String) -> Self { Self { code: "NOT_FOUND".into(), detail } }
     pub fn not_implemented(detail: String) -> Self { Self { code: "NOT_IMPLEMENTED".into(), detail } }
     pub fn internal(detail: String) -> Self { Self { code: "INTERNAL".into(), detail } }
 }

@@ -1,7 +1,7 @@
 # API Client 开发进度跟踪
 
 > 本文档记录每个任务的完成状态、阻塞项、验证结果和偏差记录。与 09/10/11/14/15 任务清单交叉引用。
-> 最后更新: 2026-05-06 | v1.8 | Phase 3: 100%, Phase 4: 20% (3/15)
+> 最后更新: 2026-05-06 | v1.9 | Phase 3: 100%, Phase 4: 33% (5/15), 集合/文件夹级配置: 100%
 
 ---
 
@@ -14,7 +14,8 @@
 | Phase 2b (多协议) | 15 | 15 | 0 | 0 | 0 | 100% |
 | Phase 3 (高级功能) | 23 | 23 | 0 | 0 | 0 | 100% |
 | Phase 4 (AI 模块) | 15 | 5 | 0 | 10 | 0 | 33% |
-| **总计** | **119** | **109** | **0** | **10** | **0** | **92%** |
+| 集合/文件夹级配置 | 11 | 11 | 0 | 0 | 0 | 100% |
+| **总计** | **130** | **120** | **0** | **10** | **0** | **92%** |
 
 ---
 
@@ -221,7 +222,37 @@
 
 ---
 
-## 7. 偏差记录
+## 7. 集合/文件夹级配置进度 (23-集合与文件夹级配置设计)
+
+### Phase A — 数据层 + 继承合并
+
+| Task ID | 任务描述 | 状态 | 关键文件 | 验证结果 |
+|---------|---------|------|---------|---------|
+| A.1 | 层级路径解析 + 变量优先级 | ✅ DONE | resolver.ts (7层), collection-store.ts (resolveRequestHierarchy) | VariableScope 7 层 + findInTree 算法 ✅ |
+| A.2 | Headers/Auth 合并逻辑 + Rust Commands | ✅ DONE | hierarchy-merge.ts, collection.rs (2 新 commands) | mergeHeaders 追加覆盖 + resolveAuth 沿层查找 + update_collection_config + update_folder_config ✅ |
+| A.3 | 脚本执行链 + 中断逻辑 | ✅ DONE | hierarchy-merge.ts (collectPre/PostChain), script/index.ts | Pre-request 链式执行 + 失败中断 + Post-response 失败不中断 + ScriptContext 扩展 ✅ |
+| A.4 | sendRequest() 完整改造 | ✅ DONE | request-store.ts | 层级解析→变量合并→Headers合并→Auth继承→脚本链→发送→Post链 ✅ |
+
+### Phase B — 集合设置 UI
+
+| Task ID | 任务描述 | 状态 | 关键文件 | 验证结果 |
+|---------|---------|------|---------|---------|
+| B.1 | CollectionConfigTab + Tab 系统扩展 | ✅ DONE | tab-store.ts, Workbench.tsx, CollectionConfigTab.tsx | protocol:"collection-config" + Tab 去重 + Workbench 路由 ✅ |
+| B.2 | Overview + Variables + Headers 子 Tab | ✅ DONE | ConfigOverview/Variables/HeadersTab.tsx | 名称/描述编辑 + 变量CRUD+批量导入 + Headers编辑 ✅ |
+| B.3 | Auth + Scripts 子 Tab | ✅ DONE | ConfigAuthTab/ScriptsTab.tsx | 8种Auth + "Inherit from parent" + 脚本编辑+代码片段+执行顺序说明 ✅ |
+| B.4 | Sidebar 入口 | ✅ DONE | Sidebar.tsx, ContextMenu.tsx | 集合/文件夹 ⚙ 齿轮按钮 + 右键 "Settings" ✅ |
+
+### Phase C — 增强 + 联调
+
+| Task ID | 任务描述 | 状态 | 关键文件 | 验证结果 |
+|---------|---------|------|---------|---------|
+| C.1 | ScriptErrorCard + 错误状态 | ✅ DONE | ScriptErrorCard.tsx, ResponsePanel.tsx | 脚本错误卡片 + 响应面板检测 Script Error ✅ |
+| C.2 | runner-store.ts 同步改造 | ✅ DONE | runner-store.ts | 层级解析 + 变量/Headers/Auth 合并 + 脚本链 + collectionVariables ✅ |
+| C.3 | 端到端验证 | ✅ DONE | cargo check ✅, cargo clippy (1 pre-existing warning) | Rust 编译通过 + 全链路逻辑完整 ✅ |
+
+---
+
+## 8. 偏差记录
 
 | # | 日期 | 原设计 | 实际实现 | 原因 | 影响 |
 |---|------|--------|---------|------|------|
@@ -249,6 +280,8 @@
 | 22 | 2026-05-05 | pm.sendRequest 使用 rquickjs 原生 Object 返回 | 原生函数返回 JSON 字符串 + JS JSON.parse | rquickjs 0.11 Object<'js> 不变性导致生命周期冲突 | ✅ 可靠，避免 Object 生命周期问题 |
 | 23 | 2026-05-06 | Vault 加密使用 SaltString API | 使用原始 16 字节 salt bytes + argon2 hash_password_into | argon2 0.5 SaltString::decode_b64 签名与预期不符（需 2 参数） | ✅ 原始 bytes 更简单直接 |
 | 24 | 2026-05-06 | AI apiKey 存储使用明文配置文件 | 使用 Rust keyring 存储 apiKey，配置文件仅存 provider name + baseUrl + model | AGENTS.md §4.2 要求密钥不离开 Rust | ✅ keyring 跨平台安全存储 |
+| 25 | 2026-05-06 | VariableScope 5 层 (local/data/environment/collection/global) | 扩展为 7 层 (+request/folder) | 23-集合与文件夹级配置设计.md 要求 request 和 folder 层 | ✅ 与 Postman 优先级模型对齐 |
+| 26 | 2026-05-06 | SavedAuth 松散类型 { auth_type, config: Value } | 保持现有格式，前端侧完成类型转换 | 迁移到 tagged enum (V2) 延后到数据格式升级时统一处理 | ⚠️ 前端需在 IPC 边界做类型重建 |
 
 ---
 
@@ -260,15 +293,14 @@
 
 ## 9. 下一步优先级
 
-1. **P4-04 AI Context Injection** — system message 注入当前请求/环境/集合上下文
-2. **P4-05 AI Chat 端到端联调** — full flow: provider config → chat → context injection
-3. **P4-06 AI Request Creation from NL** — 自然语言创建请求
-4. **P4-07 AI Test Script Generation** — AI 生成测试脚本
-5. **P4-08~P4-10** — 文档生成 + 响应解释 + Action 确认流程
-4. **Phase 3 全局搜索增强** — ⌘K 搜索集合/请求/变量/操作
+1. **P4-06 AI Request Creation from NL** — 自然语言创建请求
+2. **P4-07 AI Test Script Generation** — AI 生成测试脚本
+3. **P4-08~P4-10** — 文档生成 + 响应解释 + Action 确认流程
+4. **P4-11~P4-15** — MCP Server + Agent Builder + Settings + E2E
+5. **SavedAuth V2 迁移** — 将 collection.rs::SavedAuth 统一为 tagged enum 与 http.rs::AuthConfig 一致
 
 ---
 
-*文档版本: v1.6*
+*文档版本: v1.9*
 *创建时间: 2026-05-03*
-*最后更新: 2026-05-05*
+*最后更新: 2026-05-06*

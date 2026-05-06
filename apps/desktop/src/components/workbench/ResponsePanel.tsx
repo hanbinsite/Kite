@@ -4,6 +4,7 @@ import { useRequestStore } from "../../stores";
 import { JsonViewer } from "../response/JsonViewer";
 import { ConsolePanel } from "../console/ConsolePanel";
 import { TestsTab } from "../response/TestsTab";
+import { ScriptErrorCard } from "../response/ScriptErrorCard";
 import type { ResponseHeader, Cookie } from "@api-client/types";
 import { Clock, HardDrive, ArrowDownToLine, Maximize2, Columns2, Zap, AlertTriangle, RefreshCw, Search, Copy } from "lucide-react";
 
@@ -117,6 +118,17 @@ export function ResponsePanel() {
   }
 
   if (error && !response) {
+    const isScriptError = error.startsWith("Script Error");
+    if (isScriptError) {
+      const match = error.match(/^Script Error \[([^\]]+)\]: (.+)$/s);
+      const source = match?.[1] ?? "Unknown";
+      const message = match?.[2] ?? error;
+      return (
+        <div className="h-full flex flex-col overflow-hidden bg-bg-surface">
+          <ScriptErrorCard phase="pre-request" source={source} error={message} />
+        </div>
+      );
+    }
     const isSslError = error.toLowerCase().includes("ssl") || error.toLowerCase().includes("tls") || error.toLowerCase().includes("certificate");
     return (
       <div className="h-full flex flex-col overflow-hidden bg-bg-surface">

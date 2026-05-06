@@ -23,7 +23,7 @@ import { ContextMenu } from "./ContextMenu";
 interface ContextMenuState {
   x: number;
   y: number;
-  target: { type: "collection" | "request" | "folder"; id: string; parentId?: string };
+  target: { type: "collection" | "request" | "folder"; id: string; parentId?: string; collectionId?: string };
 }
 
 interface SidebarSectionProps {
@@ -152,7 +152,7 @@ function CollectionTreeItems({
                 onDoubleClick={() => startEditing(item.id, item.name)}
                 onContextMenu={(e) => {
                   e.preventDefault();
-                  setContextMenu({ x: e.clientX, y: e.clientY, target: { type: "collection", id: item.id } });
+                  setContextMenu({ x: e.clientX, y: e.clientY, target: { type: "folder", id: item.id, collectionId } });
                 }}
               >
                 {isFolderExpanded ? (
@@ -178,6 +178,24 @@ function CollectionTreeItems({
                 ) : (
                   <span className="flex-1 text-fg-secondary truncate">{item.name}</span>
                 )}
+                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openTab({
+                        name: `⚙ ${item.name}`,
+                        method: "",
+                        url: "",
+                        protocol: "collection-config",
+                        meta: { collectionId, folderId: item.id },
+                      });
+                    }}
+                    className="p-0.5 hover:bg-bg-hover rounded"
+                    title="Folder Settings"
+                  >
+                    <Settings className="w-3 h-3 text-fg-tertiary" />
+                  </button>
+                </div>
               </div>
               {isFolderExpanded && item.items.length > 0 && (
                 <div className="ml-4">
@@ -428,8 +446,31 @@ const commitEdit = () => {
     setExpandedIds((prev) => new Set(prev).add(collectionId));
   };
 
-  const handleContextMenuAction = (action: string, target: { type: "collection" | "request" | "folder"; id: string; parentId?: string }) => {
+  const handleContextMenuAction = (action: string, target: { type: "collection" | "request" | "folder"; id: string; parentId?: string; collectionId?: string }) => {
     setContextMenu(null);
+    if (action === "settings") {
+      if (target.type === "collection") {
+        openTab({
+          name: `⚙ ${collections.find((c) => c.id === target.id)?.name ?? "Settings"}`,
+          method: "",
+          url: "",
+          protocol: "collection-config",
+          meta: { collectionId: target.id },
+        });
+      } else if (target.type === "folder") {
+        const colId = target.collectionId ?? target.parentId;
+        if (colId) {
+          openTab({
+            name: `⚙ Folder Settings`,
+            method: "",
+            url: "",
+            protocol: "collection-config",
+            meta: { collectionId: colId, folderId: target.id },
+          });
+        }
+      }
+      return;
+    }
     if (target.type === "collection") {
       const col = collections.find((c) => c.id === target.id);
       if (!col) return;
@@ -584,6 +625,22 @@ const commitEdit = () => {
                     </span>
                   )}
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openTab({
+                          name: `⚙ ${col.name}`,
+                          method: "",
+                          url: "",
+                          protocol: "collection-config",
+                          meta: { collectionId: col.id },
+                        });
+                      }}
+                      className="p-0.5 hover:bg-bg-hover rounded"
+                      title="Collection Settings"
+                    >
+                      <Settings className="w-3 h-3 text-fg-tertiary" />
+                    </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

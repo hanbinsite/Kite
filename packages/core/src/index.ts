@@ -12,7 +12,7 @@ export type { Collection, CollectionItem } from "@api-client/types";
 export type { Environment, Variable } from "@api-client/types";
 
 export { VariableResolver, resolveVariables, variablesToRecord } from "./environment";
-export type { VariableScope } from "./environment";
+export type { VariableScope, ResolvedHierarchy, ResolvedHierarchyFolder } from "./environment";
 
 export { useUIStore, useTabStore } from "./navigation";
 export type { Tab, TabStore, UIStore, Theme } from "./navigation";
@@ -42,3 +42,13 @@ export type {
   AiChatResponse,
   AiMessage,
 } from "./ai";
+
+export {
+  mergeVariables,
+  mergeHeaders,
+  resolveAuth,
+  collectPreRequestChain,
+  collectPostResponseChain,
+  collectionVariablesToRecord,
+} from "./collection";
+export type { ScriptChainEntry } from "./collection";

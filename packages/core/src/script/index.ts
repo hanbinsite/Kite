@@ -34,6 +34,8 @@ export interface ScriptContext {
   environment?: Record<string, string>;
   collectionVariables?: Record<string, string>;
   globals?: Record<string, string>;
+  folderPath?: string[];
+  collectionName?: string;
 }
 
 export interface ExecuteScriptParams {

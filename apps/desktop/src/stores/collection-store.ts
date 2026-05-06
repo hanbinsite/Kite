@@ -11,6 +11,7 @@ import {
   buildIpcAuth,
 } from "@api-client/core/http";
 import type { BodyConfig, AuthConfig, Header, ScriptConfig, CollectionConfig, FolderConfig } from "@api-client/types";
+import type { ResolvedHierarchy, ResolvedHierarchyFolder } from "@api-client/core";
 
 export interface CollectionRequest {
   id: string;
@@ -59,6 +60,9 @@ export interface CollectionActions {
     deleteRequest: (collectionId: string, requestId: string) => void;
     renameRequest: (collectionId: string, requestId: string, name: string) => void;
     duplicateRequest: (collectionId: string, requestId: string) => void;
+    resolveRequestHierarchy: (requestId: string) => ResolvedHierarchy | null;
+    updateCollectionConfig: (collectionId: string, config: CollectionConfig) => void;
+    updateFolderConfig: (collectionId: string, folderId: string, config: FolderConfig) => void;
     loadFromDisk: () => Promise<void>;
     persistCollection: (id: string) => void;
 }
@@ -239,6 +243,55 @@ function findAndDuplicateNode(items: CollectionTreeNode[], requestId: string): C
   return items;
 }
 
+function findInTree(
+  items: CollectionTreeNode[],
+  requestId: string,
+  _collectionName: string,
+  currentPath: ResolvedHierarchyFolder[],
+): { node: ResolvedHierarchy["requestNode"]; folderPath: ResolvedHierarchyFolder[] } | null {
+  for (const item of items) {
+    if (item.type === "request" && item.id === requestId) {
+      return {
+        node: {
+          type: "request" as const,
+          id: item.id,
+          name: item.name,
+          method: item.method,
+          url: item.url,
+          headers: item.headers,
+          auth: item.auth,
+          body: item.body,
+          scripts: item.scripts,
+        },
+        folderPath: currentPath,
+      };
+    }
+    if (item.type === "folder") {
+      const folderEntry: ResolvedHierarchyFolder = {
+        id: item.id,
+        name: item.name,
+        config: item.config,
+      };
+      const result = findInTree(item.items, requestId, _collectionName, [...currentPath, folderEntry]);
+      if (result) return result;
+    }
+  }
+  return null;
+}
+
+function updateFolderConfigInTree(items: CollectionTreeNode[], folderId: string, config: FolderConfig): boolean {
+  for (const item of items) {
+    if (item.type === "folder" && item.id === folderId) {
+      item.config = config;
+      return true;
+    }
+    if (item.type === "folder") {
+      if (updateFolderConfigInTree(item.items, folderId, config)) return true;
+    }
+  }
+  return false;
+}
+
 export const useCollectionStore = create<CollectionStore>()(
     immer((set, get) => ({
         collections: [],
@@ -309,6 +362,39 @@ export const useCollectionStore = create<CollectionStore>()(
       set((state) => {
         const col = state.collections.find((c) => c.id === collectionId);
         if (col) col.items = findAndDuplicateNode(col.items, requestId);
+      });
+      get().persistCollection(collectionId);
+    },
+
+    resolveRequestHierarchy: (requestId) => {
+      const state = get();
+      for (const col of state.collections) {
+        const result = findInTree(col.items, requestId, col.name, []);
+        if (result) {
+          return {
+            collectionId: col.id,
+            collectionName: col.name,
+            collectionConfig: col.config,
+            folderPath: result.folderPath,
+            requestNode: result.node,
+          };
+        }
+      }
+      return null;
+    },
+
+    updateCollectionConfig: (collectionId, config) => {
+      set((state) => {
+        const col = state.collections.find((c) => c.id === collectionId);
+        if (col) col.config = config;
+      });
+      get().persistCollection(collectionId);
+    },
+
+    updateFolderConfig: (collectionId, folderId, config) => {
+      set((state) => {
+        const col = state.collections.find((c) => c.id === collectionId);
+        if (col) updateFolderConfigInTree(col.items, folderId, config);
       });
       get().persistCollection(collectionId);
     },

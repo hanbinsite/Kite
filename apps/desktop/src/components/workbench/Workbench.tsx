@@ -8,6 +8,7 @@ import { SplitPane } from "../layout/SplitPane";
 import { useTabStore, useUIStore } from "@api-client/core";
 import { useRequestStore } from "../../stores";
 import { WebSocketPanel, SsePanel, MqttPanel, GrpcPanel, MockPanel } from "../protocol";
+import { CollectionConfigTab } from "../collection/CollectionConfigTab";
 
 export function Workbench() {
   const activeTabId = useTabStore((s) => s.activeTabId);
@@ -17,7 +18,7 @@ export function Workbench() {
   const switchTab = useRequestStore((s) => s.switchTab);
 
   useEffect(() => {
-    if (activeTabId) {
+    if (activeTabId && activeTab?.protocol !== "collection-config") {
       switchTab(activeTabId);
     }
   }, [activeTabId]);
@@ -27,6 +28,18 @@ export function Workbench() {
   }
 
   const protocol = activeTab?.protocol ?? "http";
+
+  if (protocol === "collection-config") {
+    return (
+      <div className="h-full flex flex-col">
+        <TabBar />
+        <CollectionConfigTab
+          collectionId={activeTab.meta?.collectionId ?? ""}
+          folderId={activeTab.meta?.folderId}
+        />
+      </div>
+    );
+  }
 
   if (protocol !== "http") {
     return (

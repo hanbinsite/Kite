@@ -10,8 +10,13 @@ import {
   variablesToRecord,
   markStart,
   markEnd,
+  mergeVariables,
+  mergeHeaders,
+  resolveAuth,
+  collectPreRequestChain,
+  collectPostResponseChain,
 } from "@api-client/core";
-import type { VariableScope } from "@api-client/core";
+import type { VariableScope, ResolvedHierarchy } from "@api-client/core";
 import { executeScript, type ScriptContext, type TestResult } from "@api-client/core/script";
 import type {
   HttpResponse,
@@ -27,6 +32,7 @@ import type {
   IpcRequestSettings,
   IpcAuthConfig,
 } from "@api-client/core/http";
+import { useCollectionStore } from "./collection-store";
 
 export interface RunnerRequestConfig {
   id: string;
@@ -228,13 +234,41 @@ export const useRunnerStore = create<RunnerStore>()(
 
             const req = config.requests[r];
             if (!req) continue;
+
+            const hierarchy = useCollectionStore.getState().resolveRequestHierarchy(req.id);
+            const collectionVars = hierarchy ? mergeVariables(hierarchy) : {};
+            const folderVars: Record<string, string> = {};
+            if (hierarchy) {
+              for (const folder of hierarchy.folderPath) {
+                if (folder.config?.variables) {
+                  for (const v of folder.config.variables) {
+                    if (v.enabled && v.key) folderVars[v.key] = v.value;
+                  }
+                }
+              }
+            }
+
+            const collectionVariablesRecord = { ...collectionVars, ...folderVars };
+            const folderPathNames = hierarchy?.folderPath.map((f) => f.name) ?? [];
+            const collectionName = hierarchy?.collectionName;
+
+            const mergedHeaders = hierarchy
+              ? mergeHeaders(hierarchy, req.headers)
+              : req.headers;
+
+            const effectiveAuth = hierarchy
+              ? resolveAuth(hierarchy, req.auth)
+              : req.auth;
+
             const resolver = new VariableResolver({
               ...envScopes,
               environment: { ...(envScopes.environment ?? {}), ...persistedVars },
+              collection: Object.keys(collectionVars).length > 0 ? collectionVars : undefined,
+              folder: Object.keys(folderVars).length > 0 ? folderVars : undefined,
             });
 
             const resolvedUrl = resolver.resolve(req.url);
-            const resolvedHeaders = req.headers
+            const resolvedHeaders = mergedHeaders
               .filter((h) => !h.disabled && h.key)
               .map((h) => ({ key: h.key, value: resolver.resolve(h.value), disabled: h.disabled }));
             const resolvedParams = req.params
@@ -248,7 +282,7 @@ export const useRunnerStore = create<RunnerStore>()(
               headers: resolvedHeaders,
               params: resolvedParams,
               body: buildIpcBodyConfig(req.body, resolver),
-              auth: buildIpcAuth(req.auth),
+              auth: buildIpcAuth(effectiveAuth),
               settings: buildIpcSettings(req.settings ?? DEFAULT_SETTINGS),
             };
 
@@ -266,7 +300,31 @@ export const useRunnerStore = create<RunnerStore>()(
             };
 
             try {
-              if (req.scripts?.preRequest?.trim()) {
+              if (hierarchy) {
+                const preChain = collectPreRequestChain(hierarchy, {
+                  preRequest: req.scripts?.preRequest,
+                });
+                for (const entry of preChain) {
+                  const scriptCtx: ScriptContext = {
+                    request: { method: req.method, url: resolvedUrl, headers: resolvedHeaders, body: ipcConfig.body },
+                    environment: { ...(envScopes.environment ?? {}), ...persistedVars },
+                    collectionVariables: collectionVariablesRecord,
+                    globals: envScopes.global,
+                    folderPath: folderPathNames,
+                    collectionName,
+                  };
+                  try {
+                    const scriptResult = await executeScript({ code: entry.code, context: scriptCtx });
+                    for (const v of scriptResult.variables) {
+                      if (v.scope === "environment") persistedVars[v.key] = v.value;
+                    }
+                  } catch {
+                    requestResult.status = "failure";
+                    requestResult.error = `Script Error [${entry.source}]: pre-request failed`;
+                    break;
+                  }
+                }
+              } else if (req.scripts?.preRequest?.trim()) {
                 const scriptCtx: ScriptContext = {
                   request: { method: req.method, url: resolvedUrl, headers: resolvedHeaders, body: ipcConfig.body },
                   environment: { ...(envScopes.environment ?? {}), ...persistedVars },
@@ -275,9 +333,7 @@ export const useRunnerStore = create<RunnerStore>()(
                 try {
                   const scriptResult = await executeScript({ code: req.scripts.preRequest, context: scriptCtx });
                   for (const v of scriptResult.variables) {
-                    if (v.scope === "environment") {
-                      persistedVars[v.key] = v.value;
-                    }
+                    if (v.scope === "environment") persistedVars[v.key] = v.value;
                   }
                 } catch { /* pre-script error doesn't stop execution */ }
               }
@@ -294,7 +350,37 @@ export const useRunnerStore = create<RunnerStore>()(
 
               insertHistoryEntry({ method: req.method, url: resolvedUrl, status: response.status, duration: response.time }).catch(() => {});
 
-              if (req.scripts?.postResponse?.trim()) {
+              if (hierarchy) {
+                const postChain = collectPostResponseChain(hierarchy, {
+                  postResponse: req.scripts?.postResponse,
+                });
+                for (const entry of postChain) {
+                  const scriptCtx: ScriptContext = {
+                    request: { method: req.method, url: resolvedUrl },
+                    response: { status: response.status, statusText: response.statusText, headers: response.headers, body: response.body, time: response.time },
+                    environment: { ...(envScopes.environment ?? {}), ...persistedVars },
+                    collectionVariables: collectionVariablesRecord,
+                    globals: envScopes.global,
+                    folderPath: folderPathNames,
+                    collectionName,
+                  };
+                  try {
+                    const scriptResult = await executeScript({ code: entry.code, context: scriptCtx });
+                    requestResult.testResults = scriptResult.testResults;
+                    requestResult.testPassCount = scriptResult.testResults.filter((t) => t.passed).length;
+                    requestResult.testFailCount = scriptResult.testResults.filter((t) => !t.passed).length;
+                    for (const v of scriptResult.variables) {
+                      if (v.scope === "environment") persistedVars[v.key] = v.value;
+                    }
+                    if (scriptResult.testResults.some((t) => !t.passed)) {
+                      requestResult.status = "failure";
+                    }
+                  } catch (scriptErr) {
+                    requestResult.status = "failure";
+                    requestResult.error = `Script error [${entry.source}]: ${scriptErr}`;
+                  }
+                }
+              } else if (req.scripts?.postResponse?.trim()) {
                 const scriptCtx: ScriptContext = {
                   request: { method: req.method, url: resolvedUrl },
                   response: { status: response.status, statusText: response.statusText, headers: response.headers, body: response.body, time: response.time },

@@ -8,7 +8,12 @@ export interface Tab {
   isModified: boolean;
   requestId?: string;
   response?: unknown;
-  protocol?: "http" | "websocket" | "sse" | "mqtt" | "grpc" | "mock";
+  protocol?: "http" | "websocket" | "sse" | "mqtt" | "grpc" | "mock" | "collection-config";
+  meta?: {
+    collectionId?: string;
+    folderId?: string;
+    folderPath?: string[];
+  };
 }
 
 export interface TabState {
@@ -42,7 +47,16 @@ export const useTabStore = create<TabStoreImpl>()((set) => ({
 
   openTab: (tabData) =>
     set((state) => {
-      if (tabData.requestId) {
+      if (tabData.protocol === "collection-config" && tabData.meta) {
+        const existing = state.tabs.find(
+          (t) => t.protocol === "collection-config" &&
+            t.meta?.collectionId === tabData.meta?.collectionId &&
+            t.meta?.folderId === tabData.meta?.folderId
+        );
+        if (existing) {
+          return { activeTabId: existing.id };
+        }
+      } else if (tabData.requestId) {
         const existing = state.tabs.find((t) => t.requestId === tabData.requestId);
         if (existing) {
           return { activeTabId: existing.id };

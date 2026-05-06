@@ -1,4 +1,4 @@
-import { Pencil, Plus, FolderPlus, Copy, Trash2 } from "lucide-react";
+import { Pencil, Plus, FolderPlus, Copy, Trash2, Settings } from "lucide-react";
 
 interface ContextMenuTarget {
   type: "collection" | "request" | "folder";
@@ -14,6 +14,7 @@ interface ContextMenuProps {
 }
 
 const COLLECTION_ITEMS = [
+  { action: "settings", label: "Settings", icon: Settings },
   { action: "rename", label: "Rename", icon: Pencil },
   { action: "add-request", label: "Add Request", icon: Plus },
   { action: "add-folder", label: "Add Folder", icon: FolderPlus },
@@ -28,6 +29,7 @@ const REQUEST_ITEMS = [
 ];
 
 const FOLDER_ITEMS = [
+  { action: "settings", label: "Settings", icon: Settings },
   { action: "rename", label: "Rename", icon: Pencil },
   { action: "add-request", label: "Add Request", icon: Plus },
   { action: "add-folder", label: "Add Folder", icon: FolderPlus },

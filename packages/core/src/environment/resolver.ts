@@ -3,9 +3,45 @@ import type { Variable } from "./types";
 export interface VariableScope {
     local?: Record<string, string>;
     data?: Record<string, string>;
-    environment?: Record<string, string>;
+    request?: Record<string, string>;
+    folder?: Record<string, string>;
     collection?: Record<string, string>;
+    environment?: Record<string, string>;
     global?: Record<string, string>;
+}
+
+export interface ResolvedHierarchyFolder {
+    id: string;
+    name: string;
+    config?: {
+        headers?: { key: string; value: string; disabled: boolean }[];
+        auth?: unknown;
+        variables?: { key: string; value: string; enabled: boolean }[];
+        scripts?: { preRequest?: string; postResponse?: string };
+    };
+}
+
+export interface ResolvedHierarchy {
+    collectionId: string;
+    collectionName: string;
+    collectionConfig: {
+        headers?: { key: string; value: string; disabled: boolean }[];
+        auth?: unknown;
+        variables?: { key: string; value: string; enabled: boolean }[];
+        scripts?: { preRequest?: string; postResponse?: string };
+    } | undefined;
+    folderPath: ResolvedHierarchyFolder[];
+    requestNode: {
+        type: "request";
+        id: string;
+        name: string;
+        method: string;
+        url: string;
+        headers?: { key: string; value: string; disabled: boolean }[];
+        auth?: unknown;
+        body?: unknown;
+        scripts?: { preRequest?: string; postResponse?: string };
+    };
 }
 
 const VAR_REGEX = /\{\{([^}]+)\}\}/g;
@@ -46,7 +82,7 @@ export class VariableResolver {
     }
 
     get(name: string): string | undefined {
-        const priority: (keyof VariableScope)[] = ["local", "data", "environment", "collection", "global"];
+        const priority: (keyof VariableScope)[] = ["local", "data", "request", "folder", "collection", "environment", "global"];
 
         for (const scope of priority) {
             const scopeVars = this.scopes[scope];

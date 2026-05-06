@@ -2,8 +2,9 @@ import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import { sendHttpRequest, cancelHttpRequest, insertHistoryEntry } from "@api-client/core/http";
 import { buildIpcAuth as buildIpcAuthUtil } from "@api-client/core/http";
-import { markStart, markEnd, VariableResolver, variablesToRecord, handleError } from "@api-client/core";
-import type { VariableScope } from "@api-client/core";
+import { markStart, markEnd, VariableResolver, variablesToRecord, handleError,
+  mergeVariables, mergeHeaders, resolveAuth, collectPreRequestChain, collectPostResponseChain, collectionVariablesToRecord } from "@api-client/core";
+import type { VariableScope, ScriptChainEntry } from "@api-client/core";
 import type { IpcHttpRequestConfig, IpcBodyConfig, IpcRequestSettings, IpcAuthConfig } from "@api-client/core/http";
 import { executeScript, type ScriptResult, type ScriptContext } from "@api-client/core/script";
 import type {
@@ -18,6 +19,7 @@ import type {
 import type { TestResult } from "@api-client/core/script";
 import { toast } from "@api-client/ui";
 import { useConsoleStore } from "./console-store";
+import { useCollectionStore } from "./collection-store";
 
 export interface RequestData {
   headers: Header[];
@@ -284,18 +286,44 @@ export const useRequestStore = create<RequestStore>()(
       });
 
       const requestData = state.requestDataMap[tabId] || DEFAULT_REQUEST_DATA;
-
       const envStore = (await import("./environment-store")).useEnvironmentStore.getState();
+
+      const hierarchy = useCollectionStore.getState().resolveRequestHierarchy(tabId);
+
+      const collectionVars = hierarchy ? mergeVariables(hierarchy) : {};
+      const folderVars: Record<string, string> = {};
+      if (hierarchy) {
+        for (const folder of hierarchy.folderPath) {
+          if (folder.config?.variables) {
+            for (const v of folder.config.variables) {
+              if (v.enabled && v.key) folderVars[v.key] = v.value;
+            }
+          }
+        }
+      }
+
+      const envScopeVars = envStore.activeEnvironmentId
+        ? variablesToRecord(envStore.environments.find((e) => e.id === envStore.activeEnvironmentId)?.variables ?? [])
+        : undefined;
+
       const envScopes: VariableScope = {
         global: variablesToRecord(envStore.globals),
-        environment: envStore.activeEnvironmentId
-          ? variablesToRecord(envStore.environments.find((e) => e.id === envStore.activeEnvironmentId)?.variables ?? [])
-          : undefined,
+        environment: envScopeVars,
+        collection: Object.keys(collectionVars).length > 0 ? collectionVars : undefined,
+        folder: Object.keys(folderVars).length > 0 ? folderVars : undefined,
       };
       const resolver = new VariableResolver(envScopes);
 
+      const mergedHeaders = hierarchy
+        ? mergeHeaders(hierarchy, requestData.headers)
+        : requestData.headers;
+
+      const effectiveAuth = hierarchy
+        ? resolveAuth(hierarchy, requestData.auth)
+        : requestData.auth;
+
       const resolvedUrl = resolver.resolve(url);
-      const resolvedHeaders = requestData.headers
+      const resolvedHeaders = mergedHeaders
         .filter((h) => !h.disabled && h.key)
         .map((h) => ({ key: h.key, value: resolver.resolve(h.value), disabled: h.disabled }));
       const resolvedParams = requestData.params
@@ -309,46 +337,105 @@ export const useRequestStore = create<RequestStore>()(
         headers: resolvedHeaders,
         params: resolvedParams,
         body: buildIpcBodyConfig(requestData.body, resolver),
-        auth: buildIpcAuth(requestData.auth),
+        auth: buildIpcAuth(effectiveAuth),
         settings: buildIpcSettings(requestData.settings),
       };
 
+      const collectionVariablesRecord = { ...collectionVars, ...folderVars };
+      const folderPathNames = hierarchy?.folderPath.map((f) => f.name) ?? [];
+      const collectionName = hierarchy?.collectionName;
+
       try {
-        // Pre-request script
-        const preScript = requestData.scripts?.preRequest;
-        if (preScript?.trim()) {
-          const scriptCtx: ScriptContext = {
-            request: { method, url: resolvedUrl, headers: resolvedHeaders, body: ipcConfig.body },
-            environment: envScopes.environment,
-            globals: envScopes.global,
-          };
-          try {
-            const scriptStart = Date.now();
-            const scriptResult: ScriptResult = await executeScript({ code: preScript, context: scriptCtx });
-            logScriptResult(tabId, "pre-request", scriptResult, scriptStart);
-            if (scriptResult.modifiedRequest) {
-              const mod = scriptResult.modifiedRequest;
-              if (mod.headers) {
-                const extraHeaders = Array.isArray(mod.headers) ? mod.headers : [];
-                for (const h of extraHeaders) {
-                  const hRec = h as { key?: string; value?: string };
-                  if (hRec.key && hRec.value) {
-                    const existing = ipcConfig.headers.findIndex((eh) => eh.key === hRec.key);
-                    if (existing >= 0) {
-                      ipcConfig.headers[existing] = { key: hRec.key, value: hRec.value, disabled: false };
-                    } else {
-                      ipcConfig.headers.push({ key: hRec.key, value: hRec.value, disabled: false });
+        // Pre-request script chain
+        if (hierarchy) {
+          const preChain = collectPreRequestChain(hierarchy, {
+            preRequest: requestData.scripts?.preRequest,
+          });
+          for (const entry of preChain) {
+            const scriptCtx: ScriptContext = {
+              request: { method, url: resolvedUrl, headers: resolvedHeaders, body: ipcConfig.body },
+              environment: envScopes.environment,
+              collectionVariables: collectionVariablesRecord,
+              globals: envScopes.global,
+              folderPath: folderPathNames,
+              collectionName,
+            };
+            try {
+              const scriptStart = Date.now();
+              const scriptResult: ScriptResult = await executeScript({ code: entry.code, context: scriptCtx });
+              logScriptResult(tabId, "pre-request", scriptResult, scriptStart);
+              if (scriptResult.modifiedRequest) {
+                const mod = scriptResult.modifiedRequest;
+                if (mod.headers) {
+                  const extraHeaders = Array.isArray(mod.headers) ? mod.headers : [];
+                  for (const h of extraHeaders) {
+                    const hRec = h as { key?: string; value?: string };
+                    if (hRec.key && hRec.value) {
+                      const existing = ipcConfig.headers.findIndex((eh) => eh.key === hRec.key);
+                      if (existing >= 0) {
+                        ipcConfig.headers[existing] = { key: hRec.key, value: hRec.value, disabled: false };
+                      } else {
+                        ipcConfig.headers.push({ key: hRec.key, value: hRec.value, disabled: false });
+                      }
                     }
                   }
                 }
               }
+              applyScriptVariables(scriptResult, envScopes);
+            } catch (scriptErr) {
+              useConsoleStore.getState().addEntry(tabId, {
+                level: "error",
+                message: `[Pre-request][${entry.source}] 执行失败: ${scriptErr}`,
+                source: "pre-request",
+              });
+              set((state) => {
+                state.error = `Script Error [${entry.source}]: ${scriptErr}`;
+                delete state.loadingTabs[tabId];
+              });
+              return;
             }
-          } catch (scriptErr) {
-            useConsoleStore.getState().addEntry(tabId, {
-              level: "error",
-              message: `Pre-request script error: ${scriptErr}`,
-              source: "pre-request",
-            });
+          }
+        } else {
+          const preScript = requestData.scripts?.preRequest;
+          if (preScript?.trim()) {
+            const scriptCtx: ScriptContext = {
+              request: { method, url: resolvedUrl, headers: resolvedHeaders, body: ipcConfig.body },
+              environment: envScopes.environment,
+              globals: envScopes.global,
+            };
+            try {
+              const scriptStart = Date.now();
+              const scriptResult: ScriptResult = await executeScript({ code: preScript, context: scriptCtx });
+              logScriptResult(tabId, "pre-request", scriptResult, scriptStart);
+              if (scriptResult.modifiedRequest) {
+                const mod = scriptResult.modifiedRequest;
+                if (mod.headers) {
+                  const extraHeaders = Array.isArray(mod.headers) ? mod.headers : [];
+                  for (const h of extraHeaders) {
+                    const hRec = h as { key?: string; value?: string };
+                    if (hRec.key && hRec.value) {
+                      const existing = ipcConfig.headers.findIndex((eh) => eh.key === hRec.key);
+                      if (existing >= 0) {
+                        ipcConfig.headers[existing] = { key: hRec.key, value: hRec.value, disabled: false };
+                      } else {
+                        ipcConfig.headers.push({ key: hRec.key, value: hRec.value, disabled: false });
+                      }
+                    }
+                  }
+                }
+              }
+            } catch (scriptErr) {
+              useConsoleStore.getState().addEntry(tabId, {
+                level: "error",
+                message: `[Pre-request][Request] 执行失败: ${scriptErr}`,
+                source: "pre-request",
+              });
+              set((state) => {
+                state.error = `Script Error [Request]: ${scriptErr}`;
+                delete state.loadingTabs[tabId];
+              });
+              return;
+            }
           }
         }
 
@@ -374,28 +461,60 @@ export const useRequestStore = create<RequestStore>()(
         console.error("Failed to insert history entry:", e);
       });
 
-      // Post-response script
-      const postScript = requestData.scripts?.postResponse;
-      if (postScript?.trim()) {
-        const scriptCtx: ScriptContext = {
-          request: { method, url: resolvedUrl },
-          response: { status: response.status, statusText: response.statusText, headers: response.headers, body: response.body, time: response.time },
-          environment: envScopes.environment,
-          globals: envScopes.global,
-        };
-        try {
-          const scriptStart = Date.now();
-          const scriptResult: ScriptResult = await executeScript({ code: postScript, context: scriptCtx });
-          logScriptResult(tabId, "post-response", scriptResult, scriptStart);
-          if (scriptResult.testResults.length > 0) {
-            get().setTestResults(tabId, scriptResult.testResults);
+      // Post-response script chain
+      if (hierarchy) {
+        const postChain = collectPostResponseChain(hierarchy, {
+          postResponse: requestData.scripts?.postResponse,
+        });
+        for (const entry of postChain) {
+          const scriptCtx: ScriptContext = {
+            request: { method, url: resolvedUrl },
+            response: { status: response.status, statusText: response.statusText, headers: response.headers, body: response.body, time: response.time },
+            environment: envScopes.environment,
+            collectionVariables: collectionVariablesRecord,
+            globals: envScopes.global,
+            folderPath: folderPathNames,
+            collectionName,
+          };
+          try {
+            const scriptStart = Date.now();
+            const scriptResult: ScriptResult = await executeScript({ code: entry.code, context: scriptCtx });
+            logScriptResult(tabId, "post-response", scriptResult, scriptStart);
+            if (scriptResult.testResults.length > 0) {
+              get().setTestResults(tabId, scriptResult.testResults);
+            }
+            applyScriptVariables(scriptResult, envScopes);
+          } catch (scriptErr) {
+            useConsoleStore.getState().addEntry(tabId, {
+              level: "error",
+              message: `[Post-response][${entry.source}] 执行失败: ${scriptErr}`,
+              source: "post-response",
+            });
           }
-        } catch (scriptErr) {
-          useConsoleStore.getState().addEntry(tabId, {
-            level: "error",
-            message: `Post-response script error: ${scriptErr}`,
-            source: "post-response",
-          });
+        }
+      } else {
+        const postScript = requestData.scripts?.postResponse;
+        if (postScript?.trim()) {
+          const scriptCtx: ScriptContext = {
+            request: { method, url: resolvedUrl },
+            response: { status: response.status, statusText: response.statusText, headers: response.headers, body: response.body, time: response.time },
+            environment: envScopes.environment,
+            globals: envScopes.global,
+          };
+          try {
+            const scriptStart = Date.now();
+            const scriptResult: ScriptResult = await executeScript({ code: postScript, context: scriptCtx });
+            logScriptResult(tabId, "post-response", scriptResult, scriptStart);
+            if (scriptResult.testResults.length > 0) {
+              get().setTestResults(tabId, scriptResult.testResults);
+            }
+          } catch (scriptErr) {
+            useConsoleStore.getState().addEntry(tabId, {
+              level: "error",
+              message: `[Post-response][Request] 执行失败: ${scriptErr}`,
+              source: "post-response",
+            });
+          }
         }
       }
 
@@ -499,5 +618,17 @@ function logScriptResult(tabId: string, source: string, result: ScriptResult, st
       message: `Script error: ${result.error}`,
       source: source as "pre-request" | "post-response",
     });
+  }
+}
+
+function applyScriptVariables(scriptResult: ScriptResult, envScopes: VariableScope) {
+  for (const v of scriptResult.variables) {
+    if (v.scope === "environment" && envScopes.environment) {
+      envScopes.environment[v.key] = v.value;
+    } else if (v.scope === "global" && envScopes.global) {
+      envScopes.global[v.key] = v.value;
+    } else if (v.scope === "collection" && envScopes.collection) {
+      envScopes.collection[v.key] = v.value;
+    }
   }
 }

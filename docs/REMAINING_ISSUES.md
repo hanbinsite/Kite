@@ -201,14 +201,14 @@
 - 移除 Agent Builder（后续按需加回）
 - Streaming 提升为 Week 1 核心任务
 
-### 🟡 待实现 — 集合/文件夹级配置（详见 23-集合与文件夹级配置设计.md）
+### ✅ 已修复 — 集合/文件夹级配置（2026-05-06 第二轮）
 
-- **ISSUE-6.1**: 集合/文件夹配置无 UI — `CollectionConfig`/`FolderConfig` 数据模型已有但无编辑入口
-- **ISSUE-6.2**: 变量优先级未实现 — `sendRequest()` 仅填充 `global`+`environment`，`collection`/`folder` 层永远为空
-- **ISSUE-6.3**: Headers/Auth 不继承 — 集合/文件夹级配置不合并到请求中
-- **ISSUE-6.4**: Scripts 不继承且不链式执行 — 集合/文件夹脚本不执行，pre-request 失败不中断请求
-- **ISSUE-6.5**: `ScriptContext.collectionVariables` 字段存在但从不填充
+- **ISSUE-6.1**: 集合/文件夹配置无 UI — ✅ FIXED — 新增 `CollectionConfigTab` (5 个子 Tab) + Sidebar 齿轮按钮 + 右键 "Settings"
+- **ISSUE-6.2**: 变量优先级未实现 — ✅ FIXED — `VariableScope` 扩展为 7 层 (request/folder/collection) + `mergeVariables()` 合并
+- **ISSUE-6.3**: Headers/Auth 不继承 — ✅ FIXED — `mergeHeaders()` (追加+覆盖) + `resolveAuth()` (沿层查找)
+- **ISSUE-6.4**: Scripts 不继承且不链式执行 — ✅ FIXED — `collectPreRequestChain()`/`collectPostResponseChain()` + Pre-request 失败中断
+- **ISSUE-6.5**: `ScriptContext.collectionVariables` 字段存在但从不填充 — ✅ FIXED — sendRequest + runner 均传入 `collectionVariables`/`folderPath`/`collectionName`
 
 ---
 
-*最后更新：2026-05-06*
+*最后更新：2026-05-06 (ISSUE-6.1~6.5 已修复)*

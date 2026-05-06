@@ -222,6 +222,14 @@ export async function deleteCollection(collectionId: string): Promise<void> {
     return invoke<void>("delete_collection", { collectionId });
 }
 
+export async function updateCollectionConfig(collectionId: string, config: IpcCollectionFile["config"]): Promise<void> {
+    return invoke<void>("update_collection_config", { collectionId, config });
+}
+
+export async function updateFolderConfig(collectionId: string, folderId: string, config: IpcCollectionFile["config"]): Promise<void> {
+    return invoke<void>("update_folder_config", { collectionId, folderId, config });
+}
+
 // Environment IPC
 
 export interface IpcEnvironmentFile {

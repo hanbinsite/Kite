@@ -298,6 +298,80 @@ pub async fn delete_collection(
     Ok(())
 }
 
+#[tauri::command]
+pub async fn update_collection_config(
+    app_handle: tauri::AppHandle,
+    collection_id: String,
+    config: CollectionConfig,
+) -> Result<(), AppError> {
+    let app_data_dir = app_handle.path().app_data_dir()
+        .map_err(|e| AppError::storage_write_failed(e.to_string()))?;
+    let path = app_data_dir.join("collections").join(&collection_id).join("collection.json");
+    super::file_ops::validate_path_within_app_data(&app_data_dir, &path)?;
+
+    let content = tokio::fs::read_to_string(&path).await
+        .map_err(|e| AppError::storage_read_failed(format!("Collection not found: {}", e)))?;
+    let mut col: CollectionFile = serde_json::from_str(&content)
+        .map_err(|e| AppError::internal(format!("Failed to parse collection: {}", e)))?;
+    col.updated_at = chrono::Utc::now().to_rfc3339();
+    col.config = Some(config);
+
+    let new_content = serde_json::to_string_pretty(&col)
+        .map_err(|e| AppError::internal(e.to_string()))?;
+    let tmp_path = path.with_extension("json.tmp");
+    tokio::fs::write(&tmp_path, &new_content).await
+        .map_err(|e| AppError::storage_write_failed(e.to_string()))?;
+    tokio::fs::rename(&tmp_path, &path).await
+        .map_err(|e| AppError::storage_write_failed(e.to_string()))?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn update_folder_config(
+    app_handle: tauri::AppHandle,
+    collection_id: String,
+    folder_id: String,
+    config: FolderConfig,
+) -> Result<(), AppError> {
+    let app_data_dir = app_handle.path().app_data_dir()
+        .map_err(|e| AppError::storage_write_failed(e.to_string()))?;
+    let path = app_data_dir.join("collections").join(&collection_id).join("collection.json");
+    super::file_ops::validate_path_within_app_data(&app_data_dir, &path)?;
+
+    let content = tokio::fs::read_to_string(&path).await
+        .map_err(|e| AppError::storage_read_failed(format!("Collection not found: {}", e)))?;
+    let mut col: CollectionFile = serde_json::from_str(&content)
+        .map_err(|e| AppError::internal(format!("Failed to parse collection: {}", e)))?;
+    col.updated_at = chrono::Utc::now().to_rfc3339();
+
+    update_folder_config_in_items(&mut col.items, &folder_id, config)?;
+
+    let new_content = serde_json::to_string_pretty(&col)
+        .map_err(|e| AppError::internal(e.to_string()))?;
+    let tmp_path = path.with_extension("json.tmp");
+    tokio::fs::write(&tmp_path, &new_content).await
+        .map_err(|e| AppError::storage_write_failed(e.to_string()))?;
+    tokio::fs::rename(&tmp_path, &path).await
+        .map_err(|e| AppError::storage_write_failed(e.to_string()))?;
+    Ok(())
+}
+
+fn update_folder_config_in_items(items: &mut [CollectionItem], folder_id: &str, config: FolderConfig) -> Result<(), AppError> {
+    for item in items {
+        match item {
+            CollectionItem::Folder(folder) => {
+                if folder.id == folder_id {
+                    folder.config = Some(config);
+                    return Ok(());
+                }
+                update_folder_config_in_items(&mut folder.items, folder_id, config.clone())?;
+            }
+            CollectionItem::Request(_) => {}
+        }
+    }
+    Err(AppError::not_found(format!("Folder {} not found in collection", folder_id)))
+}
+
 #[cfg(test)]
 mod tests {
   use super::{CollectionFile, CollectionItem, SavedRequest, SavedSettings, SavedScripts, CollectionVariable};

@@ -46,6 +46,8 @@ async fn main() {
             commands::collection::get_collection,
             commands::collection::save_collection,
             commands::collection::delete_collection,
+            commands::collection::update_collection_config,
+            commands::collection::update_folder_config,
             commands::environment::list_environments,
             commands::environment::get_environment,
             commands::environment::save_environment,
