@@ -70,7 +70,7 @@ export function KeyValueEditor({
   return (
     <div className="kv-editor flex flex-col h-full overflow-hidden">
       <div
-        className={`kv-editor-header grid ${gridCols} h-[28px] px-3 items-center border-b border-border-muted text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em]`}
+        className={`kv-editor-header grid ${gridCols} h-[28px] px-3 items-center border-b border-border-muted text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em] shrink-0`}
       >
         <span />
         <span>{placeholder.key}</span>
@@ -79,7 +79,7 @@ export function KeyValueEditor({
         <span />
       </div>
 
-      <div className="kv-editor-body flex-1 overflow-y-auto px-3">
+      <div className="kv-editor-body flex-1 overflow-y-auto px-3 min-h-0">
         {rowsWithEmpty.map((item) => (
           <div
             key={item.id}
@@ -148,7 +148,7 @@ export function KeyValueEditor({
 
       <button
         onClick={addItem}
-        className="kv-editor-add flex items-center gap-[6px] h-[32px] px-3 font-sans text-[12px] text-fg-tertiary cursor-pointer transition-all duration-50 hover:text-brand hover:bg-brand-muted"
+        className="kv-editor-add flex items-center gap-[6px] h-[32px] px-3 font-sans text-[12px] text-fg-tertiary cursor-pointer transition-all duration-50 hover:text-brand hover:bg-brand-muted shrink-0"
       >
         <Plus size={14} />
         Add Row

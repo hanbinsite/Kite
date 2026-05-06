@@ -1,0 +1,76 @@
+export const messages = {
+  en: {
+    settings: {
+      title: "Settings",
+      categories: {
+        general: "General",
+        environments: "Environments",
+        proxy: "Proxy",
+        mock: "Mock Server",
+        cookies: "Cookies",
+        fonts: "Fonts",
+        data: "Data",
+        about: "About",
+      },
+      general: {
+        title: "General",
+        theme: "Theme",
+        themeDesc: "Choose application color scheme",
+        language: "Language",
+        languageDesc: "Choose application display language",
+        fontSize: "Font Size",
+        fontSizeDesc: "Base UI font size",
+        defaultEnvironment: "Default Environment",
+        defaultEnvironmentDesc: "Environment used when none is selected",
+        autoSave: "Auto Save",
+        autoSaveDesc: "Automatically save requests on change",
+        requestTimeout: "Request Timeout (ms)",
+        requestTimeoutDesc: "Maximum time for requests in milliseconds",
+        sslVerification: "SSL Verification",
+        sslVerificationDesc: "Validate SSL certificates for HTTPS requests",
+      },
+      languageOptions: {
+        en: "English",
+        zhCN: "简体中文",
+      },
+    },
+  },
+  "zh-CN": {
+    settings: {
+      title: "设置",
+      categories: {
+        general: "通用",
+        environments: "环境变量",
+        proxy: "代理",
+        mock: "Mock 服务",
+        cookies: "Cookies",
+        fonts: "字体",
+        data: "数据",
+        about: "关于",
+      },
+      general: {
+        title: "通用",
+        theme: "主题",
+        themeDesc: "选择应用配色方案",
+        language: "语言",
+        languageDesc: "选择应用显示语言",
+        fontSize: "字体大小",
+        fontSizeDesc: "基础界面字体大小",
+        defaultEnvironment: "默认环境",
+        defaultEnvironmentDesc: "未手动选择时使用的环境",
+        autoSave: "自动保存",
+        autoSaveDesc: "修改请求时自动保存",
+        requestTimeout: "请求超时 (ms)",
+        requestTimeoutDesc: "请求允许的最长时间（毫秒）",
+        sslVerification: "SSL 校验",
+        sslVerificationDesc: "校验 HTTPS 证书",
+      },
+      languageOptions: {
+        en: "English",
+        zhCN: "简体中文",
+      },
+    },
+  },
+} as const;
+
+export type AppLanguage = keyof typeof messages;

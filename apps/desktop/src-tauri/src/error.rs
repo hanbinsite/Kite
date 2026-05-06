@@ -37,6 +37,7 @@ impl AppError {
     pub fn vault_unlock_failed(detail: String) -> Self { Self { code: "VAULT_UNLOCK_FAILED".into(), detail } }
     pub fn vault_encrypt_failed(detail: String) -> Self { Self { code: "VAULT_ENCRYPT_FAILED".into(), detail } }
     pub fn vault_decrypt_failed(detail: String) -> Self { Self { code: "VAULT_DECRYPT_FAILED".into(), detail } }
+    pub fn vault_keyring_failed(detail: String) -> Self { Self { code: "VAULT_KEYRING_FAILED".into(), detail } }
 
     // Validation errors
     pub fn validation_failed(detail: String) -> Self { Self { code: "VALIDATION_FAILED".into(), detail } }

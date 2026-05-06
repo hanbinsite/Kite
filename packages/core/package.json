@@ -9,7 +9,17 @@
     "./http": "./src/http/index.ts",
     "./collection": "./src/collection/index.ts",
     "./environment": "./src/environment/index.ts",
-    "./navigation": "./src/navigation/index.ts"
+    "./navigation": "./src/navigation/index.ts",
+    "./error": "./src/error/index.ts",
+    "./ws": "./src/ws/index.ts",
+    "./sse": "./src/sse/index.ts",
+    "./mqtt": "./src/mqtt/index.ts",
+    "./grpc": "./src/grpc/index.ts",
+    "./mock": "./src/mock/index.ts",
+    "./cookie": "./src/cookie/index.ts",
+    "./script": "./src/script/index.ts",
+    "./codegen": "./src/codegen/index.ts",
+    "./ai": "./src/ai/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

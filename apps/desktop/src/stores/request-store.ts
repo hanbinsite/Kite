@@ -2,14 +2,10 @@ import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import { sendHttpRequest, cancelHttpRequest, insertHistoryEntry } from "@api-client/core/http";
 import { buildIpcAuth as buildIpcAuthUtil } from "@api-client/core/http";
-import { markStart, markEnd, VariableResolver, variablesToRecord } from "@api-client/core";
+import { markStart, markEnd, VariableResolver, variablesToRecord, handleError } from "@api-client/core";
 import type { VariableScope } from "@api-client/core";
-import type {
-  IpcHttpRequestConfig,
-  IpcBodyConfig,
-  IpcRequestSettings,
-  IpcAuthConfig,
-} from "@api-client/core/http";
+import type { IpcHttpRequestConfig, IpcBodyConfig, IpcRequestSettings, IpcAuthConfig } from "@api-client/core/http";
+import { executeScript, type ScriptResult, type ScriptContext } from "@api-client/core/script";
 import type {
   HttpResponse,
   HttpMethod,
@@ -19,6 +15,9 @@ import type {
   RequestSettings,
   AuthConfig,
 } from "@api-client/types";
+import type { TestResult } from "@api-client/core/script";
+import { toast } from "@api-client/ui";
+import { useConsoleStore } from "./console-store";
 
 export interface RequestData {
   headers: Header[];
@@ -32,9 +31,11 @@ export interface RequestData {
 export interface RequestState {
   loadingTabs: Record<string, boolean>;
   responses: Record<string, HttpResponse>;
+  testResults: Record<string, TestResult[]>;
   error: string | null;
   requestDataMap: Record<string, RequestData>;
   currentTabId: string | null;
+  dirtyTabs: Record<string, boolean>;
 }
 
 export interface RequestActions {
@@ -50,9 +51,13 @@ export interface RequestActions {
   setRequestAuth: (auth: AuthConfig) => void;
   setRequestSettings: (settings: RequestSettings) => void;
   setRequestScripts: (scripts: { preRequest?: string; postResponse?: string }) => void;
+  setTestResults: (tabId: string, results: TestResult[]) => void;
   sendRequest: (tabId: string, method: HttpMethod, url: string) => Promise<void>;
   cancelRequest: (tabId: string) => Promise<void>;
   initTabData: (tabId: string, data?: Partial<RequestData>) => void;
+  markDirty: (tabId: string) => void;
+  clearDirty: (tabId: string) => void;
+  isDirty: (tabId: string) => boolean;
 }
 
 export type RequestStore = RequestState & RequestActions;
@@ -173,9 +178,11 @@ export const useRequestStore = create<RequestStore>()(
   immer((set, get) => ({
   loadingTabs: {},
   responses: {},
+  testResults: {},
   error: null,
   requestDataMap: {},
   currentTabId: null,
+  dirtyTabs: {},
 
   setTabLoading: (tabId, loading) =>
     set((state) => {
@@ -210,12 +217,15 @@ export const useRequestStore = create<RequestStore>()(
       set((state) => {
         delete state.requestDataMap[tabId];
         delete state.responses[tabId];
+        delete state.testResults[tabId];
+        delete state.dirtyTabs[tabId];
       }),
 
     setRequestHeaders: (headers) =>
       set((state) => {
         if (state.currentTabId) {
           getOrCreateTabData(state.requestDataMap, state.currentTabId).headers = headers;
+          state.dirtyTabs[state.currentTabId] = true;
         }
       }),
 
@@ -223,6 +233,7 @@ export const useRequestStore = create<RequestStore>()(
       set((state) => {
         if (state.currentTabId) {
           getOrCreateTabData(state.requestDataMap, state.currentTabId).params = params;
+          state.dirtyTabs[state.currentTabId] = true;
         }
       }),
 
@@ -230,6 +241,7 @@ export const useRequestStore = create<RequestStore>()(
       set((state) => {
         if (state.currentTabId) {
           getOrCreateTabData(state.requestDataMap, state.currentTabId).body = body;
+          state.dirtyTabs[state.currentTabId] = true;
         }
       }),
 
@@ -237,6 +249,7 @@ export const useRequestStore = create<RequestStore>()(
       set((state) => {
         if (state.currentTabId) {
           getOrCreateTabData(state.requestDataMap, state.currentTabId).auth = auth;
+          state.dirtyTabs[state.currentTabId] = true;
         }
       }),
 
@@ -244,6 +257,7 @@ export const useRequestStore = create<RequestStore>()(
     set((state) => {
       if (state.currentTabId) {
         getOrCreateTabData(state.requestDataMap, state.currentTabId).settings = settings;
+        state.dirtyTabs[state.currentTabId] = true;
       }
     }),
 
@@ -251,7 +265,13 @@ export const useRequestStore = create<RequestStore>()(
     set((state) => {
       if (state.currentTabId) {
         getOrCreateTabData(state.requestDataMap, state.currentTabId).scripts = scripts;
+        state.dirtyTabs[state.currentTabId] = true;
       }
+    }),
+
+  setTestResults: (tabId, results) =>
+    set((state) => {
+      state.testResults[tabId] = results;
     }),
 
     sendRequest: async (tabId, method, url) => {
@@ -294,12 +314,56 @@ export const useRequestStore = create<RequestStore>()(
       };
 
       try {
+        // Pre-request script
+        const preScript = requestData.scripts?.preRequest;
+        if (preScript?.trim()) {
+          const scriptCtx: ScriptContext = {
+            request: { method, url: resolvedUrl, headers: resolvedHeaders, body: ipcConfig.body },
+            environment: envScopes.environment,
+            globals: envScopes.global,
+          };
+          try {
+            const scriptStart = Date.now();
+            const scriptResult: ScriptResult = await executeScript({ code: preScript, context: scriptCtx });
+            logScriptResult(tabId, "pre-request", scriptResult, scriptStart);
+            if (scriptResult.modifiedRequest) {
+              const mod = scriptResult.modifiedRequest;
+              if (mod.headers) {
+                const extraHeaders = Array.isArray(mod.headers) ? mod.headers : [];
+                for (const h of extraHeaders) {
+                  const hRec = h as { key?: string; value?: string };
+                  if (hRec.key && hRec.value) {
+                    const existing = ipcConfig.headers.findIndex((eh) => eh.key === hRec.key);
+                    if (existing >= 0) {
+                      ipcConfig.headers[existing] = { key: hRec.key, value: hRec.value, disabled: false };
+                    } else {
+                      ipcConfig.headers.push({ key: hRec.key, value: hRec.value, disabled: false });
+                    }
+                  }
+                }
+              }
+            }
+          } catch (scriptErr) {
+            useConsoleStore.getState().addEntry(tabId, {
+              level: "error",
+              message: `Pre-request script error: ${scriptErr}`,
+              source: "pre-request",
+            });
+          }
+        }
+
         markStart("request:send", { method, url });
         const response = await sendHttpRequest(ipcConfig);
         markEnd("request:send", { status: response.status, time: response.time });
       set((state) => {
         state.responses[tabId] = response;
         delete state.loadingTabs[tabId];
+        state.dirtyTabs[tabId] = false;
+      });
+      useConsoleStore.getState().addEntry(tabId, {
+        level: "info",
+        message: `${method} ${resolvedUrl} → ${response.status} (${response.time}ms)`,
+        source: "system",
       });
       insertHistoryEntry({
         method,
@@ -309,17 +373,54 @@ export const useRequestStore = create<RequestStore>()(
       }).catch((e) => {
         console.error("Failed to insert history entry:", e);
       });
+
+      // Post-response script
+      const postScript = requestData.scripts?.postResponse;
+      if (postScript?.trim()) {
+        const scriptCtx: ScriptContext = {
+          request: { method, url: resolvedUrl },
+          response: { status: response.status, statusText: response.statusText, headers: response.headers, body: response.body, time: response.time },
+          environment: envScopes.environment,
+          globals: envScopes.global,
+        };
+        try {
+          const scriptStart = Date.now();
+          const scriptResult: ScriptResult = await executeScript({ code: postScript, context: scriptCtx });
+          logScriptResult(tabId, "post-response", scriptResult, scriptStart);
+          if (scriptResult.testResults.length > 0) {
+            get().setTestResults(tabId, scriptResult.testResults);
+          }
+        } catch (scriptErr) {
+          useConsoleStore.getState().addEntry(tabId, {
+            level: "error",
+            message: `Post-response script error: ${scriptErr}`,
+            source: "post-response",
+          });
+        }
+      }
+
       } catch (err: unknown) {
-        const errorDetail =
-          typeof err === "object" && err !== null && "detail" in err
-            ? (err as { detail: string }).detail
-            : typeof err === "string"
-              ? err
-              : "Request failed";
-      set((state) => {
-        state.error = errorDetail;
-        delete state.loadingTabs[tabId];
-      });
+        const handled = handleError(err);
+        set((state) => {
+          state.error = handled.description;
+          delete state.loadingTabs[tabId];
+        });
+        useConsoleStore.getState().addEntry(tabId, {
+          level: handled.variant === "error" ? "error" : "warn",
+          message: `${method} ${url} → ${handled.title}: ${handled.description}`,
+          source: "system",
+        });
+        toast({
+          variant: handled.variant,
+          title: handled.title,
+          description: handled.description,
+          duration: handled.variant === "error" ? 8000 : 4000,
+          action: handled.action
+            ? { label: handled.action.label, onClick: handled.action.onClick }
+            : handled.retryable
+              ? { label: "Retry", onClick: () => get().sendRequest(tabId, method, url) }
+              : undefined,
+        });
       }
     },
 
@@ -347,5 +448,56 @@ export const useRequestStore = create<RequestStore>()(
         };
       }
     }),
+
+  markDirty: (tabId) =>
+    set((state) => {
+      state.dirtyTabs[tabId] = true;
+    }),
+
+  clearDirty: (tabId) =>
+    set((state) => {
+      state.dirtyTabs[tabId] = false;
+    }),
+
+  isDirty: (tabId) => get().dirtyTabs[tabId] === true,
   })),
 );
+
+function logScriptResult(tabId: string, source: string, result: ScriptResult, startTime: number) {
+  const consoleStore = useConsoleStore.getState();
+  const duration = Date.now() - startTime;
+  consoleStore.addEntry(tabId, {
+    level: "info",
+    message: `[${source}] Script executed in ${duration}ms`,
+    source: source as "pre-request" | "post-response",
+  });
+  for (const log of result.logs) {
+    consoleStore.addEntry(tabId, {
+      level: log.level === "warn" ? "warn" : log.level === "error" ? "error" : "log",
+      message: log.message,
+      source: source as "pre-request" | "post-response",
+    });
+  }
+  for (const test of result.testResults) {
+    consoleStore.addEntry(tabId, {
+      level: test.passed ? "info" : "error",
+      message: `${test.passed ? "PASS" : "FAIL"}: ${test.name}${test.error ? " — " + test.error : ""} (${test.durationMs}ms)`,
+      source: source as "pre-request" | "post-response",
+    });
+  }
+  if (result.variables.length > 0) {
+    const varSummary = result.variables.map((v) => `${v.scope}.${v.key} = ${v.value}`).join(", ");
+    consoleStore.addEntry(tabId, {
+      level: "info",
+      message: `[${source}] Variables modified: ${varSummary}`,
+      source: source as "pre-request" | "post-response",
+    });
+  }
+  if (result.error) {
+    consoleStore.addEntry(tabId, {
+      level: "error",
+      message: `Script error: ${result.error}`,
+      source: source as "pre-request" | "post-response",
+    });
+  }
+}

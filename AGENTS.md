@@ -235,7 +235,10 @@ api-client/
 | 12-状态持久化 | 数据同步协议、冲突解决 | 存储相关时 |
 | 13-错误处理 | 28种错误码UI映射 | 错误处理时 |
 | 14-Phase2b协议支持 | gRPC/WS/MQTT/SSE/Mock UI任务 | 多协议开发时 |
-| 15-Phase4-AI模块 | AI Agent自然语言/AI生成/Agent Builder | AI模块开发时 |
+| 15-Phase4-AI模块 | AI Agent/Streaming/Function Calling/Slash Commands/智能提取/Mock/Ollama | AI模块开发时 |
+| 16-interface-contract | IPC 契约验证、Mock 数据、测试骨架 | IPC 通信开发时 |
+| 17-runtime-behavior | 操作序列、并发规范、资源约束、降级 | 性能/并发/运行时设计时 |
+| 18-dev-progress | 任务进度跟踪、偏差记录 | 查看开发进度时 |
 
 > **注意**：03-功能设计.md 定义了 22+ 功能模块，但 gRPC UI、WebSocket UI、MQTT UI、Mock Server UI、AI 模块的实现任务仅在 14-Phase2b 中覆盖（不在 09/10/11 中）。Phase 4 AI Agent 任务见 15-Phase4-AI模块任务清单.md。
 

@@ -1,6 +1,9 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
 import { KeyValueEditor, type KeyValue } from "../request/KeyValueEditor";
+import { FormDataEditor } from "../request/FormDataEditor";
 import { InlineEditor } from "../editor/InlineEditor";
+import { ScriptEditor } from "../editor/ScriptEditor";
 import { useRequestStore } from "../../stores";
 import type { BodyConfig, AuthConfig, BodyMode, RawLanguage, Header, QueryParam, FormDataParam } from "@api-client/types";
 
@@ -156,16 +159,18 @@ export function RequestPanel() {
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
 
   useEffect(() => {
-    setParams(ensureEmptyRow(paramsToKv(storeParams)));
-    setHeaders(ensureEmptyRow(headersToKv(storeHeaders)));
-    setBodyConfig(storeBody ?? { mode: "none" });
-    setRawLanguage(storeBody?.raw?.language ?? "json");
-    setRawContent(storeBody?.raw?.content ?? "");
-    setFormdataKvs(ensureEmptyRow(formdataToKv(storeBody?.formdata ?? [])));
-    setUrlencodedKvs(ensureEmptyRow(paramsToKv(storeBody?.urlencoded ?? [])));
-    setGraphqlQuery(storeBody?.graphql?.query ?? "");
-    setGraphqlVariables(storeBody?.graphql?.variables ?? "");
-  }, [currentTabId]);
+    if (currentTabId) {
+      setParams(ensureEmptyRow(paramsToKv(storeParams)));
+      setHeaders(ensureEmptyRow(headersToKv(storeHeaders)));
+      setBodyConfig(storeBody ?? { mode: "none" });
+      setRawLanguage(storeBody?.raw?.language ?? "json");
+      setRawContent(storeBody?.raw?.content ?? "");
+      setFormdataKvs(ensureEmptyRow(formdataToKv(storeBody?.formdata ?? [])));
+      setUrlencodedKvs(ensureEmptyRow(paramsToKv(storeBody?.urlencoded ?? [])));
+      setGraphqlQuery(storeBody?.graphql?.query ?? "");
+      setGraphqlVariables(storeBody?.graphql?.variables ?? "");
+    }
+  }, [currentTabId, storeParams, storeHeaders, storeBody]);
 
     const handleParamsChange = (newItems: KeyValue[]) => {
         setParams(ensureEmptyRow(newItems));
@@ -201,12 +206,6 @@ export function RequestPanel() {
         setRequestBody(updated);
     };
 
-    const handleFormdataChange = (newItems: KeyValue[]) => {
-        setFormdataKvs(ensureEmptyRow(newItems));
-        const formdata = kvToFormdata(newItems);
-        handleBodyConfigChange({ mode: "formdata", formdata });
-    };
-
     const handleUrlencodedChange = (newItems: KeyValue[]) => {
         setUrlencodedKvs(ensureEmptyRow(newItems));
         const urlencoded = kvToUrlencoded(newItems);
@@ -236,31 +235,42 @@ export function RequestPanel() {
     const tabRefs = useRef<Partial<Record<RequestTabId, HTMLButtonElement | null>>>({});
     const [indicatorStyle, setIndicatorStyle] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
 
-    const updateIndicator = useCallback(() => {
-        const el = tabRefs.current[activeTab];
-        if (el) {
-            const parent = el.parentElement;
-            if (parent) {
-                const parentRect = parent.getBoundingClientRect();
-                const elRect = el.getBoundingClientRect();
-                setIndicatorStyle({
-                    left: elRect.left - parentRect.left,
-                    width: elRect.width,
-                });
-            }
+  useEffect(() => {
+    const el = tabRefs.current[activeTab];
+    if (el) {
+      const parent = el.parentElement;
+      if (parent) {
+        const parentRect = parent.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+        setIndicatorStyle({
+          left: elRect.left - parentRect.left,
+          width: elRect.width,
+        });
+      }
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    const updateIndicator = () => {
+      const el = tabRefs.current[activeTab];
+      if (el) {
+        const parent = el.parentElement;
+        if (parent) {
+          const parentRect = parent.getBoundingClientRect();
+          const elRect = el.getBoundingClientRect();
+          setIndicatorStyle({
+            left: elRect.left - parentRect.left,
+            width: elRect.width,
+          });
         }
-    }, [activeTab]);
+      }
+    };
 
-    useEffect(() => {
-        updateIndicator();
-    }, [activeTab, updateIndicator]);
-
-    useEffect(() => {
-        const observer = new ResizeObserver(updateIndicator);
-        const parent = tabRefs.current[activeTab]?.parentElement;
-        if (parent) observer.observe(parent);
-        return () => observer.disconnect();
-    }, [activeTab, updateIndicator]);
+    const observer = new ResizeObserver(updateIndicator);
+    const parent = tabRefs.current[activeTab]?.parentElement;
+    if (parent) observer.observe(parent);
+    return () => observer.disconnect();
+  }, [activeTab]);
 
     const enabledParamsCount = params.filter((p) => p.enabled && p.key).length;
     const enabledHeadersCount = headers.filter((h) => h.enabled && h.key).length;
@@ -412,18 +422,141 @@ export function RequestPanel() {
                     </div>
                 );
             }
+            case "oauth1": {
+                const config = auth.config as { consumerKey: string; consumerSecret: string; token: string; tokenSecret: string; signatureMethod: string };
+                return (
+                    <>
+                        <div className="auth-hint font-sans text-[11px] text-accent-warning leading-[16px] p-2 bg-accent-warning/8 rounded-md border-l-[2px] border-accent-warning">
+                            OAuth 1.0a request signing is not yet implemented. Credentials will be sent without signing.
+                        </div>
+                        <div className="auth-field flex flex-col gap-[6px]">
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Consumer Key</label>
+                            <input
+                                type="text"
+                                value={config.consumerKey ?? ""}
+                                onChange={(e) => handleAuthChange({ type: "oauth1", config: { ...config, consumerKey: e.target.value } })}
+                                placeholder="Consumer key"
+                                className="auth-field-input w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus focus:shadow-[0_0_0_3px_var(--color-brand-muted)] placeholder:text-fg-tertiary placeholder:font-sans"
+                            />
+                        </div>
+                        <div className="auth-field flex flex-col gap-[6px]">
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Consumer Secret</label>
+                            <input
+                                type="password"
+                                value={config.consumerSecret ?? ""}
+                                onChange={(e) => handleAuthChange({ type: "oauth1", config: { ...config, consumerSecret: e.target.value } })}
+                                placeholder="Consumer secret"
+                                className="auth-field-input password w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans pr-[36px]"
+                            />
+                        </div>
+                        <div className="auth-field flex flex-col gap-[6px]">
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Token</label>
+                            <input
+                                type="text"
+                                value={config.token ?? ""}
+                                onChange={(e) => handleAuthChange({ type: "oauth1", config: { ...config, token: e.target.value } })}
+                                placeholder="Token"
+                                className="auth-field-input w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans"
+                            />
+                        </div>
+                        <div className="auth-field flex flex-col gap-[6px]">
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Token Secret</label>
+                            <input
+                                type="password"
+                                value={config.tokenSecret ?? ""}
+                                onChange={(e) => handleAuthChange({ type: "oauth1", config: { ...config, tokenSecret: e.target.value } })}
+                                placeholder="Token secret"
+                                className="auth-field-input password w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans pr-[36px]"
+                            />
+                        </div>
+                        <div className="auth-field flex flex-col gap-[6px]">
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Signature Method</label>
+                            <select
+                                value={config.signatureMethod ?? "HMAC-SHA1"}
+                                onChange={(e) => handleAuthChange({ type: "oauth1", config: { ...config, signatureMethod: e.target.value } })}
+                                className="auth-type-select w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-sans text-[13px] text-fg-primary cursor-pointer outline-none focus:border-border-focus"
+                            >
+                                <option value="HMAC-SHA1">HMAC-SHA1</option>
+                                <option value="HMAC-SHA256">HMAC-SHA256</option>
+                                <option value="RSA-SHA1">RSA-SHA1</option>
+                                <option value="RSA-SHA256">RSA-SHA256</option>
+                            </select>
+                        </div>
+                    </>
+                );
+            }
+            case "awsv4": {
+                const config = auth.config as { accessKeyId: string; secretAccessKey: string; sessionToken: string; service: string; region: string };
+                return (
+                    <>
+                        <div className="auth-hint font-sans text-[11px] text-accent-warning leading-[16px] p-2 bg-accent-warning/8 rounded-md border-l-[2px] border-accent-warning">
+                            AWS Signature v4 request signing is not yet implemented. Credentials will be sent without signing.
+                        </div>
+                        <div className="auth-field flex flex-col gap-[6px]">
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Access Key ID</label>
+                            <input
+                                type="text"
+                                value={config.accessKeyId ?? ""}
+                                onChange={(e) => handleAuthChange({ type: "awsv4", config: { ...config, accessKeyId: e.target.value } })}
+                                placeholder="AKIAIOSFODNN7EXAMPLE"
+                                className="auth-field-input w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus focus:shadow-[0_0_0_3px_var(--color-brand-muted)] placeholder:text-fg-tertiary placeholder:font-sans"
+                            />
+                        </div>
+                        <div className="auth-field flex flex-col gap-[6px]">
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Secret Access Key</label>
+                            <input
+                                type="password"
+                                value={config.secretAccessKey ?? ""}
+                                onChange={(e) => handleAuthChange({ type: "awsv4", config: { ...config, secretAccessKey: e.target.value } })}
+                                placeholder="Secret access key"
+                                className="auth-field-input password w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans pr-[36px]"
+                            />
+                        </div>
+                        <div className="auth-field flex flex-col gap-[6px]">
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Session Token</label>
+                            <input
+                                type="password"
+                                value={config.sessionToken ?? ""}
+                                onChange={(e) => handleAuthChange({ type: "awsv4", config: { ...config, sessionToken: e.target.value } })}
+                                placeholder="Optional"
+                                className="auth-field-input password w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans pr-[36px]"
+                            />
+                        </div>
+                        <div className="auth-field flex flex-col gap-[6px]">
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Service</label>
+                            <input
+                                type="text"
+                                value={config.service ?? ""}
+                                onChange={(e) => handleAuthChange({ type: "awsv4", config: { ...config, service: e.target.value } })}
+                                placeholder="e.g. execute-api, s3"
+                                className="auth-field-input w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans"
+                            />
+                        </div>
+                        <div className="auth-field flex flex-col gap-[6px]">
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Region</label>
+                            <input
+                                type="text"
+                                value={config.region ?? ""}
+                                onChange={(e) => handleAuthChange({ type: "awsv4", config: { ...config, region: e.target.value } })}
+                                placeholder="e.g. us-east-1"
+                                className="auth-field-input w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans"
+                            />
+                        </div>
+                    </>
+                );
+            }
             default:
                 return (
                     <div className="auth-hint font-sans text-[11px] text-fg-tertiary leading-[16px] p-2 bg-bg-elevated rounded-md border-l-[2px] border-accent-info">
-                        {auth.type === "oauth1" ? "OAuth 1.0a" : "AWS Signature v4"} configuration — full fields will be implemented in a future phase.
+                        This request will not use any authentication.
                     </div>
                 );
         }
     };
 
     return (
-        <div className="flex-1 flex flex-col overflow-hidden bg-bg-surface">
-            <div className="request-tabs flex items-center h-tab-bar bg-bg-surface border-b border-border-muted px-3 gap-0 relative">
+        <div className="h-full flex flex-col overflow-hidden bg-bg-surface">
+            <div className="request-tabs flex items-center h-tab-bar bg-bg-surface border-b border-border-muted px-3 gap-0 relative shrink-0">
                 {REQUEST_TABS.map((tab) => {
                     const badge = getBadge(tab.id);
                     return (
@@ -460,7 +593,7 @@ export function RequestPanel() {
                 />
             </div>
 
-            <div className="flex-1 overflow-hidden">
+            <div className="h-0 flex-1 overflow-hidden">
                 {activeTab === "params" && (
                     <KeyValueEditor
                         items={params}
@@ -565,10 +698,12 @@ export function RequestPanel() {
                             )}
 
                             {bodyConfig.mode === "formdata" && (
-                                <KeyValueEditor
-                                    items={formdataKvs}
-                                    onChange={handleFormdataChange}
-                                    placeholder={{ key: "Field", value: "Value" }}
+                                <FormDataEditor
+                                    items={storeBody?.formdata ?? []}
+                                    onChange={(formdata) => {
+                                        setFormdataKvs(ensureEmptyRow(formdataToKv(formdata)));
+                                        handleBodyConfigChange({ mode: "formdata", formdata });
+                                    }}
                                 />
                             )}
 
@@ -584,38 +719,32 @@ export function RequestPanel() {
           <div className="flex items-center justify-center h-full">
             <div
               className="binary-upload-zone w-[280px] h-[160px] border-[1.5px] border-dashed border-border-default rounded-lg flex flex-col items-center justify-center gap-[8px] cursor-pointer transition-all duration-[180ms] hover:border-brand hover:bg-brand-muted"
-              onClick={() => {
-                const input = document.createElement("input");
-                input.type = "file";
-                input.onchange = (e) => {
-                  const file = (e.target as HTMLInputElement).files?.[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                      const result = reader.result as ArrayBuffer;
-                      handleBodyConfigChange({ mode: "binary", binary: String.fromCharCode(...new Uint8Array(result)) });
-                    };
-                    reader.readAsArrayBuffer(file);
+              onClick={async () => {
+                try {
+                  const selected = await open({ multiple: false, directory: false });
+                  if (selected) {
+                    handleBodyConfigChange({ mode: "binary", binary: selected });
                   }
-                };
-                input.click();
+                } catch {}
               }}
               onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-              onDrop={(e) => {
+              onDrop={async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 const file = e.dataTransfer.files[0];
                 if (file) {
-                  const reader = new FileReader();
-                  reader.onload = () => {
-                    const result = reader.result as ArrayBuffer;
-                    handleBodyConfigChange({ mode: "binary", binary: String.fromCharCode(...new Uint8Array(result)) });
-                  };
-                  reader.readAsArrayBuffer(file);
+                  handleBodyConfigChange({ mode: "binary", binary: file.name });
                 }
               }}
             >
-              <span className="text-fg-tertiary text-[12px]">Click or drop a file</span>
+              {bodyConfig.binary ? (
+                <>
+                  <span className="font-mono text-[12px] text-fg-primary truncate max-w-[200px]">{bodyConfig.binary.split(/[\\/]/).pop()}</span>
+                  <span className="text-fg-tertiary text-[11px]">Click to change file</span>
+                </>
+              ) : (
+                <span className="text-fg-tertiary text-[12px]">Click or drop a file</span>
+              )}
             </div>
           </div>
         )}
@@ -689,9 +818,8 @@ export function RequestPanel() {
       </button>
     </div>
     <div className="flex-1 overflow-hidden">
-      <InlineEditor
+      <ScriptEditor
         value={scriptTab === "pre" ? (storeScripts.preRequest ?? "") : (storeScripts.postResponse ?? "")}
-        language="javascript"
         onChange={(v) => {
           if (scriptTab === "pre") { setRequestScripts({ ...storeScripts, preRequest: v || undefined }); }
           else { setRequestScripts({ ...storeScripts, postResponse: v || undefined }); }

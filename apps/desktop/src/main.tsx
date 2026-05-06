@@ -1,8 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
-import { ErrorBoundary } from "@api-client/ui";
+import { ErrorBoundary, ToastProvider } from "@api-client/ui";
 import { markStart, markEnd } from "@api-client/core";
+import "./i18n";
 import "./styles/index.css";
 
 markStart("app:ready");
@@ -20,7 +21,9 @@ if (root) {
   ReactDOM.createRoot(root).render(
     <React.StrictMode>
       <ErrorBoundary>
-        <App />
+        <ToastProvider>
+          <App />
+        </ToastProvider>
       </ErrorBoundary>
     </React.StrictMode>,
   );

@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronDown, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Plus, Trash2, Settings as SettingsIcon } from "lucide-react";
 import { useEnvironmentStore } from "../../stores/environment-store";
+import { useUIStore } from "@api-client/core";
+import { EnvironmentEditor } from "../environment";
 
 const ENV_STYLES: Record<string, { text: string; bg: string; border: string }> = {
   dev: {
@@ -38,6 +40,7 @@ function getEnvKey(env?: { id: string; envType?: string }): string {
 
 export function EnvSelector() {
   const [isOpen, setIsOpen] = useState(false);
+  const [editingEnvId, setEditingEnvId] = useState<string | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const environments = useEnvironmentStore((s) => s.environments);
@@ -45,6 +48,7 @@ export function EnvSelector() {
   const setActiveEnvironment = useEnvironmentStore((s) => s.setActiveEnvironment);
   const addEnvironment = useEnvironmentStore((s) => s.addEnvironment);
   const deleteEnvironment = useEnvironmentStore((s) => s.deleteEnvironment);
+  const openSettings = useUIStore((s) => s.openSettings);
 
   const activeEnv = environments.find((e) => e.id === activeEnvId);
   const envKey = getEnvKey(activeEnv);
@@ -81,6 +85,18 @@ export function EnvSelector() {
     const id = `env-${Date.now()}`;
     addEnvironment({ id, name: "New Environment", variables: [], isActive: false });
     setActiveEnvironment(id);
+    close();
+  };
+
+  const handleEditEnv = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingEnvId(id);
+    close();
+  };
+
+  const handleManageEnvs = () => {
+    close();
+    openSettings("environments");
   };
 
   return (
@@ -125,6 +141,13 @@ export function EnvSelector() {
                     {isActive && <Check size={12} className="text-brand" />}
                   </button>
                   <button
+                    onClick={(e) => handleEditEnv(env.id, e)}
+                    className="p-1 mr-1 opacity-0 group-hover:opacity-100 hover:bg-bg-hover rounded"
+                    title="Edit environment"
+                  >
+                    <SettingsIcon className="w-3 h-3 text-fg-tertiary" />
+                  </button>
+                  <button
                     onClick={(e) => {
                       e.stopPropagation();
                       deleteEnvironment(env.id);
@@ -142,17 +165,32 @@ export function EnvSelector() {
                 onClick={(e) => {
                   e.stopPropagation();
                   handleAddEnv();
-                  close();
                 }}
                 className="flex items-center gap-2 w-full h-7 px-3 text-xs text-fg-secondary hover:bg-bg-hover"
               >
                 <Plus className="w-3 h-3" />
                 <span>Add Environment</span>
               </button>
+              <button
+                onClick={handleManageEnvs}
+                className="flex items-center gap-2 w-full h-7 px-3 text-xs text-fg-secondary hover:bg-bg-hover"
+              >
+                <SettingsIcon className="w-3 h-3" />
+                <span>Manage Environments</span>
+              </button>
             </div>
           </div>,
           document.body,
         )}
+
+      {/* Environment Editor Dialog */}
+      {editingEnvId && (
+        <EnvironmentEditor
+          environmentId={editingEnvId}
+          isOpen={!!editingEnvId}
+          onClose={() => setEditingEnvId(null)}
+        />
+      )}
     </>
   );
 }

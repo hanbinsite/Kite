@@ -65,7 +65,6 @@
 
 ### 仍需注意的项：
 - gRPC Server/Client Streaming 模式需在 Phase 2b 后续迭代中完善
-- 15-Phase4-AI模块任务清单.md 文件尚未创建（索引已就绪）
 
 ---
 
@@ -189,4 +188,19 @@
 
 ---
 
-*最后更新：2026-04-22*
+## 第六批 — Phase 4 AI 模块规划更新（2026-05-06）
+
+> 15-Phase4-AI模块任务清单.md 已从 v1.0 更新为 v2.0
+
+### 变更摘要
+
+- Sprint 周期：3 周 → 4 周（15 任务 → 20 任务）
+- AgentAction 架构升级：正则解析 → Function Calling / Structured Output
+- 新增 5 个扩展功能：Slash Commands / 智能变量提取 / Mock 数据生成 / Collection 批量分析 / 响应 Diff 对比
+- 新增 Ollama 本地 SLM 集成（替代 llama.cpp stub）
+- 移除 Agent Builder（后续按需加回）
+- Streaming 提升为 Week 1 核心任务
+
+---
+
+*最后更新：2026-05-06*

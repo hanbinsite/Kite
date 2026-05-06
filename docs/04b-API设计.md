@@ -888,3 +888,90 @@ pub async fn get_recent_history(
 - 所有 SQLite 操作必须通过 `spawn_blocking` 执行，不能在 async 上下文中直接持有 Connection
 - `blocking_lock()` 而非 `lock().await`，确保在阻塞线程池中获取锁
 - 单写者场景：所有写操作通过 `fs_lock` 或 `db` Mutex 串行化
+
+---
+
+## 7. 设计 vs 实现偏差对照表
+
+> 本节记录 §5.1-5.2 中设计的命令与实际已实现代码的偏差。完整偏差记录见 08-开发指南.md §14 和 18-dev-progress.md §7。
+> **权威实现清单**见 16-interface-contract.md §1。
+
+### 7.1 已实现命令（23 个）— 与设计命名偏差
+
+| 设计 Wrapper (§5.1) | 设计 IPC 名 | 实际 IPC 名 | 实际前端 Wrapper | 偏差说明 |
+|---------------------|-----------|-----------|---------------|---------|
+| sendHttpRequest | `send_http_request` | `send_http_request` | `sendHttpRequest` | ✅ 一致 |
+| cancelHttpRequest | `cancel_http_request` | `cancel_http_request` | `cancelHttpRequest` | ✅ 一致 |
+| readFile | `read_file` | `read_file` | — (无前端 wrapper) | ⚠️ 无独立 wrapper，由集合/环境命令内部调用 |
+| writeFile | `write_file` | `write_file` | — | ⚠️ 同上 |
+| deleteFile | `delete_file` | `delete_file` | — | ⚠️ 同上 |
+| listDirectory | `list_directory` | `list_directory` | — | ⚠️ 同上 |
+| getCollections | `get_collections` | `list_collections` | `listCollections` | ❌ 命名偏差: get → list |
+| getCollectionDetail | `get_collection_detail` | `get_collection` | `getCollection` | ❌ 命名偏差: detail 去除 |
+| createCollection | `create_collection` | `save_collection` | `saveCollection` | ❌ 功能偏差: create → save (传入完整 CollectionFile) |
+| deleteCollection | `delete_collection` | `delete_collection` | `deleteCollection` | ✅ 一致 |
+| renameCollection | `rename_collection` | — (无单独命令) | — | ❌ 未实现为独立命令，前端修改 name 后调用 saveCollection |
+| getRequest | `get_request` | — (无单独命令) | — | ❌ 未实现，请求嵌套在 CollectionFile.items 中 |
+| saveRequest | `save_request` | — (无单独命令) | — | ❌ 未实现，通过 saveCollection 保存 |
+| getEnvironments | `get_environments` | `list_environments` | `listEnvironments` | ❌ 命名偏差: get → list |
+| getEnvironmentVariables | `get_environment_variables` | `get_environment` | `getEnvironment` | ❌ 功能偏差: 返回完整 EnvironmentFile 而非仅变量 |
+| setEnvironmentVariable | `set_environment_variable` | — (无单独命令) | — | ❌ 未实现，前端修改后调用 saveEnvironment |
+| createEnvironment | `create_environment` | `save_environment` | `saveEnvironment` | ❌ 功能偏差: create → save (传入完整 EnvironmentFile) |
+| deleteEnvironment | `delete_environment` | `delete_environment` | `deleteEnvironment` | ✅ 一致 |
+| getRecentHistory | `get_recent_history` | `query_history_entries` | `queryHistoryEntries` | ❌ 命名偏差 |
+| insertHistory | `insert_history` | `insert_history_entry` | `insertHistoryEntry` | ❌ 命名偏差 |
+| clearHistory | `clear_history` | `clear_history` | `clearHistory` | ✅ 一致 |
+| getCookies | `get_cookies` | `query_cookies` | `queryCookies` | ❌ 命名偏差 |
+| setCookie | `set_cookie` | `insert_cookie` | `insertCookie` | ❌ 命名偏差 |
+| deleteCookie | `delete_cookie` | `delete_cookie` | `deleteCookie` | ✅ 一致 |
+
+### 7.2 设计中但未实现的命令
+
+| 设计 Wrapper (§5.1) | 优先级 | 说明 |
+|---------------------|--------|------|
+| sendGrpcRequest / parseProtoFile | P2 | gRPC 模块未开始 |
+| wsConnect / wsSend / wsClose | P2 | WebSocket 模块未开始 |
+| unlockVault / lockVault 等 7 个 Vault 命令 | P2 | Vault 加密模块未开始 |
+| startProxy / stopProxy / getProxyStatus | P2 | 代理模块未开始 |
+| executeScript / cancelScript | P1 | 脚本引擎未开始 |
+| exchangeOAuthToken | P1 | OAuth 模块未开始 |
+| sseConnect / sseDisconnect | P2 | SSE 模块未开始 |
+| graphqlIntrospect | P1 | GraphQL Schema 探索未开始 |
+| openExternal / getAppVersion | — | 系统命令未独立实现 |
+| getGlobalVariables / setGlobalVariable | — | 全局变量合并到环境命令中 |
+| getFileMtime | — | 文件时间戳检测未实现 |
+| moveRequest / createRequest / deleteRequest | — | 请求 CRUD 合并到 saveCollection |
+
+### 7.3 设计中但未实现的事件
+
+| 设计事件 (§5.3) | 状态 | 说明 |
+|----------------|------|------|
+| http-response-chunk | ⏳ 未实现 | 流式响应功能待开发 |
+| ws-message / ws-open / ws-close / ws-error | ⏳ 未实现 | WebSocket 模块待开发 |
+| sse-event / sse-error / sse-close | ⏳ 未实现 | SSE 模块待开发 |
+| grpc-stream-message / grpc-stream-error / grpc-stream-end | ⏳ 未实现 | gRPC 模块待开发 |
+| environment-changed / environment-write-failed | ⏳ 未实现 | 事件同步机制待开发 |
+| oauth-callback | ⏳ 未实现 | OAuth 模块待开发 |
+| proxy-status-changed | ⏳ 未实现 | 代理模块待开发 |
+| script-console | ⏳ 未实现 | 脚本引擎待开发 |
+
+### 7.4 数据结构偏差
+
+| 设计中的类型 (§6.3) | 实际实现 | 偏差 |
+|---------------------|---------|------|
+| AppState { db: Arc<Mutex<Connection>> } | AppState { storage: Arc<RwLock<Option<Storage>>> } | ❌ 使用 Storage 包装而非直接暴露 db |
+| AppState { http_client: HttpClientState } | HttpClientState { cancellation_tokens } | ⚠️ 简化：client + cookie_jar 在函数内创建而非全局 |
+| HttpRequestConfig { body: BodyConfig (非 Option) } | HttpRequestConfig { body: Option<BodyConfig> } | ❌ body 变为 Option |
+| HttpRequestConfig { url: UrlConfig } | HttpRequestConfig { url: String } | ❌ 简化：前端负责 URL 解析 |
+| AuthConfig { Hawk, Ntlm, Digest } | AuthConfig 无这 3 个变体 | ❌ 实际只实现 8 种认证 |
+| BodyConfig 使用 enum BodyMode + content | BodyConfig 使用 flat struct + mode:String | ❌ 实际为扁平结构而非 enum |
+| RequestSettings { timeout, skip_ssl_verification, keep_alive, send_cookies, store_cookies } | RequestSettings { timeout_ms, follow_redirects, max_redirects, verify_ssl } | ❌ 字段名和默认值偏差 |
+| HttpResponse { body: Vec<u8>, timeline, cookies, test_results } | HttpResponse { body: String, 无 timeline/cookies/test_results } | ❌ 大幅简化 |
+
+> **注意**: 以上偏差是 Phase 1/2 开发过程中的合理简化。设计文档描述的是最终目标架构，实现是渐进式的。完整偏差记录见 **18-dev-progress.md §7**。
+
+---
+
+*文档版本: v3.1*
+*创建时间: 2026-04-14*
+*最后更新: 2026-05-03 — 添加 §7 设计vs实现偏差对照表*

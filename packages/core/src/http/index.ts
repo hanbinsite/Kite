@@ -164,7 +164,14 @@ export interface IpcCollectionItem {
     type: "folder" | "request";
     id: string;
     name: string;
+    description?: string;
     items?: IpcCollectionItem[];
+    config?: {
+      headers?: { key: string; value: string; disabled: boolean; description?: string }[];
+      auth?: IpcAuthConfig;
+      variables?: { key: string; value: string; enabled: boolean }[];
+      scripts?: { preRequest?: string; postResponse?: string };
+    };
     method?: string;
     url?: string;
     headers?: { key: string; value: string; disabled: boolean; description?: string }[];
@@ -173,15 +180,20 @@ export interface IpcCollectionItem {
     auth?: IpcAuthConfig;
     scripts?: { pre_request?: string; post_response?: string };
     settings?: IpcRequestSettings;
-    description?: string;
 }
 
 export interface IpcCollectionFile {
     id: string;
     name: string;
     description?: string;
+    version?: string;
+    config?: {
+      headers?: { key: string; value: string; disabled: boolean; description?: string }[];
+      auth?: IpcAuthConfig;
+      variables?: { key: string; value: string; enabled: boolean }[];
+      scripts?: { preRequest?: string; postResponse?: string };
+    };
     items: IpcCollectionItem[];
-    variables?: { key: string; value: string; enabled: boolean }[];
     created_at: string;
     updated_at: string;
 }

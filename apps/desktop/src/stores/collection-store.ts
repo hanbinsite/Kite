@@ -10,30 +10,37 @@ import {
   type IpcAuthConfig,
   buildIpcAuth,
 } from "@api-client/core/http";
-import type { BodyConfig, AuthConfig } from "@api-client/types";
+import type { BodyConfig, AuthConfig, Header, ScriptConfig, CollectionConfig, FolderConfig } from "@api-client/types";
 
 export interface CollectionRequest {
   id: string;
   method: string;
   name: string;
   url: string;
+  headers?: Header[];
   auth?: AuthConfig;
   body?: BodyConfig;
+  scripts?: ScriptConfig;
 }
 
 export interface CollectionFolder {
   id: string;
   name: string;
+  description?: string;
+  config?: FolderConfig;
   items: CollectionTreeNode[];
 }
 
 export type CollectionTreeNode =
-  | { type: "request"; id: string; method: string; name: string; url: string; auth?: AuthConfig; body?: BodyConfig }
-  | { type: "folder"; id: string; name: string; items: CollectionTreeNode[] };
+  | { type: "request"; id: string; method: string; name: string; url: string; headers?: Header[]; auth?: AuthConfig; body?: BodyConfig; scripts?: ScriptConfig }
+  | { type: "folder"; id: string; name: string; description?: string; config?: FolderConfig; items: CollectionTreeNode[] };
 
 export interface CollectionItem {
     id: string;
     name: string;
+    description?: string;
+    version?: string;
+    config?: CollectionConfig;
     items: CollectionTreeNode[];
 }
 
@@ -90,6 +97,13 @@ function treeToIpcItems(items: CollectionTreeNode[]): IpcCollectionItem[] {
         type: "folder" as const,
         id: item.id,
         name: item.name,
+        description: item.description,
+        config: item.config ? {
+          headers: item.config.headers,
+          auth: item.config.auth ? buildIpcAuth(item.config.auth.type, item.config.auth.config as unknown as Record<string, unknown>) : undefined,
+          variables: item.config.variables,
+          scripts: item.config.scripts,
+        } : undefined,
         items: treeToIpcItems(item.items),
       };
     }
@@ -99,11 +113,11 @@ function treeToIpcItems(items: CollectionTreeNode[]): IpcCollectionItem[] {
       name: item.name,
       method: item.method,
       url: item.url,
-      headers: [],
+      headers: item.headers ?? [],
       params: [],
       body: bodyToIpc(item.body),
       auth: authToIpc(item.auth),
-      scripts: { pre_request: undefined, post_response: undefined },
+      scripts: item.scripts ? { pre_request: item.scripts.preRequest, post_response: item.scripts.postResponse } : { pre_request: undefined, post_response: undefined },
       settings: { timeout_ms: 30000, follow_redirects: true, max_redirects: 10, verify_ssl: true },
     };
   });
@@ -113,6 +127,14 @@ function toIpcCollection(col: CollectionItem): IpcCollectionFile {
     return {
         id: col.id,
         name: col.name,
+        description: col.description,
+        version: col.version,
+        config: col.config ? {
+          headers: col.config.headers,
+          auth: col.config.auth ? buildIpcAuth(col.config.auth.type, col.config.auth.config as unknown as Record<string, unknown>) : undefined,
+          variables: col.config.variables,
+          scripts: col.config.scripts,
+        } : undefined,
         items: treeToIpcItems(col.items),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -153,6 +175,13 @@ function ipcItemsToTree(items: IpcCollectionItem[]): CollectionTreeNode[] {
         type: "folder" as const,
         id: item.id,
         name: item.name,
+        description: item.description,
+        config: item.config ? {
+          headers: item.config.headers,
+          auth: ipcAuthToAuth(item.config.auth),
+          variables: item.config.variables,
+          scripts: item.config.scripts,
+        } : undefined,
         items: ipcItemsToTree(item.items ?? []),
       };
     }
@@ -162,8 +191,13 @@ function ipcItemsToTree(items: IpcCollectionItem[]): CollectionTreeNode[] {
       name: item.name ?? "",
       method: item.method ?? "GET",
       url: item.url ?? "",
+      headers: item.headers,
       auth: ipcAuthToAuth(item.auth),
       body: ipcBodyToBody(item.body),
+      scripts: item.scripts ? {
+        preRequest: item.scripts.pre_request,
+        postResponse: item.scripts.post_response,
+      } : undefined,
     };
   });
 }
@@ -295,6 +329,14 @@ export const useCollectionStore = create<CollectionStore>()(
                         collections.push({
                             id: file.id,
                             name: file.name,
+                            description: file.description,
+                            version: file.version,
+                            config: file.config ? {
+                              headers: file.config.headers,
+                              auth: ipcAuthToAuth(file.config.auth),
+                              variables: file.config.variables,
+                              scripts: file.config.scripts,
+                            } : undefined,
                             items: ipcItemsToTree(file.items ?? []),
                         });
                     } catch {

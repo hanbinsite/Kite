@@ -69,8 +69,8 @@ export function SplitPane({
   };
 
   return (
-    <div ref={containerRef} className="flex flex-col h-full">
-      <div style={{ height: `calc(${ratio * 100}% - 2px)`, overflow: "auto" }}>{top}</div>
+    <div ref={containerRef} className="flex flex-col h-full w-full">
+      <div style={{ height: `${ratio * 100}%`, minHeight: `${minTopHeight}px` }} className="overflow-hidden flex flex-col shrink-0">{top}</div>
       <div
         onMouseDown={handleMouseDown}
         onDoubleClick={handleDoubleClick}
@@ -78,7 +78,7 @@ export function SplitPane({
           isDragging ? "bg-brand" : "bg-border-muted hover:bg-brand"
         }`}
       />
-      <div style={{ height: `calc(${(1 - ratio) * 100}% - 2px)`, overflow: "auto" }}>{bottom}</div>
+      <div style={{ height: `${(1 - ratio) * 100}%`, minHeight: `${minBottomHeight}px` }} className="overflow-hidden flex flex-col shrink-0">{bottom}</div>
     </div>
   );
 }

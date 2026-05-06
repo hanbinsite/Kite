@@ -43,18 +43,20 @@ function SidebarSection({
 
   return (
     <div className="border-b border-border-muted">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center gap-1 px-3 h-7 hover:bg-bg-hover transition-colors text-xs font-semibold uppercase tracking-wider text-fg-secondary"
-      >
-        {isOpen ? (
-          <ChevronDown className="w-3 h-3" />
-        ) : (
-          <ChevronRight className="w-3 h-3" />
-        )}
-        <span className="flex-1 text-left">{title}</span>
+      <div className="w-full flex items-center gap-1 px-3 h-7 text-xs font-semibold uppercase tracking-wider text-fg-secondary">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex items-center gap-1 flex-1 hover:bg-bg-hover transition-colors -mx-3 px-3 h-7"
+        >
+          {isOpen ? (
+            <ChevronDown className="w-3 h-3" />
+          ) : (
+            <ChevronRight className="w-3 h-3" />
+          )}
+          <span className="flex-1 text-left">{title}</span>
+        </button>
         {action}
-      </button>
+      </div>
       {isOpen && <div className="pb-2">{children}</div>}
     </div>
   );
@@ -712,7 +714,7 @@ const commitEdit = () => {
       <div className="h-10 border-t border-border-muted flex items-center justify-between px-3">
         <ThemeToggle />
         <button
-          onClick={openSettings}
+          onClick={() => openSettings()}
           className="p-1.5 hover:bg-bg-hover rounded transition-colors"
           title="Settings"
         >

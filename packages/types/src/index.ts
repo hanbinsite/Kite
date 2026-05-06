@@ -94,6 +94,34 @@ export interface ResponseHeader {
   description?: string;
 }
 
+// Collection Types
+export interface Variable {
+  key: string;
+  value: string;
+  type?: "string" | "number" | "boolean" | "secret";
+  description?: string;
+  enabled: boolean;
+}
+
+export interface ScriptConfig {
+  preRequest?: string;
+  postResponse?: string;
+}
+
+export interface CollectionConfig {
+  headers?: Header[];
+  auth?: AuthConfig;
+  variables?: Variable[];
+  scripts?: ScriptConfig;
+}
+
+export interface FolderConfig {
+  headers?: Header[];
+  auth?: AuthConfig;
+  variables?: Variable[];
+  scripts?: ScriptConfig;
+}
+
 export interface Cookie {
   name: string;
   value: string;

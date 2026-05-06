@@ -27,6 +27,9 @@
 | 13 | [错误处理与用户反馈完整设计](13-错误处理与用户反馈完整设计.md) | 28 种错误码 UI 映射、Toast 系统、验证错误 | 前端 / 后端 |
 | 14 | [Phase 2b 协议支持任务清单](14-Phase2b协议支持任务清单.md) | gRPC/WebSocket/MQTT/SSE/Mock UI（15 个任务） | 开发 |
 | 15 | [Phase 4 AI 模块任务清单](15-Phase4-AI模块任务清单.md) | AI Agent 自然语言/生成/解释/Agent Builder（15 个任务） | 开发 |
+| IC | [接口契约](16-interface-contract.md) | IPC 契约验证、Rust↔TS 交叉引用、Mock 数据、测试骨架 | 前端 / 后端 |
+| RT | [运行时行为](17-runtime-behavior.md) | 操作序列、并发规范、资源约束、降级行为、性能基准 | 全员 |
+| DP | [开发进度](18-dev-progress.md) | 任务状态跟踪、偏差记录、阻塞项 | 开发 / 项目经理 |
 | — | [REMAINING_ISSUES](REMAINING_ISSUES.md) | 未解决问题跟踪、已知缺陷、待优化项 | 开发 / 项目经理 |
 | — | [README](README.md) | 文档索引、导航、依赖关系、阅读顺序 | 全员 |
 
@@ -59,6 +62,12 @@
     │
     ├─→ 13-错误处理 (UI映射)
     │
+    ├─→ 16-interface-contract (IPC契约)
+    │
+    ├─→ 17-runtime-behavior (运行时行为)
+    │
+    ├─→ 18-dev-progress (开发进度)
+    │
     └─→ 09/10/11/14/15-Phase任务清单 (执行)
         ├─→ 09-Phase1 (基础框架)
         ├─→ 10-Phase2 (核心HTTP)
@@ -87,4 +96,4 @@
 
 ---
 
-*最后更新: 2026-04-17 — 补充 REMAINING_ISSUES / README 索引项、Phase2b/AI 模块说明*
+*最后更新: 2026-05-03 — 补充 16/17/18 新文档并修复编号冲突*

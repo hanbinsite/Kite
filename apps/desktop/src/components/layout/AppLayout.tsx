@@ -1,4 +1,5 @@
 import { useUIStore } from "@api-client/core";
+import { GlobalConsole } from "../console/GlobalConsole";
 
 interface AppLayoutProps {
   sidebar: React.ReactNode;
@@ -10,6 +11,7 @@ export function AppLayout({ sidebar, collapsedSidebar, workbench }: AppLayoutPro
   const sidebarVisible = useUIStore((s) => s.sidebarVisible);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const sidebarWidth = useUIStore((s) => s.sidebarWidth);
+  const consoleOpen = useUIStore((s) => s.consoleOpen);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-bg-base">
@@ -26,7 +28,10 @@ export function AppLayout({ sidebar, collapsedSidebar, workbench }: AppLayoutPro
           {collapsedSidebar}
         </div>
       )}
-      <div className="flex-1 flex flex-col overflow-hidden">{workbench}</div>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-hidden">{workbench}</div>
+        {consoleOpen && <GlobalConsole />}
+      </div>
     </div>
   );
 }

@@ -1,14 +1,17 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useTabStore } from "@api-client/core";
 import { useRequestStore } from "../../stores";
 import { JsonViewer } from "../response/JsonViewer";
-import type { HttpResponse, ResponseHeader, Cookie } from "@api-client/types";
+import { ConsolePanel } from "../console/ConsolePanel";
+import { TestsTab } from "../response/TestsTab";
+import type { ResponseHeader, Cookie } from "@api-client/types";
 import { Clock, HardDrive, ArrowDownToLine, Maximize2, Columns2, Zap, AlertTriangle, RefreshCw, Search, Copy } from "lucide-react";
 
 const RESPONSE_TABS = [
   { id: "body", label: "Body" },
   { id: "headers", label: "Headers" },
   { id: "cookies", label: "Cookies" },
+  { id: "console", label: "Console" },
   { id: "tests", label: "Tests" },
 ] as const;
 
@@ -23,6 +26,9 @@ function getStatusClass(status: number): string {
   return "s5xx text-accent-danger bg-accent-danger/12";
 }
 
+const LARGE_BODY_THRESHOLD = 1 * 1024 * 1024;
+const TRUNCATE_SIZE = 2 * 1024 * 1024;
+
 function formatBodySize(bytes: number): string {
   if (bytes > 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${bytes} B`;
@@ -31,16 +37,22 @@ function formatBodySize(bytes: number): string {
 export function ResponsePanel() {
   const [activeTab, setActiveTab] = useState<ResponseTabId>("body");
   const [bodyView, setBodyView] = useState<BodyViewMode>("pretty");
+  const [showTruncated, setShowTruncated] = useState(false);
 
   const activeTabId = useTabStore((s) => s.activeTabId);
-  const response = useRequestStore((s) => (activeTabId ? s.responses[activeTabId] : undefined)) as HttpResponse | undefined;
-  const isLoading = useRequestStore((s) => activeTabId ? !!s.loadingTabs[activeTabId] : false);
+  const responses = useRequestStore((s) => s.responses);
+  const testResults = useRequestStore((s) => s.testResults);
+  const loadingTabs = useRequestStore((s) => s.loadingTabs);
   const error = useRequestStore((s) => s.error);
+
+  const response = activeTabId ? responses[activeTabId] : undefined;
+  const currentTestResults = activeTabId ? (testResults[activeTabId] ?? []) : [];
+  const isLoading = activeTabId ? !!loadingTabs[activeTabId] : false;
 
   const tabRefs = useRef<Partial<Record<ResponseTabId, HTMLButtonElement | null>>>({});
   const [indicatorStyle, setIndicatorStyle] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
 
-  const updateIndicator = useCallback(() => {
+  useEffect(() => {
     const el = tabRefs.current[activeTab];
     if (el) {
       const parent = el.parentElement;
@@ -56,19 +68,30 @@ export function ResponsePanel() {
   }, [activeTab]);
 
   useEffect(() => {
-    updateIndicator();
-  }, [activeTab, updateIndicator]);
+    const updateIndicator = () => {
+      const el = tabRefs.current[activeTab];
+      if (el) {
+        const parent = el.parentElement;
+        if (parent) {
+          const parentRect = parent.getBoundingClientRect();
+          const elRect = el.getBoundingClientRect();
+          setIndicatorStyle({
+            left: elRect.left - parentRect.left,
+            width: elRect.width,
+          });
+        }
+      }
+    };
 
-  useEffect(() => {
     const observer = new ResizeObserver(updateIndicator);
     const parent = tabRefs.current[activeTab]?.parentElement;
     if (parent) observer.observe(parent);
     return () => observer.disconnect();
-  }, [activeTab, updateIndicator]);
+  }, [activeTab]);
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex flex-col overflow-hidden bg-bg-surface">
+      <div className="h-full flex flex-col overflow-hidden bg-bg-surface">
         <div className="response-loading flex flex-col items-center justify-center h-full gap-4">
           <div className="response-loading-spinner w-6 h-6 border-2 border-border-default border-t-brand rounded-full animate-spin" />
           <span className="response-loading-timer font-mono text-[11px] text-brand">Sending...</span>
@@ -79,7 +102,7 @@ export function ResponsePanel() {
 
   if (!response && !error) {
     return (
-      <div className="flex-1 flex flex-col overflow-hidden bg-bg-surface">
+      <div className="h-full flex flex-col overflow-hidden bg-bg-surface">
         <div className="response-empty flex flex-col items-center justify-center h-full gap-3 text-center">
           <Zap className="response-empty-icon w-[48px] h-[48px] text-fg-tertiary opacity-30" />
           <span className="response-empty-text font-sans text-[13px] text-fg-tertiary">
@@ -96,7 +119,7 @@ export function ResponsePanel() {
   if (error && !response) {
     const isSslError = error.toLowerCase().includes("ssl") || error.toLowerCase().includes("tls") || error.toLowerCase().includes("certificate");
     return (
-      <div className="flex-1 flex flex-col overflow-hidden bg-bg-surface">
+      <div className="h-full flex flex-col overflow-hidden bg-bg-surface">
         <div className="response-error flex flex-col items-center justify-center h-full gap-4 text-center px-8">
           <AlertTriangle className="w-10 h-10 text-accent-danger" />
           <div className="flex flex-col gap-1">
@@ -144,8 +167,8 @@ checked={!useRequestStore.getState().requestDataMap[useRequestStore.getState().c
     if (!response) return null;
 
     return (
-        <div className="flex-1 flex flex-col overflow-hidden bg-bg-surface">
-            <div className="response-bar flex items-center h-[32px] px-3 gap-2 bg-bg-surface border-t border-border-muted border-b border-border-muted">
+        <div className="h-full flex flex-col overflow-hidden bg-bg-surface">
+            <div className="response-bar flex items-center h-[32px] px-3 gap-2 bg-bg-surface border-t border-border-muted border-b border-border-muted shrink-0">
                 <span className={`response-status-pill flex items-center gap-[4px] h-[20px] px-2 rounded-full font-mono text-[11px] font-semibold ${getStatusClass(response.status)}`}>
                     {response.status} {response.statusText}
                 </span>
@@ -171,7 +194,7 @@ checked={!useRequestStore.getState().requestDataMap[useRequestStore.getState().c
                 </div>
             </div>
 
-            <div className="response-tabs flex items-center h-[36px] bg-bg-surface border-b border-border-muted px-3 gap-0 relative">
+            <div className="response-tabs flex items-center h-[36px] bg-bg-surface border-b border-border-muted px-3 gap-0 relative shrink-0">
                 {RESPONSE_TABS.map((tab) => (
                     <button
                         key={tab.id}
@@ -214,27 +237,45 @@ checked={!useRequestStore.getState().requestDataMap[useRequestStore.getState().c
                         </div>
 
                         <div className="flex-1 overflow-auto">
-                            {bodyView === "pretty" && (
-                                <JsonViewer data={response.body} />
-                            )}
-
-                            {bodyView === "raw" && (
-                                <div className="p-2 px-3 overflow-auto h-full">
-                                    <pre className="font-mono text-[12px] text-fg-primary whitespace-pre-wrap">
-                                        {response.body}
-                                    </pre>
+                            {response.bodySize > LARGE_BODY_THRESHOLD && !showTruncated && (
+                                <div className="flex items-center justify-center h-full flex-col gap-3">
+                                    <AlertTriangle className="w-8 h-8 text-accent-warning" />
+                                    <p className="font-sans text-[13px] text-fg-secondary">
+                                        Large response body ({formatBodySize(response.bodySize)})
+                                    </p>
+                                    <button
+                                        onClick={() => setShowTruncated(true)}
+                                        className="h-[28px] px-4 rounded-md font-sans text-[12px] font-medium text-brand bg-brand-muted hover:bg-brand/20 cursor-pointer transition-colors"
+                                    >
+                                        Show anyway
+                                    </button>
                                 </div>
                             )}
+                            {(response.bodySize <= LARGE_BODY_THRESHOLD || showTruncated) && (
+                                <>
+                                    {bodyView === "pretty" && (
+                                        <JsonViewer data={response.bodySize > TRUNCATE_SIZE ? response.body.slice(0, TRUNCATE_SIZE) + "\n... (truncated)" : response.body} />
+                                    )}
 
-                            {bodyView === "preview" && (
-                                <div className="p-2 px-3 overflow-auto h-full">
-                    <iframe
-                      srcDoc={response.body}
-                      className="w-full h-full min-h-[200px] bg-white"
-                      sandbox=""
-                      title="Response Preview"
-                    />
-                                </div>
+                                    {bodyView === "raw" && (
+                                        <div className="p-2 px-3 overflow-auto h-full">
+                                            <pre className="font-mono text-[12px] text-fg-primary whitespace-pre-wrap">
+                                                {response.bodySize > TRUNCATE_SIZE ? response.body.slice(0, TRUNCATE_SIZE) + "\n... (truncated)" : response.body}
+                                            </pre>
+                                        </div>
+                                    )}
+
+                                    {bodyView === "preview" && (
+                                        <div className="p-2 px-3 overflow-auto h-full">
+                                            <iframe
+                                                srcDoc={response.body}
+                                                className="w-full h-full min-h-[200px] bg-white"
+                                                sandbox=""
+                                                title="Response Preview"
+                                            />
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     </div>
@@ -248,10 +289,12 @@ checked={!useRequestStore.getState().requestDataMap[useRequestStore.getState().c
                     <ResponseCookiesTab headers={response.headers} />
                 )}
 
+                {activeTab === "console" && (
+                    <ConsolePanel />
+                )}
+
                 {activeTab === "tests" && (
-                    <div className="flex flex-col items-center justify-center h-full gap-2 text-fg-tertiary">
-                        <span className="text-[12px]">No test results</span>
-                    </div>
+                    <TestsTab results={currentTestResults} />
                 )}
             </div>
         </div>

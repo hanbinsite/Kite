@@ -1,1 +1,1 @@
-export { ErrorBoundary } from "../components/ErrorBoundary";
+export { useToast } from "../components/Toast";

@@ -8,12 +8,40 @@ pub struct CollectionFile {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub config: Option<CollectionConfig>,
     #[serde(default, rename = "items")]
     pub items: Vec<CollectionItem>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub variables: Option<Vec<CollectionVariable>>,
     pub created_at: String,
     pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CollectionConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub headers: Option<Vec<SavedHeader>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth: Option<SavedAuth>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub variables: Option<Vec<CollectionVariable>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scripts: Option<SavedScripts>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FolderConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub headers: Option<Vec<SavedHeader>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth: Option<SavedAuth>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub variables: Option<Vec<CollectionVariable>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scripts: Option<SavedScripts>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,10 +55,12 @@ pub enum CollectionItem {
 pub struct CollectionFolder {
     pub id: String,
     pub name: String,
-    #[serde(default)]
-    pub items: Vec<CollectionItem>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub config: Option<FolderConfig>,
+    #[serde(default)]
+    pub items: Vec<CollectionItem>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -3,6 +3,7 @@ import { X, Plus } from "lucide-react";
 import { useTabStore } from "@api-client/core";
 import { useRequestStore } from "../../stores";
 import { EnvSelector } from "../url-bar/EnvSelector";
+import { ConfirmDialog } from "../shared/ConfirmDialog";
 
 export function TabBar() {
   const tabs = useTabStore((s) => s.tabs);
@@ -11,8 +12,10 @@ export function TabBar() {
   const closeTab = useTabStore((s) => s.closeTab);
   const setActiveTab = useTabStore((s) => s.setActiveTab);
   const removeTabData = useRequestStore((s) => s.removeTabData);
+  const dirtyTabs = useRequestStore((s) => s.dirtyTabs);
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; tabId: string } | null>(null);
+  const [confirmClose, setConfirmClose] = useState<{ tabId: string; source: "close" | "closeOthers" | "closeAll" } | null>(null);
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -21,9 +24,32 @@ export function TabBar() {
     return () => window.removeEventListener("click", close);
   }, [contextMenu]);
 
-  const handleCloseTab = (tabId: string) => {
+  const forceCloseTab = (tabId: string) => {
     closeTab(tabId);
     removeTabData(tabId);
+  };
+
+  const handleCloseTab = (tabId: string) => {
+    if (dirtyTabs[tabId]) {
+      setConfirmClose({ tabId, source: "close" });
+    } else {
+      forceCloseTab(tabId);
+    }
+  };
+
+  const handleConfirmClose = () => {
+    if (!confirmClose) return;
+    const { tabId, source } = confirmClose;
+    if (source === "close") {
+      forceCloseTab(tabId);
+    } else if (source === "closeOthers") {
+      for (const tab of tabs) {
+        if (tab.id !== tabId) forceCloseTab(tab.id);
+      }
+    } else {
+      for (const tab of tabs) forceCloseTab(tab.id);
+    }
+    setConfirmClose(null);
   };
 
   const handleNewTab = () => {
@@ -36,18 +62,22 @@ export function TabBar() {
   };
 
   const closeOtherTabs = (keepTabId: string) => {
-    for (const tab of tabs) {
-      if (tab.id !== keepTabId) {
-        closeTab(tab.id);
-        removeTabData(tab.id);
+    const hasDirty = tabs.some((t) => t.id !== keepTabId && dirtyTabs[t.id]);
+    if (hasDirty) {
+      setConfirmClose({ tabId: keepTabId, source: "closeOthers" });
+    } else {
+      for (const tab of tabs) {
+        if (tab.id !== keepTabId) forceCloseTab(tab.id);
       }
     }
   };
 
   const closeAllTabs = () => {
-    for (const tab of tabs) {
-      closeTab(tab.id);
-      removeTabData(tab.id);
+    const hasDirty = tabs.some((t) => dirtyTabs[t.id]);
+    if (hasDirty) {
+      setConfirmClose({ tabId: tabs[0]?.id ?? "", source: "closeAll" });
+    } else {
+      for (const tab of tabs) forceCloseTab(tab.id);
     }
   };
 
@@ -68,6 +98,9 @@ export function TabBar() {
               }`}
             >
               <span className="max-w-40 truncate">{tab.url ? `${tab.method} ${tab.url}` : tab.name || "Untitled"}</span>
+              {dirtyTabs[tab.id] && !isActive && (
+                <span className="w-[6px] h-[6px] rounded-full bg-accent-warning shrink-0" />
+              )}
               {isActive && (
                 <span
                   onClick={(e) => {
@@ -105,6 +138,17 @@ export function TabBar() {
           <button onClick={() => { closeAllTabs(); setContextMenu(null); }} className="w-full flex items-center h-7 px-3 text-sm text-accent-danger cursor-pointer hover:bg-accent-danger/12">Close All</button>
         </div>
       )}
+      <ConfirmDialog
+        open={confirmClose !== null}
+        onOpenChange={(open) => { if (!open) setConfirmClose(null); }}
+        title="Unsaved Changes"
+        description="This request has unsaved changes. Are you sure you want to close it without saving?"
+        confirmLabel="Don't Save"
+        cancelLabel="Cancel"
+        variant="warning"
+        onConfirm={handleConfirmClose}
+        onCancel={() => setConfirmClose(null)}
+      />
     </div>
   );
 }

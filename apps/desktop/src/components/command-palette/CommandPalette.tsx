@@ -1,13 +1,14 @@
-import { useState, useEffect, useRef } from "react";
-import { Search, Command } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Search, Command, FolderOpen, Variable } from "lucide-react";
 
 interface CommandItem {
   id: string;
   label: string;
-  category: "recent" | "action" | "ai";
+  category: "recent" | "action" | "ai" | "collection" | "variable";
   icon?: React.ReactNode;
   action: () => void;
   shortcut?: string;
+  detail?: string;
 }
 
 interface CommandPaletteProps {
@@ -16,23 +17,42 @@ interface CommandPaletteProps {
   items: CommandItem[];
 }
 
+const CATEGORY_LABELS: Record<string, string> = {
+  recent: "Recent",
+  collection: "Collections",
+  variable: "Variables",
+  action: "Actions",
+  ai: "AI",
+} as const;
+
+const CATEGORY_ORDER = ["recent", "collection", "variable", "action", "ai"] as const;
+
 export function CommandPalette({ isOpen, onClose, items }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const filteredItems = items.filter((item) =>
-    item.label.toLowerCase().includes(query.toLowerCase()),
+  const filteredItems = useMemo(() =>
+    items.filter((item) =>
+      item.label.toLowerCase().includes(query.toLowerCase()) ||
+      (item.detail ?? "").toLowerCase().includes(query.toLowerCase()),
+    ),
+    [items, query],
   );
 
-  const groupedItems = {
-    recent: filteredItems.filter((i) => i.category === "recent"),
-    action: filteredItems.filter((i) => i.category === "action"),
-    ai: filteredItems.filter((i) => i.category === "ai"),
-  };
+  const groupedItems = useMemo(() => {
+    const groups: Record<string, CommandItem[]> = {};
+    for (const cat of CATEGORY_ORDER) {
+      groups[cat] = filteredItems.filter((i) => i.category === cat);
+    }
+    return groups;
+  }, [filteredItems]);
 
-  const flatItems = [...groupedItems.recent, ...groupedItems.action, ...groupedItems.ai];
+  const flatItems = useMemo(() =>
+    CATEGORY_ORDER.flatMap((cat) => groupedItems[cat]),
+    [groupedItems],
+  );
 
   useEffect(() => {
     if (isOpen) {
@@ -79,6 +99,12 @@ export function CommandPalette({ isOpen, onClose, items }: CommandPaletteProps) 
 
   let currentIndex = 0;
 
+  const defaultIcon = (category: string) => {
+    if (category === "collection") return <FolderOpen className="w-4 h-4" />;
+    if (category === "variable") return <Variable className="w-4 h-4" />;
+    return <Command className="w-4 h-4" />;
+  };
+
   const renderGroup = (groupItems: CommandItem[], title: string) => {
     if (groupItems.length === 0) return null;
     const groupElements = groupItems.map((item) => {
@@ -96,9 +122,12 @@ export function CommandPalette({ isOpen, onClose, items }: CommandPaletteProps) 
           }`}
         >
           <span className="w-5 h-5 flex items-center justify-center text-fg-tertiary">
-            {item.icon || <Command className="w-4 h-4" />}
+            {item.icon || defaultIcon(item.category)}
           </span>
-          <span className="flex-1 text-left">{item.label}</span>
+          <span className="flex-1 text-left truncate">{item.label}</span>
+          {item.detail && (
+            <span className="text-[11px] text-fg-tertiary truncate max-w-[200px]">{item.detail}</span>
+          )}
           {item.shortcut && (
             <span className="text-xs text-fg-tertiary font-mono">{item.shortcut}</span>
           )}
@@ -135,12 +164,14 @@ export function CommandPalette({ isOpen, onClose, items }: CommandPaletteProps) 
 
         <div ref={listRef} className="max-h-[400px] overflow-y-auto py-2">
           {flatItems.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-fg-tertiary">No commands found</div>
+            <div className="px-4 py-8 text-center text-sm text-fg-tertiary">
+              No results found for "{query}"
+            </div>
           ) : (
             <>
-              {renderGroup(groupedItems.recent, "Recent")}
-              {renderGroup(groupedItems.action, "Actions")}
-              {renderGroup(groupedItems.ai, "AI")}
+              {CATEGORY_ORDER.map((cat) =>
+                renderGroup(groupedItems[cat] ?? [], CATEGORY_LABELS[cat] ?? cat),
+              )}
             </>
           )}
         </div>

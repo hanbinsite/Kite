@@ -3,11 +3,12 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
-use tauri::State;
+use tauri::{Manager, State};
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
 use crate::error::AppError;
+use crate::storage::CookieEntry;
 
 pub struct HttpClientState {
     pub cancellation_tokens: Arc<RwLock<HashMap<String, CancellationToken>>>,
@@ -334,7 +335,13 @@ fn apply_auth_to_config(
                     });
                 }
             }
-            AuthConfig::None(_) | AuthConfig::OAuth1(_) | AuthConfig::AwsV4(_) => {}
+            AuthConfig::None(_) => {}
+            AuthConfig::OAuth1(_) => {
+                eprintln!("[WARN] OAuth 1.0a signing not yet implemented — request sent without auth");
+            }
+            AuthConfig::AwsV4(_) => {
+                eprintln!("[WARN] AWS Signature v4 signing not yet implemented — request sent without auth");
+            }
         }
     }
 }
@@ -344,14 +351,15 @@ const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_pu
 
 #[tauri::command]
 pub async fn send_http_request(
-    _state: State<'_, HttpClientState>,
+    app_handle: tauri::AppHandle,
+    http_state: State<'_, HttpClientState>,
     mut config: HttpRequestConfig,
 ) -> Result<HttpResponse, AppError> {
     let request_id = config.id.clone();
     let start = Instant::now();
 
     let cancel_token = CancellationToken::new();
-    _state.cancellation_tokens.write().await.insert(request_id.clone(), cancel_token.clone());
+    http_state.cancellation_tokens.write().await.insert(request_id.clone(), cancel_token.clone());
 
     apply_auth_to_config(&mut config);
 
@@ -384,6 +392,11 @@ pub async fn send_http_request(
         if !header.disabled && !header.key.is_empty() {
             request_builder = request_builder.header(&header.key, &header.value);
         }
+    }
+
+    let cookie_header = load_cookie_header(&app_handle, &url).await;
+    if !cookie_header.is_empty() {
+        request_builder = request_builder.header("Cookie", &cookie_header);
     }
 
     if let Some(body) = &config.body {
@@ -459,7 +472,12 @@ pub async fn send_http_request(
                         if let Some(ct) = &body.content_type {
                             request_builder = request_builder.header("Content-Type", ct);
                         }
-                        request_builder = request_builder.body(content.clone());
+                        let data = if std::path::Path::new(content).exists() {
+                            std::fs::read(content).map_err(|e| AppError::storage_read_failed(format!("Failed to read binary file: {}", e)))?
+                        } else {
+                            content.as_bytes().to_vec()
+                        };
+                        request_builder = request_builder.body(data);
                     }
                 }
             }
@@ -470,12 +488,12 @@ pub async fn send_http_request(
     let response_result = tokio::select! {
         res = request_builder.send() => res,
         _ = cancel_token.cancelled() => {
-            _state.cancellation_tokens.write().await.remove(&request_id);
+            http_state.cancellation_tokens.write().await.remove(&request_id);
             return Err(AppError::net_cancelled());
         }
     };
 
-    _state.cancellation_tokens.write().await.remove(&request_id);
+    http_state.cancellation_tokens.write().await.remove(&request_id);
 
     let response = response_result.map_err(|e| {
         if e.is_timeout() {
@@ -508,6 +526,8 @@ pub async fn send_http_request(
         })
         .collect();
 
+    save_cookies_from_response(&app_handle, &url, response.headers()).await;
+
     let body = response.text().await.map_err(|e| AppError::internal(e.to_string()))?;
     let body_size = body.len() as u64;
 
@@ -534,4 +554,162 @@ pub async fn cancel_http_request(
         token.cancel();
     }
     Ok(())
+}
+
+async fn load_cookie_header(
+    app_handle: &tauri::AppHandle,
+    url: &str,
+) -> String {
+    let host = match reqwest::Url::parse(url) {
+        Ok(u) => u.host_str().unwrap_or("").to_string(),
+        Err(_) => return String::new(),
+    };
+    if host.is_empty() {
+        return String::new();
+    }
+
+    let storage = app_handle.state::<crate::AppState>().storage.clone();
+    let cookies = match tokio::task::spawn_blocking(move || {
+        let storage_lock = storage.blocking_read();
+        let storage = storage_lock.as_ref().ok_or("Storage not initialized".to_string())?;
+        storage.query_cookies(Some(&host))
+    })
+    .await
+    {
+        Ok(Ok(cookies)) => cookies,
+        _ => return String::new(),
+    };
+
+    if cookies.is_empty() {
+        return String::new();
+    }
+
+    cookies
+        .iter()
+        .map(|c| format!("{}={}", c.name, c.value))
+        .collect::<Vec<_>>()
+        .join("; ")
+}
+
+async fn save_cookies_from_response(
+    app_handle: &tauri::AppHandle,
+    url: &str,
+    response_headers: &reqwest::header::HeaderMap,
+) {
+    let set_cookie_headers: Vec<String> = response_headers
+        .get_all("set-cookie")
+        .iter()
+        .filter_map(|v| v.to_str().ok().map(|s| s.to_string()))
+        .collect();
+
+    if set_cookie_headers.is_empty() {
+        return;
+    }
+
+    let host = match reqwest::Url::parse(url) {
+        Ok(u) => u.host_str().unwrap_or("").to_string(),
+        Err(_) => return,
+    };
+
+    let storage = app_handle.state::<crate::AppState>().storage.clone();
+    let _ = tokio::task::spawn_blocking(move || {
+        let storage_lock = storage.blocking_write();
+        let storage = match storage_lock.as_ref() {
+            Some(s) => s,
+            None => return,
+        };
+
+        for cookie_str in set_cookie_headers {
+            let cookie = parse_set_cookie(&cookie_str, &host);
+            let _ = storage.upsert_cookie(&cookie);
+        }
+    })
+    .await;
+}
+
+fn parse_set_cookie(header_value: &str, default_domain: &str) -> CookieEntry {
+    let parts: Vec<&str> = header_value.split(';').collect();
+    let mut name = String::new();
+    let mut value = String::new();
+    let mut domain = format!(".{}", default_domain);
+    let mut path = "/".to_string();
+    let mut expires = None;
+    let mut secure = false;
+    let mut http_only = false;
+    let mut same_site = "Lax".to_string();
+
+    for (i, part) in parts.iter().enumerate() {
+        let part = part.trim();
+        if i == 0 {
+            if let Some((n, v)) = part.split_once('=') {
+                name = n.to_string();
+                value = v.to_string();
+            }
+            continue;
+        }
+        let lower = part.to_lowercase();
+        if lower.starts_with("domain=") {
+            if let Some(d) = part.strip_prefix("Domain=") {
+                domain = d.trim().to_string();
+            } else if let Some(d) = part.strip_prefix("domain=") {
+                domain = d.trim().to_string();
+            }
+        } else if lower.starts_with("path=") {
+            if let Some(p) = part.strip_prefix("Path=") {
+                path = p.trim().to_string();
+            } else if let Some(p) = part.strip_prefix("path=") {
+                path = p.trim().to_string();
+            }
+        } else if lower.starts_with("expires=") {
+            let exp_str = if let Some(e) = part.strip_prefix("Expires=") {
+                e.trim()
+            } else if let Some(e) = part.strip_prefix("expires=") {
+                e.trim()
+            } else {
+                continue;
+            };
+            if let Ok(dt) = parse_cookie_expires(exp_str) {
+                expires = Some(dt.to_rfc3339());
+            }
+        } else if lower == "secure" {
+            secure = true;
+        } else if lower == "httponly" {
+            http_only = true;
+        } else if lower.starts_with("samesite=") {
+            let ss = if let Some(s) = part.strip_prefix("SameSite=") {
+                s.trim().to_string()
+            } else if let Some(s) = part.strip_prefix("samesite=") {
+                s.trim().to_string()
+            } else {
+                continue;
+            };
+            same_site = ss;
+        }
+    }
+
+    CookieEntry {
+        id: None,
+        domain,
+        name,
+        value,
+        path,
+        expires,
+        secure,
+        http_only,
+        same_site,
+    }
+}
+
+fn parse_cookie_expires(s: &str) -> Result<chrono::DateTime<chrono::Utc>, Box<dyn std::error::Error>> {
+    let s = s.trim();
+    for fmt in &[
+        "%a, %d %b %Y %H:%M:%S GMT",
+        "%A, %d-%b-%y %H:%M:%S GMT",
+        "%a, %d-%b-%Y %H:%M:%S GMT",
+    ] {
+        if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(s, fmt) {
+            return Ok(dt.and_utc());
+        }
+    }
+    Err(format!("Cannot parse cookie date: {}", s).into())
 }

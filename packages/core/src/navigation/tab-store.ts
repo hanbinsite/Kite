@@ -8,6 +8,7 @@ export interface Tab {
   isModified: boolean;
   requestId?: string;
   response?: unknown;
+  protocol?: "http" | "websocket" | "sse" | "mqtt" | "grpc" | "mock";
 }
 
 export interface TabState {

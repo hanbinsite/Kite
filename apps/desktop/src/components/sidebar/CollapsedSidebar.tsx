@@ -38,7 +38,7 @@ export function CollapsedSidebar() {
       </button>
       <div className="flex-1" />
       <button
-        onClick={openSettings}
+        onClick={() => openSettings()}
         className="p-2 hover:bg-bg-hover rounded transition-colors"
         title="Settings"
       >
