@@ -8,6 +8,8 @@ import {
   deleteEnvironment as deleteEnvironmentIpc,
   type IpcEnvironmentFile,
 } from "@api-client/core/http";
+import { useCollectionStore } from "./collection-store";
+import { useTabStore } from "@api-client/core";
 
 export interface EnvironmentState {
   environments: Environment[];
@@ -135,6 +137,28 @@ export const useEnvironmentStore = create<EnvironmentStore>()(
           if (envVar) return envVar.value;
         }
       }
+
+      try {
+        const activeTab = useTabStore.getState().tabs.find((t) => t.id === useTabStore.getState().activeTabId);
+        const requestId = activeTab?.requestId;
+        if (requestId) {
+          const hierarchy = useCollectionStore.getState().resolveRequestHierarchy(requestId);
+          if (hierarchy) {
+            for (let i = hierarchy.folderPath.length - 1; i >= 0; i--) {
+              const folderVars = hierarchy.folderPath[i]?.config?.variables;
+              if (folderVars) {
+                const found = folderVars.find((v) => v.key === key && v.enabled);
+                if (found) return found.value;
+              }
+            }
+            if (hierarchy.collectionConfig?.variables) {
+              const found = hierarchy.collectionConfig.variables.find((v) => v.key === key && v.enabled);
+              if (found) return found.value;
+            }
+          }
+        }
+      } catch {}
+
       return undefined;
     },
 

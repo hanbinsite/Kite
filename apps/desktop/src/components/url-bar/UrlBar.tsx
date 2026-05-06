@@ -115,8 +115,8 @@ export function UrlBar() {
   }, []);
 
   return (
-    <div className="border-b border-border-muted bg-bg-surface">
-      <div className="h-url-bar flex items-center gap-2 px-2 relative z-dropdown">
+    <div className="border-b border-border-muted bg-bg-surface overflow-visible" style={{ position: "relative", zIndex: 100 }}>
+      <div className="h-url-bar flex items-center gap-2 px-2 relative">
         <button
           onClick={toggleSidebar}
           className="p-1.5 hover:bg-bg-hover rounded transition-colors"

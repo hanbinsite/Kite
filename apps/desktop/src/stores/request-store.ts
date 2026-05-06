@@ -20,6 +20,7 @@ import type { TestResult } from "@api-client/core/script";
 import { toast } from "@api-client/ui";
 import { useConsoleStore } from "./console-store";
 import { useCollectionStore } from "./collection-store";
+import { useTabStore } from "@api-client/core";
 
 export interface RequestData {
   headers: Header[];
@@ -288,7 +289,9 @@ export const useRequestStore = create<RequestStore>()(
       const requestData = state.requestDataMap[tabId] || DEFAULT_REQUEST_DATA;
       const envStore = (await import("./environment-store")).useEnvironmentStore.getState();
 
-      const hierarchy = useCollectionStore.getState().resolveRequestHierarchy(tabId);
+      const activeTab = useTabStore.getState().tabs.find((t) => t.id === tabId);
+      const requestId = activeTab?.requestId ?? tabId;
+      const hierarchy = useCollectionStore.getState().resolveRequestHierarchy(requestId);
 
       const collectionVars = hierarchy ? mergeVariables(hierarchy) : {};
       const folderVars: Record<string, string> = {};

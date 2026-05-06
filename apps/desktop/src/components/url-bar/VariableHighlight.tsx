@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useEnvironmentStore } from "../../stores/environment-store";
+import { useCollectionStore } from "../../stores/collection-store";
+import { useTabStore } from "@api-client/core";
 
 interface VariableAutocompleteProps {
 	url: string;
@@ -20,10 +22,36 @@ export function VariableAutocomplete({ url, cursorPosition, onSelect, onClose }:
 	const activeEnvId = useEnvironmentStore((s) => s.activeEnvironmentId);
 	const activeEnv = environments.find((e) => e.id === activeEnvId);
 	const globals = useEnvironmentStore((s) => s.globals);
+	const collections = useCollectionStore((s) => s.collections);
+	const activeTabId = useTabStore((s) => s.activeTabId);
+	const tabs = useTabStore((s) => s.tabs);
+
+	const activeTab = tabs.find((t) => t.id === activeTabId);
+	const requestId = activeTab?.requestId;
+
+	const collectionVars: { name: string; value: string; source: "collection" | "folder" }[] = [];
+	if (requestId) {
+		const hierarchy = useCollectionStore.getState().resolveRequestHierarchy(requestId);
+		if (hierarchy) {
+			if (hierarchy.collectionConfig?.variables) {
+				for (const v of hierarchy.collectionConfig.variables) {
+					if (v.enabled && v.key) collectionVars.push({ name: v.key, value: v.value, source: "collection" });
+				}
+			}
+			for (const folder of hierarchy.folderPath) {
+				if (folder.config?.variables) {
+					for (const v of folder.config.variables) {
+						if (v.enabled && v.key) collectionVars.push({ name: v.key, value: v.value, source: "folder" });
+					}
+				}
+			}
+		}
+	}
 
 	const availableVars = [
 		...globals.map((v) => ({ name: v.key, value: v.value, source: "global" as const })),
 		...(activeEnv?.variables.map((v) => ({ name: v.key, value: v.value, source: "env" as const })) || []),
+		...collectionVars,
 	];
 
 	const filtered = availableVars.filter((v) => v.name.toLowerCase().includes(partialName.toLowerCase()));
@@ -61,17 +89,20 @@ export function VariableAutocomplete({ url, cursorPosition, onSelect, onClose }:
 
 	if (!isInsideVariable || filtered.length === 0) return null;
 
+	const sourceLabel: Record<string, string> = { global: "G", env: "E", collection: "C", folder: "F" };
+
 	return (
-		<div className="absolute left-0 top-full mt-1 z-dropdown bg-bg-elevated border border-border-muted rounded-lg shadow-lg py-1 w-56 max-h-48 overflow-y-auto">
+		<div className="absolute left-0 top-full mt-1 z-[9999] bg-bg-elevated border border-border-muted rounded-lg shadow-lg py-1 w-56 max-h-48 overflow-y-auto">
 			{filtered.map((v, i) => (
 				<button
-					key={v.name}
+					key={`${v.source}-${v.name}`}
 					className={`flex items-center gap-2 w-full h-7 px-3 text-xs ${
 						i === selectedIndex ? "bg-brand-muted text-brand" : "hover:bg-bg-hover"
 					}`}
 					onClick={() => onSelect(v.name)}
 					onMouseEnter={() => setSelectedIndex(i)}
 				>
+					<span className="w-4 text-[10px] text-fg-tertiary shrink-0 text-center">{sourceLabel[v.source] ?? ""}</span>
 					<span className="font-mono text-fg-primary flex-1 text-left">{"{{"}{v.name}{"}}"}</span>
 					<span className="text-fg-tertiary text-[10px] truncate max-w-20">{v.value}</span>
 				</button>
