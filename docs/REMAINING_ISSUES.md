@@ -201,6 +201,14 @@
 - 移除 Agent Builder（后续按需加回）
 - Streaming 提升为 Week 1 核心任务
 
+### 🟡 待实现 — 集合/文件夹级配置（详见 23-集合与文件夹级配置设计.md）
+
+- **ISSUE-6.1**: 集合/文件夹配置无 UI — `CollectionConfig`/`FolderConfig` 数据模型已有但无编辑入口
+- **ISSUE-6.2**: 变量优先级未实现 — `sendRequest()` 仅填充 `global`+`environment`，`collection`/`folder` 层永远为空
+- **ISSUE-6.3**: Headers/Auth 不继承 — 集合/文件夹级配置不合并到请求中
+- **ISSUE-6.4**: Scripts 不继承且不链式执行 — 集合/文件夹脚本不执行，pre-request 失败不中断请求
+- **ISSUE-6.5**: `ScriptContext.collectionVariables` 字段存在但从不填充
+
 ---
 
 *最后更新：2026-05-06*
