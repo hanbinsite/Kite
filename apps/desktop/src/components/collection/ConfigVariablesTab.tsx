@@ -60,7 +60,8 @@ export function ConfigVariablesTab({ collectionId, folderId, variables }: Config
     for (const v of imported) {
       const existingIdx = merged.findIndex((m) => m.key === v.key);
       if (existingIdx >= 0) {
-        merged[existingIdx] = { ...merged[existingIdx], value: v.value };
+        const existing = merged[existingIdx];
+        if (existing) merged[existingIdx] = { ...existing, value: v.value };
       } else {
         merged.push(v);
       }

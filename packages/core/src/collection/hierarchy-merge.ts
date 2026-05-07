@@ -1,15 +1,18 @@
 import type { ResolvedHierarchy } from "../environment";
 import type { AuthConfig, Header, Variable } from "@api-client/types";
 
-export function mergeVariables(hierarchy: ResolvedHierarchy): Record<string, string> {
+export function getCollectionVariables(hierarchy: ResolvedHierarchy): Record<string, string> {
     const result: Record<string, string> = {};
-
     if (hierarchy.collectionConfig?.variables) {
         for (const v of hierarchy.collectionConfig.variables) {
             if (v.enabled && v.key) result[v.key] = v.value;
         }
     }
+    return result;
+}
 
+export function getFolderVariables(hierarchy: ResolvedHierarchy): Record<string, string> {
+    const result: Record<string, string> = {};
     for (const folder of hierarchy.folderPath) {
         if (folder.config?.variables) {
             for (const v of folder.config.variables) {
@@ -17,8 +20,11 @@ export function mergeVariables(hierarchy: ResolvedHierarchy): Record<string, str
             }
         }
     }
-
     return result;
+}
+
+export function mergeVariables(hierarchy: ResolvedHierarchy): Record<string, string> {
+    return { ...getCollectionVariables(hierarchy), ...getFolderVariables(hierarchy) };
 }
 
 export function mergeHeaders(hierarchy: ResolvedHierarchy, requestHeaders: Header[]): Header[] {
@@ -57,8 +63,10 @@ export function resolveAuth(hierarchy: ResolvedHierarchy, requestAuth: AuthConfi
         if (folderAuth && folderAuth.type !== "none") return folderAuth;
     }
 
-    const colAuth = hierarchy.collectionConfig?.auth as AuthConfig | undefined;
-    if (colAuth && colAuth.type !== "none") return colAuth;
+    if (hierarchy.collectionConfig) {
+        const colAuth = hierarchy.collectionConfig.auth as AuthConfig | undefined;
+        if (colAuth && colAuth.type !== "none") return colAuth;
+    }
 
     return requestAuth;
 }
@@ -101,7 +109,7 @@ export function collectPostResponseChain(hierarchy: ResolvedHierarchy, requestSc
         const folder = hierarchy.folderPath[i];
         const folderPost = folder?.config?.scripts?.postResponse;
         if (folderPost?.trim()) {
-            chain.push({ source: `Folder: ${folder.name}`, code: folderPost });
+            chain.push({ source: `Folder: ${folder!.name}`, code: folderPost });
         }
     }
 

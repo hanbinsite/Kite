@@ -10,13 +10,14 @@ import {
   variablesToRecord,
   markStart,
   markEnd,
-  mergeVariables,
+  getCollectionVariables,
+  getFolderVariables,
   mergeHeaders,
   resolveAuth,
   collectPreRequestChain,
   collectPostResponseChain,
 } from "@api-client/core";
-import type { VariableScope, ResolvedHierarchy } from "@api-client/core";
+import type { VariableScope } from "@api-client/core";
 import { executeScript, type ScriptContext, type TestResult } from "@api-client/core/script";
 import type {
   HttpResponse,
@@ -236,17 +237,8 @@ export const useRunnerStore = create<RunnerStore>()(
             if (!req) continue;
 
             const hierarchy = useCollectionStore.getState().resolveRequestHierarchy(req.id);
-            const collectionVars = hierarchy ? mergeVariables(hierarchy) : {};
-            const folderVars: Record<string, string> = {};
-            if (hierarchy) {
-              for (const folder of hierarchy.folderPath) {
-                if (folder.config?.variables) {
-                  for (const v of folder.config.variables) {
-                    if (v.enabled && v.key) folderVars[v.key] = v.value;
-                  }
-                }
-              }
-            }
+            const collectionVars = hierarchy ? getCollectionVariables(hierarchy) : {};
+            const folderVars = hierarchy ? getFolderVariables(hierarchy) : {};
 
             const collectionVariablesRecord = { ...collectionVars, ...folderVars };
             const folderPathNames = hierarchy?.folderPath.map((f) => f.name) ?? [];

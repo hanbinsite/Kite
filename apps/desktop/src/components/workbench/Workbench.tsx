@@ -29,7 +29,7 @@ export function Workbench() {
 
   const protocol = activeTab?.protocol ?? "http";
 
-  if (protocol === "collection-config") {
+  if (protocol === "collection-config" && activeTab) {
     return (
       <div className="h-full flex flex-col">
         <TabBar />

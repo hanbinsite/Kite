@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useCollectionStore } from "../../stores/collection-store";
+import { useCollectionStore, type CollectionTreeNode } from "../../stores/collection-store";
 import type { AuthConfig, CollectionConfig, FolderConfig } from "@api-client/types";
 
 const AUTH_TYPES = [
@@ -272,11 +272,11 @@ function AwsV4Fields({ auth, persist }: { auth: AuthConfig; persist: (a: AuthCon
   );
 }
 
-function findFolderConfig(items: Array<{ type: string; id: string; config?: unknown; items?: unknown[] }>, folderId: string): FolderConfig | undefined {
+function findFolderConfig(items: CollectionTreeNode[], folderId: string): FolderConfig | undefined {
   for (const item of items) {
-    if (item.type === "folder" && item.id === folderId) return item.config as FolderConfig | undefined;
-    if (item.type === "folder" && item.items) {
-      const result = findFolderConfig(item.items as Array<{ type: string; id: string; config?: unknown; items?: unknown[] }>, folderId);
+    if (item.type === "folder" && item.id === folderId) return item.config;
+    if (item.type === "folder") {
+      const result = findFolderConfig(item.items, folderId);
       if (result) return result;
     }
   }

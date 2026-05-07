@@ -10,7 +10,7 @@ import {
   X,
   FileText,
 } from "lucide-react";
-import { useUIStore, useTabStore } from "@api-client/core";
+import { useUIStore, useTabStore, type Tab } from "@api-client/core";
 import { useEnvironmentStore } from "../../stores/environment-store";
 import { useRequestStore } from "../../stores/request-store";
 import { useCollectionStore, type CollectionTreeNode } from "../../stores/collection-store";
@@ -114,7 +114,7 @@ interface CollectionTreeItemsProps {
   commitEdit: () => void;
   startEditing: (id: string, name: string) => void;
   setContextMenu: (menu: ContextMenuState | null) => void;
-  openTab: (tab: { name: string; method: string; url: string; requestId?: string }) => void;
+  openTab: (tab: { name: string; method: string; url: string; requestId?: string; protocol?: Tab["protocol"]; meta?: Tab["meta"] }) => void;
   deleteRequest: (collectionId: string, requestId: string) => void;
   getMethodColor: (method: string) => string;
   expandedIds: Set<string>;

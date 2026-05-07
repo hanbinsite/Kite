@@ -246,7 +246,6 @@ function findAndDuplicateNode(items: CollectionTreeNode[], requestId: string): C
 function findInTree(
   items: CollectionTreeNode[],
   requestId: string,
-  _collectionName: string,
   currentPath: ResolvedHierarchyFolder[],
 ): { node: ResolvedHierarchy["requestNode"]; folderPath: ResolvedHierarchyFolder[] } | null {
   for (const item of items) {
@@ -272,7 +271,7 @@ function findInTree(
         name: item.name,
         config: item.config,
       };
-      const result = findInTree(item.items, requestId, _collectionName, [...currentPath, folderEntry]);
+      const result = findInTree(item.items, requestId, [...currentPath, folderEntry]);
       if (result) return result;
     }
   }
@@ -301,7 +300,7 @@ export const useCollectionStore = create<CollectionStore>()(
 
         addCollection: (id, name) => {
             set((state) => {
-                state.collections.push({ id, name, items: [] });
+                state.collections.push({ id, name, items: [], config: { variables: [], headers: [] } });
             });
             get().persistCollection(id);
         },
@@ -369,7 +368,7 @@ export const useCollectionStore = create<CollectionStore>()(
     resolveRequestHierarchy: (requestId) => {
       const state = get();
       for (const col of state.collections) {
-        const result = findInTree(col.items, requestId, col.name, []);
+        const result = findInTree(col.items, requestId, []);
         if (result) {
           return {
             collectionId: col.id,
@@ -404,7 +403,7 @@ export const useCollectionStore = create<CollectionStore>()(
             try {
                 const summaries = await listCollections();
                 if (summaries.length === 0) {
-                    set({ collections: [{ id: "default", name: "My Collection", items: [] }], isLoaded: true });
+                    set({ collections: [{ id: "default", name: "My Collection", items: [], config: { variables: [], headers: [] } }], isLoaded: true });
                     get().persistCollection("default");
                     return;
                 }
@@ -429,9 +428,9 @@ export const useCollectionStore = create<CollectionStore>()(
                         // skip broken collection files
                     }
                 }
-                set({ collections: collections.length > 0 ? collections : [{ id: "default", name: "My Collection", items: [] }], isLoaded: true });
+                set({ collections: collections.length > 0 ? collections : [{ id: "default", name: "My Collection", items: [], config: { variables: [], headers: [] } }], isLoaded: true });
             } catch {
-                set({ collections: [{ id: "default", name: "My Collection", items: [] }], isLoaded: true });
+                set({ collections: [{ id: "default", name: "My Collection", items: [], config: { variables: [], headers: [] } }], isLoaded: true });
             }
         },
 

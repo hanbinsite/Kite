@@ -22,7 +22,6 @@ export function VariableAutocomplete({ url, cursorPosition, onSelect, onClose }:
 	const activeEnvId = useEnvironmentStore((s) => s.activeEnvironmentId);
 	const activeEnv = environments.find((e) => e.id === activeEnvId);
 	const globals = useEnvironmentStore((s) => s.globals);
-	const collections = useCollectionStore((s) => s.collections);
 	const activeTabId = useTabStore((s) => s.activeTabId);
 	const tabs = useTabStore((s) => s.tabs);
 

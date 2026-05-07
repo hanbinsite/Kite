@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useCollectionStore } from "../../stores/collection-store";
+import { useCollectionStore, type CollectionTreeNode } from "../../stores/collection-store";
 import { ConfigOverviewTab } from "./ConfigOverviewTab";
 import { ConfigVariablesTab } from "./ConfigVariablesTab";
 import { ConfigHeadersTab } from "./ConfigHeadersTab";
@@ -115,15 +115,15 @@ export function CollectionConfigTab({ collectionId, folderId }: CollectionConfig
 }
 
 function findFolderInTree(
-  items: Array<{ type: string; id: string; name: string; description?: string; config?: unknown; items?: unknown[] }>,
+  items: CollectionTreeNode[],
   folderId: string,
-): { name: string; description?: string; config?: unknown } | null {
+): (CollectionTreeNode & { type: "folder" }) | null {
   for (const item of items) {
     if (item.type === "folder" && item.id === folderId) {
       return item;
     }
-    if (item.type === "folder" && item.items) {
-      const result = findFolderInTree(item.items as Array<{ type: string; id: string; name: string; description?: string; config?: unknown; items?: unknown[] }>, folderId);
+    if (item.type === "folder") {
+      const result = findFolderInTree(item.items, folderId);
       if (result) return result;
     }
   }

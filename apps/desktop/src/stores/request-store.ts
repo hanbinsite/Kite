@@ -3,8 +3,8 @@ import { immer } from "zustand/middleware/immer";
 import { sendHttpRequest, cancelHttpRequest, insertHistoryEntry } from "@api-client/core/http";
 import { buildIpcAuth as buildIpcAuthUtil } from "@api-client/core/http";
 import { markStart, markEnd, VariableResolver, variablesToRecord, handleError,
-  mergeVariables, mergeHeaders, resolveAuth, collectPreRequestChain, collectPostResponseChain, collectionVariablesToRecord } from "@api-client/core";
-import type { VariableScope, ScriptChainEntry } from "@api-client/core";
+  getCollectionVariables, getFolderVariables, mergeHeaders, resolveAuth, collectPreRequestChain, collectPostResponseChain } from "@api-client/core";
+import type { VariableScope } from "@api-client/core";
 import type { IpcHttpRequestConfig, IpcBodyConfig, IpcRequestSettings, IpcAuthConfig } from "@api-client/core/http";
 import { executeScript, type ScriptResult, type ScriptContext } from "@api-client/core/script";
 import type {
@@ -293,17 +293,8 @@ export const useRequestStore = create<RequestStore>()(
       const requestId = activeTab?.requestId ?? tabId;
       const hierarchy = useCollectionStore.getState().resolveRequestHierarchy(requestId);
 
-      const collectionVars = hierarchy ? mergeVariables(hierarchy) : {};
-      const folderVars: Record<string, string> = {};
-      if (hierarchy) {
-        for (const folder of hierarchy.folderPath) {
-          if (folder.config?.variables) {
-            for (const v of folder.config.variables) {
-              if (v.enabled && v.key) folderVars[v.key] = v.value;
-            }
-          }
-        }
-      }
+      const collectionVars = hierarchy ? getCollectionVariables(hierarchy) : {};
+      const folderVars = hierarchy ? getFolderVariables(hierarchy) : {};
 
       const envScopeVars = envStore.activeEnvironmentId
         ? variablesToRecord(envStore.environments.find((e) => e.id === envStore.activeEnvironmentId)?.variables ?? [])

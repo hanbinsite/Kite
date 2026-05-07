@@ -44,6 +44,8 @@ export type {
 } from "./ai";
 
 export {
+  getCollectionVariables,
+  getFolderVariables,
   mergeVariables,
   mergeHeaders,
   resolveAuth,

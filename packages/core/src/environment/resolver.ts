@@ -82,7 +82,7 @@ export class VariableResolver {
     }
 
     get(name: string): string | undefined {
-        const priority: (keyof VariableScope)[] = ["local", "data", "request", "folder", "collection", "environment", "global"];
+        const priority: (keyof VariableScope)[] = ["local", "data", "request", "environment", "folder", "collection", "global"];
 
         for (const scope of priority) {
             const scopeVars = this.scopes[scope];
