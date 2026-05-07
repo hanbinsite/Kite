@@ -1,11 +1,56 @@
 import { useRef, useCallback, useEffect, useState } from "react";
 import { Menu, ChevronLeft, ChevronRight } from "lucide-react";
 import { useUIStore, useTabStore } from "@api-client/core";
+import { useEnvironmentStore } from "../../stores/environment-store";
+import { useCollectionStore } from "../../stores/collection-store";
 import { useRequestStore } from "../../stores";
 import { MethodSelector } from "./MethodSelector";
 import { SendButton, type SendButtonState } from "./SendButton";
 import { VariableAutocomplete, VariableHighlightOverlay } from "./VariableHighlight";
 import type { HttpMethod } from "@api-client/types";
+import { VariableResolver, variablesToRecord } from "@api-client/core";
+
+function resolveUrlForValidation(rawUrl: string): string {
+  try {
+    const envStore = useEnvironmentStore.getState();
+    const colStore = useCollectionStore.getState();
+    const tabStore = useTabStore.getState();
+
+    const activeTab = tabStore.tabs.find((t) => t.id === tabStore.activeTabId);
+    const requestId = activeTab?.requestId;
+    const hierarchy = requestId ? colStore.resolveRequestHierarchy(requestId) : null;
+
+    const collectionVars: Record<string, string> = {};
+    if (hierarchy?.collectionConfig?.variables) {
+      for (const v of hierarchy.collectionConfig.variables) {
+        if (v.enabled && v.key) collectionVars[v.key] = v.value;
+      }
+    }
+    const folderVars: Record<string, string> = {};
+    if (hierarchy) {
+      for (const folder of hierarchy.folderPath) {
+        if (folder.config?.variables) {
+          for (const v of folder.config.variables) {
+            if (v.enabled && v.key) folderVars[v.key] = v.value;
+          }
+        }
+      }
+    }
+
+    const scopes = {
+      global: variablesToRecord(envStore.globals),
+      environment: envStore.activeEnvironmentId
+        ? variablesToRecord(envStore.environments.find((e) => e.id === envStore.activeEnvironmentId)?.variables ?? [])
+        : undefined,
+      collection: Object.keys(collectionVars).length > 0 ? collectionVars : undefined,
+      folder: Object.keys(folderVars).length > 0 ? folderVars : undefined,
+    };
+
+    return new VariableResolver(scopes).resolve(rawUrl);
+  } catch {
+    return rawUrl;
+  }
+}
 
 export function UrlBar() {
   const [sendState, setSendState] = useState<SendButtonState>("idle");
@@ -54,7 +99,8 @@ export function UrlBar() {
       return;
     }
 
-    if (!/^https?:\/\//i.test(url)) {
+    const resolvedUrl = resolveUrlForValidation(url);
+    if (!/^https?:\/\//i.test(resolvedUrl)) {
       setUrlError("URL must start with http:// or https://");
       return;
     }
