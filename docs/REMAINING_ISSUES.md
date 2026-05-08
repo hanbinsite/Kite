@@ -211,4 +211,60 @@
 
 ---
 
-*最后更新：2026-05-06 (ISSUE-6.1~6.5 已修复)*
+## 第七批 — 深度分析 48 项问题批量修复（2026-05-07）
+
+> 基于全量代码审计，发现 48 个问题（HIGH 10 / MEDIUM 24 / LOW 14），其中 19 项已修复。
+
+### ✅ 已修复 — HIGH (7 项)
+
+- **ISSUE-7.1**: `Variable` 接口重复定义 — ✅ FIXED — `types/index.ts` line 98/220 重复定义，后者覆盖前者丢失 `type`/`description` 字段。删除 line 220 重复定义
+- **ISSUE-7.2**: CSP `connect-src` 过于严格 — ✅ FIXED — `tauri.conf.json` 仅允许 `'self' https://api.openai.com`，改为 `*`
+- **ISSUE-7.3**: 脚本变量修改丢失 — ✅ FIXED — `applyScriptVariables` 仅修改局部 `envScopes` 不回写 store，`pm.environment.set()` 无持久效果。新增异步回写 `environmentStore`
+- **ISSUE-7.4**: AES-GCM 使用静态 nonce — ✅ FIXED — `crypto.rs:118` 使用固定 `b"unique-nonce-vau"`，改为 `OsRng.fill_bytes()` 随机 12 字节 nonce
+- **ISSUE-7.5**: Master password 明文存 keyring — ✅ FIXED — 改为存 argon2id 派生密钥的 base64 编码
+- **ISSUE-7.6**: OAuth1/AwsV4 静默跳过 — ✅ FIXED — `apply_auth_to_config` 返回 `Result<(), AppError>`，未实现时返回 `NOT_IMPLEMENTED` 错误
+- **ISSUE-7.7**: gRPC 用 HTTP/1.1 而非 HTTP/2 — ✅ DOCS — 添加明确 TODO 注释说明限制
+
+### ✅ 已修复 — MEDIUM (11 项)
+
+- **ISSUE-7.8**: 响应体无大小限制 — ✅ FIXED — 添加 10MB 限制，超限返回 `NET_BODY_TOO_LARGE`
+- **ISSUE-7.9**: WebSocket close 不发 close frame — ✅ FIXED — 通过 channel 发送 `__CLOSE__`，写入循环发送 `Message::Close`
+- **ISSUE-7.10**: Cookie save `blocking_write` 可能死锁 — ✅ FIXED — 先 `try_write()` 再 fallback
+- **ISSUE-7.11**: `delete_vault_secret` 路径遍历 — ✅ FIXED — 校验 name 不含 `/`/`\`/`..`
+- **ISSUE-7.12**: `is_vault_unlocked` 硬编码 `secret_count: 0` — ✅ FIXED — 遍历 vault 目录计数 `.enc.json` 文件
+- **ISSUE-7.13**: `reqwest::Error` timeout 丢值 — ✅ FIXED — 默认 30000ms
+- **ISSUE-7.14**: gRPC 错误类型不当 — ✅ FIXED — `net_connect_failed` → `storage_read_failed`/`storage_parse_failed`
+- **ISSUE-7.15**: gRPC pool 忽略 proto file ID — ✅ FIXED — 优先按 `config.proto_file_id` 查找
+- **ISSUE-7.16**: `buildIpcBodyConfig` 两处重复 — ✅ FIXED — 从 request-store 导出，runner-store 导入
+- **ISSUE-7.17**: Runner 无错误状态 — ✅ FIXED — 新增 `"error"` 状态 + `.catch()` 捕获
+- **ISSUE-7.18**: 协议面板无 ErrorBoundary — ✅ FIXED — 添加 ErrorBoundary 包裹 ProtocolWorkbench
+
+### ✅ 已修复 — LOW (1 项)
+
+- **ISSUE-7.19**: InlineEditor 硬编码 CSS fallback — ✅ FIXED — 移除 `#6C5CE7`/`#0C0C12` fallback 值
+
+### ⏳ 仍需后续处理 — HIGH (3 项)
+
+- **ISSUE-7.20**: OAuth 1.0a / AWS v4 签名未实现 — 目前返回 `NOT_IMPLEMENTED` 错误，需要实际实现签名逻辑
+- **ISSUE-7.21**: `proxy/` 和 `commands/oauth.rs` 模块缺失 — AGENTS.md 规划了但未实现，需要 `hudsucker` 依赖
+- **ISSUE-7.22**: `sendRequest` / `http.rs` / `crypto.rs` / `engine.rs` 无测试覆盖 — 关键模块缺少单元测试
+
+### ⏳ 仍需后续处理 — MEDIUM (13 项)
+
+- **ISSUE-7.23**: 脚本执行阻塞 Tokio 线程 — `script.rs` 使用 `std::thread` 但 Tauri 异步线程仍等待
+- **ISSUE-7.24**: `pm.sendRequest` 无 cookie 共享 — 使用独立 HTTP 客户端
+- **ISSUE-7.25**: AI streaming 未实现 — `ai_chat` 等待完整响应
+- **ISSUE-7.26**: `pm_api.rs` 空文件 — 模块声明存在但未实现
+- **ISSUE-7.27**: JS 注入风险 — `build_pm_js` 使用字符串格式化注入变量值
+- **ISSUE-7.28**: Settings 存 localStorage 而非 Rust SQLite — 与其他设置的持久化方式不一致
+- **ISSUE-7.29**: Collection 变量未在 TypeScript `CollectionItem` 接口中定义
+- **ISSUE-7.30**: `rquickjs` 版本与 AGENTS.md 不一致（0.11 vs 0.7.x）
+- **ISSUE-7.31**: `hudsucker` 依赖缺失 — proxy 模块无法实现
+- **ISSUE-7.32**: `tonic` 依赖存在但未使用 — gRPC 用 reqwest 实现
+- **ISSUE-7.33**: `VAULT_KEY` 用 `std::sync::Mutex` 在 async 上下文中
+- **ISSUE-7.34**: `grpc.rs` 中 `parse_proto_file` 先读文件再丢弃（浪费 I/O）
+- **ISSUE-7.35**: `sendRequest` 中 `requestData` 可能在 `set()` 后变 stale
+
+---
+
+*最后更新：2026-05-07 (ISSUE-7.1~7.19 已修复)*
