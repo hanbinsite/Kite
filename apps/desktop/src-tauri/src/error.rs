@@ -55,8 +55,9 @@ impl AppError {
 
 impl From<reqwest::Error> for AppError {
     fn from(e: reqwest::Error) -> Self {
-        if e.is_timeout() { Self::net_timeout(0) }
-        else if e.is_connect() { Self::net_connect_failed(e.to_string()) }
+        if e.is_timeout() {
+            Self::net_timeout(30000)
+        } else if e.is_connect() { Self::net_connect_failed(e.to_string()) }
         else if e.is_redirect() { Self::net_redirect_limit(10) }
         else { Self::internal(e.to_string()) }
     }

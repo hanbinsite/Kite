@@ -270,7 +270,7 @@ fn build_client(settings: &RequestSettings) -> Result<Client, AppError> {
 
 fn apply_auth_to_config(
     config: &mut HttpRequestConfig,
-) {
+) -> Result<(), AppError> {
     if let Some(auth) = &config.auth {
         match auth {
             AuthConfig::Bearer(b) => {
@@ -337,13 +337,14 @@ fn apply_auth_to_config(
             }
             AuthConfig::None(_) => {}
             AuthConfig::OAuth1(_) => {
-                eprintln!("[WARN] OAuth 1.0a signing not yet implemented — request sent without auth");
+                return Err(AppError::not_implemented("OAuth 1.0a signing is not yet implemented".into()));
             }
             AuthConfig::AwsV4(_) => {
-                eprintln!("[WARN] AWS Signature v4 signing not yet implemented — request sent without auth");
+                return Err(AppError::not_implemented("AWS Signature v4 signing is not yet implemented".into()));
             }
         }
     }
+    Ok(())
 }
 
 use base64::Engine;
@@ -361,7 +362,7 @@ pub async fn send_http_request(
     let cancel_token = CancellationToken::new();
     http_state.cancellation_tokens.write().await.insert(request_id.clone(), cancel_token.clone());
 
-    apply_auth_to_config(&mut config);
+    apply_auth_to_config(&mut config)?;
 
     let client = build_client(&config.settings)?;
 
@@ -528,7 +529,14 @@ pub async fn send_http_request(
 
     save_cookies_from_response(&app_handle, &url, response.headers()).await;
 
-    let body = response.text().await.map_err(|e| AppError::internal(e.to_string()))?;
+    let body = {
+        let body_bytes = response.bytes().await.map_err(|e| AppError::internal(e.to_string()))?;
+        const MAX_BODY_SIZE: usize = 10 * 1024 * 1024;
+        if body_bytes.len() > MAX_BODY_SIZE {
+            return Err(AppError::net_body_too_large(body_bytes.len() as u64, MAX_BODY_SIZE as u64));
+        }
+        String::from_utf8_lossy(&body_bytes).into_owned()
+    };
     let body_size = body.len() as u64;
 
     Ok(HttpResponse {
@@ -613,7 +621,13 @@ async fn save_cookies_from_response(
 
     let storage = app_handle.state::<crate::AppState>().storage.clone();
     let _ = tokio::task::spawn_blocking(move || {
-        let storage_lock = storage.blocking_write();
+        let storage_lock = match storage.try_write() {
+            Ok(guard) => guard,
+            Err(_) => {
+                let storage_lock = storage.blocking_write();
+                storage_lock
+            }
+        };
         let storage = match storage_lock.as_ref() {
             Some(s) => s,
             None => return,

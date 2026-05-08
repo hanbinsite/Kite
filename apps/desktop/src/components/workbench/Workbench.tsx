@@ -6,6 +6,7 @@ import { RequestPanel } from "./RequestPanel";
 import { ResponsePanel } from "./ResponsePanel";
 import { SplitPane } from "../layout/SplitPane";
 import { useTabStore, useUIStore } from "@api-client/core";
+import { ErrorBoundary } from "@api-client/ui";
 import { useRequestStore } from "../../stores";
 import { WebSocketPanel, SsePanel, MqttPanel, GrpcPanel, MockPanel } from "../protocol";
 import { CollectionConfigTab } from "../collection/CollectionConfigTab";
@@ -45,7 +46,14 @@ export function Workbench() {
     return (
       <div className="flex-1 flex flex-col">
         <TabBar />
-        <ProtocolWorkbench protocol={protocol} tabId={activeTabId} />
+        <ErrorBoundary fallback={({ error: err, resetError }) => (
+          <div className="flex items-center justify-center h-full text-accent-danger text-[13px]">
+            <span>Protocol panel crashed: {err.message}</span>
+            <button onClick={resetError} className="ml-2 text-brand underline">Retry</button>
+          </div>
+        )}>
+          <ProtocolWorkbench protocol={protocol} tabId={activeTabId} />
+        </ErrorBoundary>
       </div>
     );
   }

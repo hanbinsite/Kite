@@ -73,6 +73,10 @@ pub async fn ws_connect(
 
     tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
+            if msg == "__CLOSE__" {
+                let _ = write.send(Message::Close(None)).await;
+                break;
+            }
             if write.send(Message::Text(msg)).await.is_err() {
                 break;
             }
@@ -166,7 +170,8 @@ pub async fn ws_close(
     connection_id: String,
 ) -> Result<(), crate::error::AppError> {
     let mut connections = state.connections.write().await;
-    if connections.remove(&connection_id).is_some() {
+    if let Some(ws_conn) = connections.remove(&connection_id) {
+        let _ = ws_conn.sender.send("__CLOSE__".to_string());
         Ok(())
     } else {
         Err(crate::error::AppError::net_connect_failed("Connection not found".to_string()))

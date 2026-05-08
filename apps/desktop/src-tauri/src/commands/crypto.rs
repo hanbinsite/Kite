@@ -82,7 +82,8 @@ pub async fn unlock_vault(app: tauri::AppHandle, master_password: String) -> Res
     }
 
     if let Ok(kr) = keyring::Entry::new("api-client", "vault-master-key") {
-        let _ = kr.set_password(&master_password);
+        let key_b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, key);
+        let _ = kr.set_password(&format!("argon2id:{}", key_b64));
     }
 
     Ok(())
@@ -103,9 +104,21 @@ pub async fn lock_vault() -> Result<(), AppError> {
 }
 
 #[tauri::command]
-pub async fn is_vault_unlocked() -> Result<VaultStatus, AppError> {
+pub async fn is_vault_unlocked(app: tauri::AppHandle) -> Result<VaultStatus, AppError> {
     let vault_key = VAULT_KEY.lock().map_err(|e| AppError::internal(format!("Lock error: {}", e)))?;
-    Ok(VaultStatus { unlocked: vault_key.is_some(), secret_count: 0 })
+    let unlocked = vault_key.is_some();
+    let secret_count = if unlocked {
+        let vault_dir = vault_dir(&app)?;
+        std::fs::read_dir(&vault_dir)
+            .map(|entries| entries.filter_map(|e| e.ok()).filter(|e| {
+                e.path().extension().is_some_and(|ext| ext == "json") &&
+                e.path().file_stem().is_some_and(|stem| stem.to_string_lossy().ends_with(".enc"))
+            }).count())
+            .unwrap_or(0)
+    } else {
+        0
+    };
+    Ok(VaultStatus { unlocked, secret_count })
 }
 
 #[tauri::command]
@@ -115,7 +128,9 @@ pub async fn encrypt_vault_secret(app: tauri::AppHandle, name: String, plaintext
     let cipher = Aes256Gcm::new_from_slice(&key_bytes)
         .map_err(|e| AppError::vault_encrypt_failed(format!("Cipher init failed: {}", e)))?;
 
-    let nonce = Nonce::from_slice(b"unique-nonce-vau");
+    let mut nonce_bytes = [0u8; 12];
+    OsRng.fill_bytes(&mut nonce_bytes);
+    let nonce = Nonce::from_slice(&nonce_bytes);
     let ciphertext = cipher
         .encrypt(nonce, plaintext.as_bytes())
         .map_err(|e| AppError::vault_encrypt_failed(format!("Encryption failed: {}", e)))?;
@@ -173,6 +188,9 @@ pub async fn decrypt_vault_secret(app: tauri::AppHandle, name: String) -> Result
 
 #[tauri::command]
 pub async fn delete_vault_secret(app: tauri::AppHandle, name: String) -> Result<(), AppError> {
+    if name.contains('/') || name.contains('\\') || name.contains("..") {
+        return Err(AppError::storage_path_traversal(format!("Invalid secret name: {}", name)));
+    }
     let vault_dir = vault_dir(&app)?;
     let enc_file = vault_dir.join(format!("{}.enc.json", name));
 

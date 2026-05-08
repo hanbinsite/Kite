@@ -95,7 +95,7 @@ function getOrCreateTabData(map: Record<string, RequestData>, tabId: string): Re
   return map[tabId];
 }
 
-function buildIpcBodyConfig(body: BodyConfig | null, resolver?: VariableResolver): IpcBodyConfig | null {
+export function buildIpcBodyConfig(body: BodyConfig | null, resolver?: VariableResolver): IpcBodyConfig | null {
   if (!body || body.mode === "none") return null;
 
   if (body.mode === "raw" && body.raw) {
@@ -164,7 +164,7 @@ function buildIpcBodyConfig(body: BodyConfig | null, resolver?: VariableResolver
   return null;
 }
 
-function buildIpcSettings(settings: RequestSettings): IpcRequestSettings {
+export function buildIpcSettings(settings: RequestSettings): IpcRequestSettings {
   return {
     timeout_ms: settings.timeoutMs,
     follow_redirects: settings.followRedirects,
@@ -173,7 +173,7 @@ function buildIpcSettings(settings: RequestSettings): IpcRequestSettings {
   };
 }
 
-function buildIpcAuth(auth: AuthConfig): IpcAuthConfig {
+export function buildIpcAuth(auth: AuthConfig): IpcAuthConfig {
   return buildIpcAuthUtil(auth.type, auth.config as Record<string, unknown>);
 }
 
@@ -624,5 +624,15 @@ function applyScriptVariables(scriptResult: ScriptResult, envScopes: VariableSco
     } else if (v.scope === "collection" && envScopes.collection) {
       envScopes.collection[v.key] = v.value;
     }
+  }
+  if (scriptResult.variables.length > 0) {
+    import("./environment-store").then(({ useEnvironmentStore }) => {
+      const envStore = useEnvironmentStore.getState();
+      for (const v of scriptResult.variables) {
+        if (v.scope === "global" || v.scope === "environment") {
+          envStore.setGlobalVariable(v.key, v.value);
+        }
+      }
+    }).catch(() => {});
   }
 }

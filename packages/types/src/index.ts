@@ -216,9 +216,3 @@ export interface Environment {
   isActive: boolean;
   envType?: "dev" | "staging" | "production";
 }
-
-export interface Variable {
-  key: string;
-  value: string;
-  enabled: boolean;
-}

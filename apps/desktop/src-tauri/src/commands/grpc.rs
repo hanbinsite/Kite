@@ -73,14 +73,14 @@ pub async fn parse_proto_file(
     file_path: String,
 ) -> Result<Vec<GrpcMethodInfo>, crate::error::AppError> {
     let _ = std::fs::read_to_string(&file_path)
-        .map_err(|e| crate::error::AppError::net_connect_failed(format!("Cannot read proto file: {}", e)))?;
+        .map_err(|e| crate::error::AppError::storage_read_failed(format!("Cannot read proto file: {}", e)))?;
 
     let path_ref: &std::path::Path = std::path::Path::new(&file_path);
     let compiled = protox::compile([path_ref], std::iter::empty::<std::path::PathBuf>())
-        .map_err(|e| crate::error::AppError::net_connect_failed(format!("Proto compilation failed: {}", e)))?;
+        .map_err(|e| crate::error::AppError::storage_parse_failed(format!("Proto compilation failed: {}", e)))?;
 
     let pool = DescriptorPool::from_file_descriptor_set(compiled)
-        .map_err(|e| crate::error::AppError::net_connect_failed(format!("Descriptor pool error: {}", e)))?;
+        .map_err(|e| crate::error::AppError::storage_parse_failed(format!("Descriptor pool error: {}", e)))?;
 
     let mut methods = Vec::new();
 
@@ -143,8 +143,13 @@ pub async fn send_grpc_request(
     let start = std::time::Instant::now();
 
     let descriptors = state.file_descriptors.read().await;
-    let pool = descriptors.values().next()
-        .ok_or_else(|| crate::error::AppError::net_connect_failed("No proto file parsed. Use parse_proto_file first.".to_string()))?;
+    let pool = if let Some(ref pid) = config.proto_file_id {
+        descriptors.get(pid)
+            .ok_or_else(|| crate::error::AppError::net_connect_failed(format!("Proto file '{}' not found", pid)))?
+    } else {
+        descriptors.values().next()
+            .ok_or_else(|| crate::error::AppError::net_connect_failed("No proto file parsed. Use parse_proto_file first.".to_string()))?
+    };
 
     let service = pool.services().find(|s| s.full_name() == config.service_name)
         .ok_or_else(|| crate::error::AppError::net_connect_failed(format!("Service '{}' not found", config.service_name)))?;
@@ -157,6 +162,11 @@ pub async fn send_grpc_request(
     let _grpc_path = format!("/{}/{}", config.service_name, config.method_name);
     let grpc_body = encode_grpc_message(&dynamic_msg);
 
+    // NOTE: This uses reqwest (HTTP/1.1) instead of tonic/h2 (HTTP/2).
+    // Real gRPC requires HTTP/2 with custom framing and trailers.
+    // This will work with gRPC-Web proxies and some gRPC servers that accept HTTP/1.1,
+    // but will fail against standard gRPC servers.
+    // TODO: Replace with tonic-based HTTP/2 implementation for full gRPC support.
     let mut request_builder = reqwest::Client::new()
         .post(&config.url)
         .header("content-type", "application/grpc")

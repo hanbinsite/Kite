@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import {
   sendHttpRequest,
-  buildIpcAuth as buildIpcAuthUtil,
   insertHistoryEntry,
 } from "@api-client/core/http";
 import {
@@ -29,11 +28,9 @@ import type {
 } from "@api-client/types";
 import type {
   IpcHttpRequestConfig,
-  IpcBodyConfig,
-  IpcRequestSettings,
-  IpcAuthConfig,
 } from "@api-client/core/http";
 import { useCollectionStore } from "./collection-store";
+import { buildIpcBodyConfig, buildIpcSettings, buildIpcAuth } from "./request-store";
 
 export interface RunnerRequestConfig {
   id: string;
@@ -92,7 +89,7 @@ export interface RunnerConfig {
   requests: RunnerRequestConfig[];
 }
 
-export type RunnerStatus = "idle" | "running" | "completed" | "cancelled";
+export type RunnerStatus = "idle" | "running" | "completed" | "cancelled" | "error";
 
 export interface RunnerState {
   status: RunnerStatus;
@@ -122,53 +119,6 @@ const DEFAULT_SETTINGS: RequestSettings = {
   maxRedirects: 10,
   verifySsl: true,
 };
-
-function buildIpcBodyConfig(body: BodyConfig | null, resolver?: VariableResolver): IpcBodyConfig | null {
-  if (!body || body.mode === "none") return null;
-  if (body.mode === "raw" && body.raw) {
-    const languageToContentType: Record<string, string> = {
-      json: "application/json",
-      javascript: "application/javascript",
-      text: "text/plain",
-      html: "text/html",
-      xml: "application/xml",
-      yaml: "application/yaml",
-    };
-    const content = resolver ? resolver.resolve(body.raw.content) : body.raw.content;
-    return { mode: "raw", content, content_type: languageToContentType[body.raw.language] ?? "text/plain" };
-  }
-  if (body.mode === "urlencoded" && body.urlencoded) {
-    return {
-      mode: "urlencoded",
-      content: null,
-      content_type: "application/x-www-form-urlencoded",
-      urlencoded: body.urlencoded.filter((p) => !p.disabled && p.key).map((p) => ({ key: p.key, value: p.value, disabled: p.disabled })),
-    };
-  }
-  if (body.mode === "formdata" && body.formdata) {
-    return {
-      mode: "formdata",
-      content: null,
-      content_type: "multipart/form-data",
-      formdata: body.formdata.filter((p) => !p.disabled && p.key).map((p) => ({ key: p.key, value: p.value, param_type: p.type, disabled: p.disabled, content_type: p.contentType })),
-    };
-  }
-  if (body.mode === "graphql" && body.graphql) {
-    return { mode: "graphql", content: null, content_type: "application/json", graphql_query: body.graphql.query, graphql_variables: body.graphql.variables };
-  }
-  if (body.mode === "binary" && body.binary) {
-    return { mode: "binary", content: body.binary, content_type: "application/octet-stream" };
-  }
-  return null;
-}
-
-function buildIpcSettings(settings: RequestSettings): IpcRequestSettings {
-  return { timeout_ms: settings.timeoutMs, follow_redirects: settings.followRedirects, max_redirects: settings.maxRedirects, verify_ssl: settings.verifySsl };
-}
-
-function buildIpcAuth(auth: AuthConfig): IpcAuthConfig {
-  return buildIpcAuthUtil(auth.type, auth.config as Record<string, unknown>);
-}
 
 export const useRunnerStore = create<RunnerStore>()(
   immer((set, get) => ({
@@ -442,7 +392,17 @@ export const useRunnerStore = create<RunnerStore>()(
           }
           state.abortController = null;
         });
-      })();
+      })().catch((err: unknown) => {
+        set((state) => {
+          state.status = "error";
+          state.abortController = null;
+          if (state.result) {
+            state.result.endTime = Date.now();
+            state.result.duration = state.result.endTime - state.result.startTime;
+          }
+        });
+        console.error("Runner execution failed:", err);
+      });
     },
 
     cancelRun: () => {

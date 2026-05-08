@@ -55,10 +55,10 @@ const baseExtensions = [
             height: "100%",
         },
         ".cm-content": {
-            caretColor: "var(--color-brand, #6C5CE7)",
+            caretColor: "var(--color-brand)",
         },
         ".cm-gutters": {
-            background: "var(--color-bg-base, #0C0C12)",
+            background: "var(--color-bg-base)",
             color: "var(--color-fg-tertiary)",
             borderRight: "1px solid var(--color-border-muted)",
         },
@@ -66,11 +66,9 @@ const baseExtensions = [
             background: "var(--color-bg-hover)",
         },
         ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": {
-            background: "var(--color-brand-muted, rgba(108, 92, 231, 0.2))",
-        },
+            background: "var(--color-brand-muted, rgba(108, 92, 231, 0.2))",        },
         ".cm-cursor": {
-            borderLeftColor: "var(--color-brand, #6C5CE7)",
-        },
+            borderLeftColor: "var(--color-brand)",        },
     }),
 ];
 
