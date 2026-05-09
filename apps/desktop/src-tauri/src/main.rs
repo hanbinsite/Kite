@@ -86,6 +86,7 @@ commands::crypto::delete_vault_secret,
             ai::provider::ai_remove_provider,
             ai::provider::ai_test_connection,
             ai::provider::ai_chat,
+            ai::provider::ai_stream_chat,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();

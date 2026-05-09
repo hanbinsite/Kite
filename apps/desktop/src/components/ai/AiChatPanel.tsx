@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useChatStore, useProviderStore, buildContextMessage } from "@api-client/core/ai";
+import { useChatStore, useProviderStore, buildContextMessage, SLASH_COMMANDS } from "@api-client/core/ai";
+import type { SlashCommand } from "@api-client/core/ai";
 import { useTabStore, useUIStore } from "@api-client/core";
-import { useCollectionStore, useEnvironmentStore } from "../../stores";
-import { Send, Bot, User, Loader2, X, PanelRightClose, FileText, Globe, FolderOpen } from "lucide-react";
+import { useCollectionStore, useEnvironmentStore, useRequestStore } from "../../stores";
+import { Send, Bot, User, Loader2, X, PanelRightClose, FileText, Globe, FolderOpen, Zap, ChevronRight } from "lucide-react";
 import type { AiProviderConfig } from "@api-client/core/ai";
 
 function renderMarkdown(text: string): string {
@@ -23,9 +24,12 @@ export function AiChatPanel() {
 
   const chatMessages = useChatStore((s) => s.messages);
   const loadingSessions = useChatStore((s) => s.loadingSessions);
+  const streamingSessions = useChatStore((s) => s.streamingSessions);
   const messages = chatMessages[sessionId] ?? [];
   const loading = loadingSessions[sessionId] ?? false;
+  const isStreaming = streamingSessions[sessionId] !== undefined;
   const sendMessage = useChatStore((s) => s.sendMessage);
+  const sendSlashCommand = useChatStore((s) => s.sendSlashCommand);
   const clearMessages = useChatStore((s) => s.clearMessages);
 
   const providers = useProviderStore((s) => s.providers);
@@ -34,31 +38,39 @@ export function AiChatPanel() {
 
   const environments = useEnvironmentStore((s) => s.environments);
   const collections = useCollectionStore((s) => s.collections);
+  const currentResponse = useRequestStore((s) => activeTabId ? s.responses[activeTabId] : undefined);
 
   const [input, setInput] = useState("");
   const [showProviders, setShowProviders] = useState(false);
   const [includeRequest, setIncludeRequest] = useState(true);
   const [includeEnvironment, setIncludeEnvironment] = useState(true);
   const [includeCollection, setIncludeCollection] = useState(true);
+  const [showSlashMenu, setShowSlashMenu] = useState(false);
+  const [slashFilter, setSlashFilter] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const activeProvider = providers.find((p: AiProviderConfig) => p.id === activeProviderId);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isStreaming]);
 
-  const handleSend = useCallback(() => {
-    const text = input.trim();
-    if (!text || !activeProviderId || loading) return;
-    setInput("");
-
+  const buildContextMsgs = useCallback(() => {
     const contextMsgs: { role: "user" | "assistant" | "system"; content: string }[] = [];
 
     if (includeRequest && activeTab) {
-      contextMsgs.push(buildContextMessage({
-        request: { method: activeTab.method ?? "GET", url: activeTab.url ?? "" },
-      }));
+      const reqInfo: string[] = [`Active request: ${activeTab.method ?? "GET"} ${activeTab.url ?? ""}`];
+      if (currentResponse) {
+        reqInfo.push(`Response: ${currentResponse.status} ${currentResponse.statusText}`);
+        reqInfo.push(`Content-Type: ${currentResponse.contentType}`);
+        const bodyPreview = currentResponse.body.slice(0, 500);
+        if (bodyPreview) reqInfo.push(`Body preview: ${bodyPreview}`);
+      }
+      contextMsgs.push(buildContextMessage({ request: { method: activeTab.method ?? "GET", url: activeTab.url ?? "" } }));
+      if (currentResponse) {
+        contextMsgs.push({ role: "system" as const, content: `[Response Context] Status: ${currentResponse.status} ${currentResponse.statusText}\nContent-Type: ${currentResponse.contentType}\nBody preview: ${currentResponse.body.slice(0, 500)}` });
+      }
     }
     if (includeEnvironment && environments.length > 0) {
       contextMsgs.push(buildContextMessage({
@@ -69,13 +81,41 @@ export function AiChatPanel() {
       }));
     }
     if (includeCollection && collections.length > 0) {
-      contextMsgs.push(buildContextMessage({
-        collections: collections.map((c) => c.name),
-      }));
+      contextMsgs.push(buildContextMessage({ collections: collections.map((c) => c.name) }));
     }
+    return contextMsgs;
+  }, [activeTab, currentResponse, environments, collections, includeRequest, includeEnvironment, includeCollection]);
 
-    sendMessage(sessionId, activeProviderId, { role: "user", content: text }, contextMsgs);
-  }, [input, activeProviderId, loading, sessionId, sendMessage, activeTab, environments, collections, includeRequest, includeEnvironment, includeCollection]);
+  const handleSend = useCallback(() => {
+    const text = input.trim();
+    if (!text || !activeProviderId || loading) return;
+    setInput("");
+
+    if (text.startsWith("/")) {
+      sendSlashCommand(sessionId, activeProviderId, text, buildContextMsgs());
+    } else {
+      sendMessage(sessionId, activeProviderId, { role: "user", content: text }, buildContextMsgs());
+    }
+  }, [input, activeProviderId, loading, sessionId, sendMessage, sendSlashCommand, buildContextMsgs]);
+
+  const handleSlashSelect = useCallback((cmd: SlashCommand) => {
+    if (!activeProviderId || loading) return;
+    setShowSlashMenu(false);
+    setSlashFilter("");
+    setInput("");
+    sendSlashCommand(sessionId, activeProviderId, `/${cmd.key}`, buildContextMsgs());
+  }, [activeProviderId, loading, sessionId, sendSlashCommand, buildContextMsgs]);
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setInput(val);
+    if (val.startsWith("/")) {
+      setShowSlashMenu(true);
+      setSlashFilter(val.slice(1).toLowerCase());
+    } else {
+      setShowSlashMenu(false);
+    }
+  }, []);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -83,8 +123,15 @@ export function AiChatPanel() {
         e.preventDefault();
         handleSend();
       }
+      if (e.key === "Escape") {
+        setShowSlashMenu(false);
+      }
     },
     [handleSend],
+  );
+
+  const filteredCommands = SLASH_COMMANDS.filter((cmd) =>
+    cmd.key.toLowerCase().includes(slashFilter) || cmd.description.toLowerCase().includes(slashFilter)
   );
 
   if (!aiPanelOpen) return null;
@@ -138,8 +185,19 @@ export function AiChatPanel() {
 
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-3">
         {messages.length === 0 && (
-          <div className="flex items-center justify-center h-full text-fg-tertiary text-xs">
-            Ask me anything about your APIs
+          <div className="flex flex-col items-center justify-center h-full text-fg-tertiary text-xs gap-3">
+            <span>Ask me anything about your APIs</span>
+            <div className="flex flex-wrap gap-1 justify-center">
+              {SLASH_COMMANDS.slice(0, 5).map((cmd) => (
+                <button
+                  key={cmd.key}
+                  onClick={() => handleSlashSelect(cmd)}
+                  className="px-2 py-1 bg-bg-elevated border border-border-default rounded text-[10px] hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                >
+                  {cmd.label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
         {messages.map((msg, i) => (
@@ -165,13 +223,16 @@ export function AiChatPanel() {
             )}
           </div>
         ))}
-        {loading && (
+        {loading && !isStreaming && (
           <div className="flex gap-2">
             <Bot className="w-5 h-5 text-brand shrink-0 mt-0.5" />
             <div className="bg-bg-elevated border border-border-default rounded-lg px-3 py-2">
               <Loader2 className="w-4 h-4 text-brand animate-spin" />
             </div>
           </div>
+        )}
+        {isStreaming && (
+          <span className="inline-block w-1.5 h-4 bg-brand animate-pulse rounded-sm" />
         )}
         <div ref={messagesEndRef} />
       </div>
@@ -191,22 +252,43 @@ export function AiChatPanel() {
             <FolderOpen className="w-3 h-3" /> Collection
           </label>
         </div>
-        <div className="px-3 pb-3">
+        <div className="px-3 pb-3 relative">
           {!activeProviderId ? (
             <div className="text-[11px] text-fg-tertiary text-center py-2">
               No AI provider configured. Add one in Settings → AI.
             </div>
           ) : (
             <div className="flex items-end gap-2">
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Type a message..."
-                rows={2}
-                disabled={loading}
-                className="flex-1 bg-bg-input border border-border-default rounded-md px-3 py-2 text-xs text-fg-primary placeholder:text-fg-tertiary outline-none focus:border-border-focus resize-none disabled:opacity-50"
-              />
+              <div className="flex-1 relative">
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Type a message or / for commands..."
+                  rows={2}
+                  disabled={loading}
+                  className="w-full bg-bg-input border border-border-default rounded-md px-3 py-2 text-xs text-fg-primary placeholder:text-fg-tertiary outline-none focus:border-border-focus resize-none disabled:opacity-50"
+                />
+                {showSlashMenu && filteredCommands.length > 0 && (
+                  <div className="absolute bottom-full left-0 right-0 mb-1 bg-bg-elevated border border-border-default rounded-md shadow-lg max-h-[200px] overflow-auto z-10">
+                    {filteredCommands.map((cmd) => (
+                      <button
+                        key={cmd.key}
+                        onClick={() => handleSlashSelect(cmd)}
+                        className="w-full text-left px-3 py-2 hover:bg-bg-hover cursor-pointer transition-colors flex items-center gap-2"
+                      >
+                        <Zap className="w-3 h-3 text-brand shrink-0" />
+                        <div>
+                          <div className="text-[11px] text-fg-primary font-medium">{cmd.label}</div>
+                          <div className="text-[10px] text-fg-tertiary">{cmd.description}</div>
+                        </div>
+                        <ChevronRight className="w-3 h-3 text-fg-tertiary ml-auto" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || loading}

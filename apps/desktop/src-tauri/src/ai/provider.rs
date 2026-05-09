@@ -3,7 +3,8 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::{Manager, Emitter};
+use futures_util::StreamExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -224,4 +225,92 @@ pub async fn ai_chat(app: tauri::AppHandle, request: AiChatRequest) -> Result<Ai
             total_tokens: json["usage"]["total_tokens"].as_u64().unwrap_or(0) as u32,
         },
     })
+}
+
+#[tauri::command]
+pub async fn ai_stream_chat(app: tauri::AppHandle, request: AiChatRequest) -> Result<String, AppError> {
+    let path = providers_file(&app)?;
+    let providers = load_providers_from_file(&path)?;
+    let provider = providers.iter().find(|p| p.id == request.provider_id)
+        .ok_or(AppError::storage_not_found(format!("Provider '{}' not found", request.provider_id)))?;
+
+    let keyring_entry = keyring::Entry::new("api-client", &format!("ai-key-{}", provider.id))
+        .map_err(|e| AppError::vault_keyring_failed(format!("Keyring error: {}", e)))?;
+    let api_key = keyring_entry.get_password()
+        .map_err(|e| AppError::vault_keyring_failed(format!("AI API key not found in keyring: {}", e)))?;
+
+    let client = Client::new();
+    let url = format!("{}/v1/chat/completions", provider.base_url.trim_end_matches('/'));
+
+    let messages_json: Vec<serde_json::Value> = request.messages.iter().map(|m| {
+        serde_json::json!({"role": m.role, "content": m.content})
+    }).collect();
+
+    let body = serde_json::json!({
+        "model": provider.model,
+        "messages": messages_json,
+        "temperature": request.temperature.or(provider.temperature).unwrap_or(0.7),
+        "max_tokens": request.max_tokens.or(provider.max_tokens).unwrap_or(2048),
+        "stream": true,
+    });
+
+    let resp = client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Content-Type", "application/json")
+        .json(&body)
+        .timeout(std::time::Duration::from_secs(120))
+        .send()
+        .await
+        .map_err(|e| AppError::net_connect_failed(format!("AI stream request failed: {}", e)))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status().as_u16();
+        let text = resp.text().await.unwrap_or_default();
+        return Err(AppError::net_auth_failed(format!("AI stream failed {}: {}", status, text)));
+    }
+
+    let session_id = uuid::Uuid::new_v4().to_string();
+    let mut full_content = String::new();
+    let mut stream = resp.bytes_stream();
+
+    while let Some(chunk_result) = stream.next().await {
+        let chunk = chunk_result.map_err(|e| AppError::internal(format!("Stream read error: {}", e)))?;
+        let text = String::from_utf8_lossy(&chunk);
+
+        for line in text.lines() {
+            let line = line.trim();
+            if !line.starts_with("data: ") {
+                continue;
+            }
+            let data = &line[6..];
+            if data == "[DONE]" {
+                let _ = app.emit("ai-stream-chunk", AiStreamChunk {
+                    session_id: session_id.clone(),
+                    delta: String::new(),
+                    done: true,
+                });
+                return Ok(full_content);
+            }
+
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
+                if let Some(delta) = json["choices"][0]["delta"]["content"].as_str() {
+                    full_content.push_str(delta);
+                    let _ = app.emit("ai-stream-chunk", AiStreamChunk {
+                        session_id: session_id.clone(),
+                        delta: delta.to_string(),
+                        done: false,
+                    });
+                }
+            }
+        }
+    }
+
+    let _ = app.emit("ai-stream-chunk", AiStreamChunk {
+        session_id: session_id.clone(),
+        delta: String::new(),
+        done: true,
+    });
+
+    Ok(full_content)
 }
