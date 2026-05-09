@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { useTabStore } from "@api-client/core";
+import { useTabStore, useUIStore } from "@api-client/core";
+import { useChatStore, useProviderStore } from "@api-client/core/ai";
 import { useRequestStore } from "../../stores";
 import { JsonViewer } from "../response/JsonViewer";
 import { ConsolePanel } from "../console/ConsolePanel";
 import { TestsTab } from "../response/TestsTab";
 import { ScriptErrorCard } from "../response/ScriptErrorCard";
 import type { ResponseHeader, Cookie } from "@api-client/types";
-import { Clock, HardDrive, ArrowDownToLine, Maximize2, Columns2, Zap, AlertTriangle, RefreshCw, Search, Copy } from "lucide-react";
+import { Clock, HardDrive, ArrowDownToLine, Maximize2, Columns2, Zap, AlertTriangle, RefreshCw, Search, Copy, Brain, Wrench } from "lucide-react";
 
 const RESPONSE_TABS = [
   { id: "body", label: "Body" },
@@ -194,6 +195,20 @@ checked={!useRequestStore.getState().requestDataMap[useRequestStore.getState().c
                 </span>
                 <div className="flex-1" />
                 <div className="response-bar-tools flex gap-[2px]">
+                    <button
+                      onClick={() => {
+                        useUIStore.getState().setAiPanelOpen(true);
+                        const sessionId = activeTabId ?? "global";
+                        const providerId = useProviderStore.getState().activeProviderId;
+                        if (providerId) {
+                          useChatStore.getState().sendSlashCommand(sessionId, providerId, response.status >= 400 ? "/fix" : "/explain");
+                        }
+                      }}
+                      className={`response-bar-btn h-6 px-2 rounded-[4px] flex items-center gap-1 text-[10px] font-medium cursor-pointer transition-all duration-50 ${response.status >= 400 ? "text-accent-danger hover:bg-accent-danger/10" : "text-brand hover:bg-brand/10"}`}
+                    >
+                        {response.status >= 400 ? <Wrench size={12} /> : <Brain size={12} />}
+                        {response.status >= 400 ? "Fix" : "Explain"}
+                    </button>
                     <button className="response-bar-btn w-6 h-6 rounded-[4px] flex items-center justify-center text-fg-tertiary cursor-pointer hover:bg-bg-hover hover:text-fg-secondary transition-all duration-50">
                         <Columns2 size={14} />
                     </button>
