@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { Plus, Trash2, Check } from "lucide-react";
 
 export interface KeyValue {
@@ -23,28 +23,28 @@ export function KeyValueEditor({
   showDescription = true,
 }: KeyValueEditorProps) {
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
+  const emptyRowIdRef = useRef(crypto.randomUUID());
 
-  const rowsWithEmpty = (() => {
+  const rowsWithEmpty = useMemo(() => {
     const last = items[items.length - 1];
     if (last && (last.key || last.value)) {
-      return [...items, { id: crypto.randomUUID(), key: "", value: "", enabled: true, description: "" }];
+      return [...items, { id: emptyRowIdRef.current, key: "", value: "", enabled: true, description: "" }];
     }
     if (items.length === 0) {
-      return [{ id: crypto.randomUUID(), key: "", value: "", enabled: true, description: "" }];
+      return [{ id: emptyRowIdRef.current, key: "", value: "", enabled: true, description: "" }];
     }
     return items;
-  })();
+  }, [items]);
 
   const updateItem = useCallback(
     (id: string, updates: Partial<KeyValue>) => {
       const idx = rowsWithEmpty.findIndex((item) => item.id === id);
       if (idx === -1) return;
       const updated = rowsWithEmpty.map((item) => (item.id === id ? { ...item, ...updates } : item));
-      const changedItem = updated[idx];
-      if (changedItem && (changedItem.key || changedItem.value)) {
-        const nextItem = updated[idx + 1];
-        if (!nextItem) {
-          updated.push({ id: crypto.randomUUID(), key: "", value: "", enabled: true, description: "" });
+      if (id === emptyRowIdRef.current) {
+        const changedItem = updated[idx];
+        if (changedItem?.key || changedItem?.value) {
+          emptyRowIdRef.current = crypto.randomUUID();
         }
       }
       onChange(updated.filter((item) => item.key || item.value || updated.indexOf(item) === updated.length - 1));
@@ -54,14 +54,17 @@ export function KeyValueEditor({
 
   const deleteItem = useCallback(
     (id: string) => {
+      if (id === emptyRowIdRef.current) {
+        emptyRowIdRef.current = crypto.randomUUID();
+      }
       onChange(rowsWithEmpty.filter((item) => item.id !== id));
     },
     [rowsWithEmpty, onChange],
   );
 
   const addItem = useCallback(() => {
-    onChange([...rowsWithEmpty, { id: crypto.randomUUID(), key: "", value: "", enabled: true, description: "" }]);
-  }, [rowsWithEmpty, onChange]);
+    onChange([...items, { id: crypto.randomUUID(), key: "", value: "", enabled: true, description: "" }]);
+  }, [items, onChange]);
 
   const gridCols = showDescription
     ? "grid-cols-[20px_200px_1fr_180px_28px]"

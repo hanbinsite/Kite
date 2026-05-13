@@ -374,7 +374,7 @@ fn update_folder_config_in_items(items: &mut [CollectionItem], folder_id: &str, 
 
 #[cfg(test)]
 mod tests {
-  use super::{CollectionFile, CollectionItem, SavedRequest, SavedSettings, SavedScripts, CollectionVariable};
+  use super::{CollectionFile, CollectionItem, SavedRequest, SavedSettings, SavedScripts, CollectionVariable, CollectionConfig};
   use tempfile::TempDir;
 
   fn sample_collection(id: &str, name: &str) -> CollectionFile {
@@ -382,6 +382,7 @@ mod tests {
       id: id.to_string(),
       name: name.to_string(),
       description: None,
+      version: None,
       items: vec![
         CollectionItem::Request(Box::new(SavedRequest {
           id: "req-1".to_string(),
@@ -396,9 +397,14 @@ mod tests {
           settings: SavedSettings::default(),
         })),
       ],
-      variables: Some(vec![
-        CollectionVariable { key: "base_url".to_string(), value: "https://api.example.com".to_string(), enabled: true },
-      ]),
+      config: Some(CollectionConfig {
+        headers: None,
+        auth: None,
+        variables: Some(vec![
+          CollectionVariable { key: "base_url".to_string(), value: "https://api.example.com".to_string(), enabled: true },
+        ]),
+        scripts: None,
+      }),
       created_at: "2026-01-01T00:00:00Z".to_string(),
       updated_at: "2026-01-01T00:00:00Z".to_string(),
     }
@@ -416,7 +422,7 @@ mod tests {
       CollectionItem::Request(req) => assert_eq!(req.method, "GET"),
       _ => panic!("Expected Request item"),
     }
-    assert_eq!(parsed.variables.unwrap().len(), 1);
+    assert_eq!(parsed.config.unwrap().variables.unwrap().len(), 1);
   }
 
   #[tokio::test]

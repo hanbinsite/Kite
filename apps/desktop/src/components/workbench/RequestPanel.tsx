@@ -170,15 +170,15 @@ export function RequestPanel() {
       setGraphqlQuery(storeBody?.graphql?.query ?? "");
       setGraphqlVariables(storeBody?.graphql?.variables ?? "");
     }
-  }, [currentTabId, storeParams, storeHeaders, storeBody]);
+  }, [currentTabId]);
 
     const handleParamsChange = (newItems: KeyValue[]) => {
-        setParams(ensureEmptyRow(newItems));
+        setParams(newItems);
         setRequestParams(kvToParams(newItems));
     };
 
     const handleHeadersChange = (newItems: KeyValue[]) => {
-        setHeaders(ensureEmptyRow(newItems));
+        setHeaders(newItems);
         setRequestHeaders(kvToHeaders(newItems));
     };
 
@@ -207,7 +207,7 @@ export function RequestPanel() {
     };
 
     const handleUrlencodedChange = (newItems: KeyValue[]) => {
-        setUrlencodedKvs(ensureEmptyRow(newItems));
+        setUrlencodedKvs(newItems);
         const urlencoded = kvToUrlencoded(newItems);
         handleBodyConfigChange({ mode: "urlencoded", urlencoded });
     };
