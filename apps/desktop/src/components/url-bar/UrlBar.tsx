@@ -1,9 +1,11 @@
 import { useRef, useCallback, useEffect, useState } from "react";
-import { Menu, ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { Menu, ChevronLeft, ChevronRight, Save, Check } from "lucide-react";
 import { useUIStore, useTabStore } from "@api-client/core";
 import { useEnvironmentStore } from "../../stores/environment-store";
 import { useCollectionStore } from "../../stores/collection-store";
 import { useRequestStore } from "../../stores";
+import { saveCurrentRequest } from "../../hooks/useAutoSave";
 import { MethodSelector } from "./MethodSelector";
 import { SendButton, type SendButtonState } from "./SendButton";
 import { VariableAutocomplete, VariableHighlightOverlay } from "./VariableHighlight";
@@ -53,10 +55,12 @@ function resolveUrlForValidation(rawUrl: string): string {
 }
 
 export function UrlBar() {
+  const { t } = useTranslation();
   const [sendState, setSendState] = useState<SendButtonState>("idle");
   const [urlError, setUrlError] = useState<string | null>(null);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saved" | "error">("idle");
   const inputRef = useRef<HTMLInputElement>(null);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const activeTabId = useTabStore((s) => s.activeTabId);
@@ -65,24 +69,29 @@ export function UrlBar() {
   const isLoading = useRequestStore((s) => activeTabId ? !!s.loadingTabs[activeTabId] : false);
   const sendRequest = useRequestStore((s) => s.sendRequest);
   const cancelRequest = useRequestStore((s) => s.cancelRequest);
+  const markDirty = useRequestStore((s) => s.markDirty);
 
   const method = (activeTab?.method ?? "GET") as HttpMethod;
   const url = activeTab?.url ?? "";
 
   const setMethod = useCallback(
     (m: HttpMethod) => {
-      if (activeTabId) updateTab(activeTabId, { method: m });
-    },
-    [activeTabId, updateTab],
-  );
-
-  const setUrl = useCallback(
-    (u: string) => {
       if (activeTabId) {
-        updateTab(activeTabId, { url: u, name: u ? `${method} ${u}` : "New Request" });
+        updateTab(activeTabId, { method: m });
+        markDirty(activeTabId);
       }
     },
-    [activeTabId, updateTab, method],
+    [activeTabId, updateTab, markDirty],
+  );
+
+const setUrl = useCallback(
+    (u: string) => {
+      if (activeTabId) {
+        updateTab(activeTabId, { url: u });
+        markDirty(activeTabId);
+      }
+    },
+    [activeTabId, updateTab, markDirty],
   );
 
   useEffect(() => {
@@ -101,7 +110,7 @@ export function UrlBar() {
 
     const resolvedUrl = resolveUrlForValidation(url);
     if (!/^https?:\/\//i.test(resolvedUrl)) {
-      setUrlError("URL must start with http:// or https://");
+      setUrlError(t("request.invalidUrl"));
       return;
     }
     setUrlError(null);
@@ -160,13 +169,26 @@ export function UrlBar() {
     setCursorPosition(target.selectionStart ?? 0);
   }, []);
 
+const handleSave = useCallback(() => {
+    const saved = saveCurrentRequest();
+    if (saved) {
+      setSaveState("saved");
+      const tabId = activeTabId;
+      if (tabId) useRequestStore.getState().clearDirty(tabId);
+      setTimeout(() => setSaveState("idle"), 1500);
+    } else {
+      setSaveState("error");
+      setTimeout(() => setSaveState("idle"), 2000);
+    }
+  }, [activeTabId]);
+
   return (
     <div className="border-b border-border-muted bg-bg-surface overflow-visible" style={{ position: "relative", zIndex: 100 }}>
       <div className="h-url-bar flex items-center gap-2 px-2 relative">
         <button
           onClick={toggleSidebar}
           className="p-1.5 hover:bg-bg-hover rounded transition-colors"
-          title="Toggle Sidebar (Cmd+B)"
+          title={`${t("sidebar.toggleSidebar")} (Cmd+B)`}
         >
           <Menu className="w-4 h-4 text-fg-secondary" />
         </button>
@@ -186,16 +208,16 @@ export function UrlBar() {
 
         <MethodSelector method={method} onChange={setMethod} />
 
-          <div className="flex-1 relative">
-            {url.includes("{{") && (
-              <div
-                className="absolute inset-0 flex items-center h-8 px-3 font-mono text-sm pointer-events-none overflow-hidden whitespace-nowrap"
-                aria-hidden="true"
-              >
-                <VariableHighlightOverlay text={url} />
-              </div>
-            )}
-            <input
+        <div className="flex-1 relative">
+          {url.includes("{{") && (
+            <div
+              className="absolute inset-0 flex items-center h-8 px-3 font-mono text-sm pointer-events-none overflow-hidden whitespace-nowrap"
+              aria-hidden="true"
+            >
+              <VariableHighlightOverlay text={url} />
+            </div>
+          )}
+          <input
             ref={inputRef}
             type="text"
             value={url}
@@ -206,8 +228,8 @@ export function UrlBar() {
             onKeyDown={handleKeyDown}
             onSelect={handleInputSelect}
             onBlur={() => setShowAutocomplete(false)}
-            placeholder="Enter request URL"
-              className={`w-full h-8 px-3 bg-bg-input border rounded-md text-sm font-mono caret-fg-primary placeholder:text-fg-tertiary focus:outline-none transition-colors ${url.includes("{{") ? "text-transparent" : "text-fg-primary"} ${urlError ? "border-accent-danger focus:border-accent-danger focus:ring-1 focus:ring-accent-danger" : "border-border-default focus:border-border-focus focus:ring-1 focus:ring-brand"}`}
+            placeholder={t("request.enterUrl")}
+            className={`w-full h-8 px-3 bg-bg-input border rounded-md text-sm font-mono caret-fg-primary placeholder:text-fg-tertiary focus:outline-none transition-colors ${url.includes("{{") ? "text-transparent" : "text-fg-primary"} ${urlError ? "border-accent-danger focus:border-accent-danger focus:ring-1 focus:ring-accent-danger" : "border-border-default focus:border-border-focus focus:ring-1 focus:ring-brand"}`}
           />
           {urlError && <div className="absolute -bottom-5 left-0 text-2xs text-accent-danger font-mono whitespace-nowrap">{urlError}</div>}
           {showAutocomplete && (
@@ -219,6 +241,17 @@ export function UrlBar() {
             />
           )}
         </div>
+
+        <button
+          onClick={handleSave}
+          title={`${t("common.save")} (Ctrl+S)`}
+          className={`h-7 w-7 flex items-center justify-center rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+            saveState === "saved" ? "text-accent-success" : saveState === "error" ? "text-accent-danger" : "text-fg-tertiary hover:text-fg-primary hover:bg-bg-hover"
+          }`}
+          disabled={!activeTab?.requestId || saveState === "saved"}
+        >
+          {saveState === "saved" ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+        </button>
 
         <SendButton state={sendState} disabled={!url.trim()} onClick={handleSend} />
       </div>

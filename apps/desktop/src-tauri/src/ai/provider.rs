@@ -31,6 +31,8 @@ pub struct AiChatRequest {
     pub temperature: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -65,6 +67,12 @@ pub struct AiStreamChunk {
     pub done: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiApiKeyStatus {
+    pub has_key: bool,
+}
+
 static ACTIVE_PROVIDER: Mutex<Option<String>> = Mutex::new(None);
 
 fn providers_file(app: &tauri::AppHandle) -> Result<PathBuf, AppError> {
@@ -91,6 +99,13 @@ fn save_providers_to_file(path: &PathBuf, providers: &[AiProviderConfig]) -> Res
     std::fs::write(path, content)
         .map_err(|e| AppError::storage_write_failed(format!("Failed to write providers file: {}", e)))?;
     Ok(())
+}
+
+fn get_api_key(provider_id: &str) -> Result<String, AppError> {
+    let keyring_entry = keyring::Entry::new("api-client", &format!("ai-key-{}", provider_id))
+        .map_err(|e| AppError::vault_keyring_failed(format!("Keyring error: {}", e)))?;
+    keyring_entry.get_password()
+        .map_err(|_| AppError::vault_keyring_failed(format!("AI API key not found for provider '{}'", provider_id)))
 }
 
 #[tauri::command]
@@ -129,11 +144,40 @@ pub async fn ai_remove_provider(app: tauri::AppHandle, provider_id: String) -> R
     let mut providers = load_providers_from_file(&path)?;
     providers.retain(|p| p.id != provider_id);
     save_providers_to_file(&path, &providers)?;
+
+    if let Ok(keyring_entry) = keyring::Entry::new("api-client", &format!("ai-key-{}", provider_id)) {
+        let _ = keyring_entry.delete_credential();
+    }
+
     Ok(())
 }
 
 #[tauri::command]
-pub async fn ai_test_connection(_provider_id: String, base_url: String, model: String) -> Result<AiUsage, AppError> {
+pub async fn ai_set_api_key(provider_id: String, api_key: String) -> Result<(), AppError> {
+    let keyring_entry = keyring::Entry::new("api-client", &format!("ai-key-{}", provider_id))
+        .map_err(|e| AppError::vault_keyring_failed(format!("Keyring error: {}", e)))?;
+    keyring_entry
+        .set_password(&api_key)
+        .map_err(|e| AppError::vault_keyring_failed(format!("Failed to save API key: {}", e)))?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn ai_get_api_key_status(provider_id: String) -> Result<AiApiKeyStatus, AppError> {
+    let keyring_entry = keyring::Entry::new("api-client", &format!("ai-key-{}", provider_id))
+        .map_err(|e| AppError::vault_keyring_failed(format!("Keyring error: {}", e)))?;
+    let has_key = keyring_entry.get_password().is_ok();
+    Ok(AiApiKeyStatus { has_key })
+}
+
+#[tauri::command]
+pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base_url: String, model: String) -> Result<AiUsage, AppError> {
+    let providers = {
+        let path = providers_file(&app)?;
+        load_providers_from_file(&path)?
+    };
+    let provider = providers.iter().find(|p| p.id == provider_id);
+
     let client = Client::new();
     let url = format!("{}/v1/chat/completions", base_url.trim_end_matches('/'));
 
@@ -143,10 +187,18 @@ pub async fn ai_test_connection(_provider_id: String, base_url: String, model: S
         "max_tokens": 5,
     });
 
-    let resp = client
+    let mut req = client
         .post(&url)
         .json(&body)
-        .timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(10));
+
+    if let Some(p) = provider {
+        if let Ok(api_key) = get_api_key(&p.id) {
+            req = req.header("Authorization", format!("Bearer {}", api_key));
+        }
+    }
+
+    let resp = req
         .send()
         .await
         .map_err(|e| AppError::net_connect_failed(format!("AI provider connection failed: {}", e)))?;
@@ -174,10 +226,7 @@ pub async fn ai_chat(app: tauri::AppHandle, request: AiChatRequest) -> Result<Ai
     let provider = providers.iter().find(|p| p.id == request.provider_id)
         .ok_or(AppError::storage_not_found(format!("Provider '{}' not found", request.provider_id)))?;
 
-    let keyring_entry = keyring::Entry::new("api-client", &format!("ai-key-{}", provider.id))
-        .map_err(|e| AppError::vault_keyring_failed(format!("Keyring error: {}", e)))?;
-    let api_key = keyring_entry.get_password()
-        .map_err(|e| AppError::vault_keyring_failed(format!("AI API key not found in keyring: {}", e)))?;
+    let api_key = get_api_key(&provider.id)?;
 
     let client = Client::new();
     let url = format!("{}/v1/chat/completions", provider.base_url.trim_end_matches('/'));
@@ -234,10 +283,7 @@ pub async fn ai_stream_chat(app: tauri::AppHandle, request: AiChatRequest) -> Re
     let provider = providers.iter().find(|p| p.id == request.provider_id)
         .ok_or(AppError::storage_not_found(format!("Provider '{}' not found", request.provider_id)))?;
 
-    let keyring_entry = keyring::Entry::new("api-client", &format!("ai-key-{}", provider.id))
-        .map_err(|e| AppError::vault_keyring_failed(format!("Keyring error: {}", e)))?;
-    let api_key = keyring_entry.get_password()
-        .map_err(|e| AppError::vault_keyring_failed(format!("AI API key not found in keyring: {}", e)))?;
+    let api_key = get_api_key(&provider.id)?;
 
     let client = Client::new();
     let url = format!("{}/v1/chat/completions", provider.base_url.trim_end_matches('/'));
@@ -270,20 +316,22 @@ pub async fn ai_stream_chat(app: tauri::AppHandle, request: AiChatRequest) -> Re
         return Err(AppError::net_auth_failed(format!("AI stream failed {}: {}", status, text)));
     }
 
-    let session_id = uuid::Uuid::new_v4().to_string();
+    let session_id = request.session_id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
     let mut full_content = String::new();
+    let mut line_buf = String::new();
     let mut stream = resp.bytes_stream();
 
     while let Some(chunk_result) = stream.next().await {
         let chunk = chunk_result.map_err(|e| AppError::internal(format!("Stream read error: {}", e)))?;
-        let text = String::from_utf8_lossy(&chunk);
+        line_buf.push_str(&String::from_utf8_lossy(&chunk));
 
-        for line in text.lines() {
-            let line = line.trim();
-            if !line.starts_with("data: ") {
+        while let Some(newline_pos) = line_buf.find('\n') {
+            let line = line_buf[..newline_pos].trim().to_string();
+            line_buf = line_buf[newline_pos + 1..].to_string();
+
+            let Some(data) = line.strip_prefix("data: ") else {
                 continue;
-            }
-            let data = &line[6..];
+            };
             if data == "[DONE]" {
                 let _ = app.emit("ai-stream-chunk", AiStreamChunk {
                     session_id: session_id.clone(),
@@ -306,6 +354,30 @@ pub async fn ai_stream_chat(app: tauri::AppHandle, request: AiChatRequest) -> Re
         }
     }
 
+    if !line_buf.trim().is_empty() {
+        let line = line_buf.trim();
+        if let Some(data) = line.strip_prefix("data: ") {
+            if data == "[DONE]" {
+                let _ = app.emit("ai-stream-chunk", AiStreamChunk {
+                    session_id: session_id.clone(),
+                    delta: String::new(),
+                    done: true,
+                });
+                return Ok(full_content);
+            }
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
+                if let Some(delta) = json["choices"][0]["delta"]["content"].as_str() {
+                    full_content.push_str(delta);
+                    let _ = app.emit("ai-stream-chunk", AiStreamChunk {
+                        session_id: session_id.clone(),
+                        delta: delta.to_string(),
+                        done: false,
+                    });
+                }
+            }
+        }
+    }
+
     let _ = app.emit("ai-stream-chunk", AiStreamChunk {
         session_id: session_id.clone(),
         delta: String::new(),
@@ -313,4 +385,61 @@ pub async fn ai_stream_chat(app: tauri::AppHandle, request: AiChatRequest) -> Re
     });
 
     Ok(full_content)
+}
+
+fn validate_session_id(session_id: &str) -> Result<(), AppError> {
+    if session_id.contains('/') || session_id.contains('\\') || session_id.contains("..") {
+        return Err(AppError::storage_path_traversal(format!("Invalid session ID: {}", session_id)));
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn ai_save_session(app: tauri::AppHandle, session_id: String, messages: Vec<AiChatMessage>) -> Result<(), AppError> {
+    validate_session_id(&session_id)?;
+    let data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| AppError::internal(format!("Failed to get app data dir: {}", e)))?;
+    let sessions_dir = data_dir.join("ai-sessions");
+    std::fs::create_dir_all(&sessions_dir)
+        .map_err(|e| AppError::storage_write_failed(format!("Failed to create sessions dir: {}", e)))?;
+    let path = sessions_dir.join(format!("{}.json", session_id));
+    let content = serde_json::to_string_pretty(&messages)
+        .map_err(|e| AppError::internal(format!("Failed to serialize session: {}", e)))?;
+    std::fs::write(&path, content)
+        .map_err(|e| AppError::storage_write_failed(format!("Failed to write session: {}", e)))?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn ai_load_session(app: tauri::AppHandle, session_id: String) -> Result<Vec<AiChatMessage>, AppError> {
+    validate_session_id(&session_id)?;
+    let data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| AppError::internal(format!("Failed to get app data dir: {}", e)))?;
+    let path = data_dir.join("ai-sessions").join(format!("{}.json", session_id));
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let content = std::fs::read_to_string(&path)
+        .map_err(|e| AppError::storage_read_failed(format!("Failed to read session: {}", e)))?;
+    serde_json::from_str(&content)
+        .map_err(|e| AppError::storage_parse_failed(format!("Failed to parse session: {}", e)))
+}
+
+#[tauri::command]
+pub async fn ai_delete_session(app: tauri::AppHandle, session_id: String) -> Result<(), AppError> {
+    validate_session_id(&session_id)?;
+    let data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| AppError::internal(format!("Failed to get app data dir: {}", e)))?;
+    let path = data_dir.join("ai-sessions").join(format!("{}.json", session_id));
+    if path.exists() {
+        std::fs::remove_file(&path)
+            .map_err(|e| AppError::storage_write_failed(format!("Failed to delete session: {}", e)))?;
+    }
+    Ok(())
 }

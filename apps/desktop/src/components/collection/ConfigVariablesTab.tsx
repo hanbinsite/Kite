@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useCollectionStore } from "../../stores/collection-store";
+import { useTranslation } from "react-i18next";
 import type { Variable, CollectionConfig, FolderConfig } from "@api-client/types";
+import { findFolderConfig } from "./findFolderConfig";
 
 interface ConfigVariablesTabProps {
   collectionId: string;
@@ -9,6 +11,7 @@ interface ConfigVariablesTabProps {
 }
 
 export function ConfigVariablesTab({ collectionId, folderId, variables }: ConfigVariablesTabProps) {
+  const { t } = useTranslation();
   const [items, setItems] = useState<Variable[]>(variables ?? []);
   const updateCollectionConfig = useCollectionStore((s) => s.updateCollectionConfig);
   const updateFolderConfig = useCollectionStore((s) => s.updateFolderConfig);
@@ -76,12 +79,12 @@ export function ConfigVariablesTab({ collectionId, folderId, variables }: Config
         <div className="flex gap-2">
           <button
             onClick={() => {
-              const text = prompt("Paste KEY=VALUE per line:");
+              const text = prompt(t("common.pasteKeyValuePrompt"));
               if (text) handleBulkImport(text);
             }}
             className="text-[12px] px-2.5 py-1 rounded bg-bg-elevated text-fg-secondary hover:text-fg-primary transition-colors"
           >
-            Bulk Import
+            {t("common.bulkImport")}
           </button>
           <button
             onClick={handleAdd}
@@ -131,17 +134,4 @@ export function ConfigVariablesTab({ collectionId, folderId, variables }: Config
       </div>
     </div>
   );
-}
-
-function findFolderConfig(items: Array<{ type: string; id: string; config?: unknown; items?: unknown[] }>, folderId: string): FolderConfig | undefined {
-  for (const item of items) {
-    if (item.type === "folder" && item.id === folderId) {
-      return item.config as FolderConfig | undefined;
-    }
-    if (item.type === "folder" && item.items) {
-      const result = findFolderConfig(item.items as Array<{ type: string; id: string; config?: unknown; items?: unknown[] }>, folderId);
-      if (result) return result;
-    }
-  }
-  return undefined;
 }

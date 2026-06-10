@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { X, Plus } from "lucide-react";
 import { useTabStore } from "@api-client/core";
 import { useRequestStore } from "../../stores";
 import { EnvSelector } from "../url-bar/EnvSelector";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
+import { saveCurrentRequest } from "../../hooks/useAutoSave";
 
 export function TabBar() {
+  const { t } = useTranslation();
   const tabs = useTabStore((s) => s.tabs);
   const activeTabId = useTabStore((s) => s.activeTabId);
   const openTab = useTabStore((s) => s.openTab);
@@ -52,8 +55,30 @@ export function TabBar() {
     setConfirmClose(null);
   };
 
+  const handleSaveAndClose = () => {
+    if (!confirmClose) return;
+    const { tabId, source } = confirmClose;
+    if (source === "close") {
+      saveCurrentRequest(tabId);
+      forceCloseTab(tabId);
+    } else if (source === "closeOthers") {
+      for (const tab of tabs) {
+        if (tab.id !== tabId) {
+          if (dirtyTabs[tab.id]) saveCurrentRequest(tab.id);
+          forceCloseTab(tab.id);
+        }
+      }
+    } else {
+      for (const tab of tabs) {
+        if (dirtyTabs[tab.id]) saveCurrentRequest(tab.id);
+        forceCloseTab(tab.id);
+      }
+    }
+    setConfirmClose(null);
+  };
+
   const handleNewTab = () => {
-    openTab({ name: "New Request", method: "GET", url: "" });
+    openTab({ name: t("tabs.newRequest"), method: "GET", url: "" });
   };
 
   const handleContextMenu = (e: React.MouseEvent, tabId: string) => {
@@ -97,7 +122,7 @@ export function TabBar() {
                   : "text-fg-secondary hover:text-fg-primary hover:bg-bg-hover"
               }`}
             >
-              <span className="max-w-40 truncate">{tab.url ? `${tab.method} ${tab.url}` : tab.name || "Untitled"}</span>
+              <span className="max-w-40 truncate">{tab.name || t("tabs.untitled")}</span>
               {dirtyTabs[tab.id] && !isActive && (
                 <span className="w-[6px] h-[6px] rounded-full bg-accent-warning shrink-0" />
               )}
@@ -118,7 +143,7 @@ export function TabBar() {
         <button
           onClick={handleNewTab}
           className="flex items-center justify-center w-7 h-7 rounded hover:bg-bg-hover text-fg-tertiary hover:text-fg-primary transition-colors flex-shrink-0"
-          title="New Tab (Cmd+T)"
+          title={`${t("tabs.newTab")} (Cmd+T)`}
         >
           <Plus className="w-3.5 h-3.5" />
         </button>
@@ -133,21 +158,23 @@ export function TabBar() {
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
-          <button onClick={() => { handleCloseTab(contextMenu.tabId); setContextMenu(null); }} className="w-full flex items-center h-7 px-3 text-sm text-fg-primary cursor-pointer hover:bg-bg-hover">Close Tab</button>
-          <button onClick={() => { closeOtherTabs(contextMenu.tabId); setContextMenu(null); }} className="w-full flex items-center h-7 px-3 text-sm text-fg-primary cursor-pointer hover:bg-bg-hover">Close Others</button>
-          <button onClick={() => { closeAllTabs(); setContextMenu(null); }} className="w-full flex items-center h-7 px-3 text-sm text-accent-danger cursor-pointer hover:bg-accent-danger/12">Close All</button>
+          <button onClick={() => { handleCloseTab(contextMenu.tabId); setContextMenu(null); }} className="w-full flex items-center h-7 px-3 text-sm text-fg-primary cursor-pointer hover:bg-bg-hover">{t("tabs.closeTab")}</button>
+          <button onClick={() => { closeOtherTabs(contextMenu.tabId); setContextMenu(null); }} className="w-full flex items-center h-7 px-3 text-sm text-fg-primary cursor-pointer hover:bg-bg-hover">{t("tabs.closeOthers")}</button>
+          <button onClick={() => { closeAllTabs(); setContextMenu(null); }} className="w-full flex items-center h-7 px-3 text-sm text-accent-danger cursor-pointer hover:bg-accent-danger/12">{t("tabs.closeAll")}</button>
         </div>
       )}
       <ConfirmDialog
         open={confirmClose !== null}
         onOpenChange={(open) => { if (!open) setConfirmClose(null); }}
-        title="Unsaved Changes"
-        description="This request has unsaved changes. Are you sure you want to close it without saving?"
-        confirmLabel="Don't Save"
-        cancelLabel="Cancel"
+        title={t("tabs.unsavedChanges")}
+        description={t("tabs.unsavedMessage")}
+        confirmLabel={t("tabs.dontSave")}
+        cancelLabel={t("common.cancel")}
+        secondaryLabel={t("common.save")}
         variant="warning"
         onConfirm={handleConfirmClose}
         onCancel={() => setConfirmClose(null)}
+        onSecondary={handleSaveAndClose}
       />
     </div>
   );

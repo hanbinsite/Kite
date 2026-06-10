@@ -22,6 +22,80 @@ import { useConsoleStore } from "./console-store";
 import { useCollectionStore } from "./collection-store";
 import { useTabStore } from "@api-client/core";
 
+function applyScriptHeaders(ipcConfig: IpcHttpRequestConfig, mod: { headers?: unknown }) {
+  const extraHeaders = Array.isArray(mod.headers) ? mod.headers : [];
+  for (const h of extraHeaders) {
+    const hRec = h as { key?: string; value?: string };
+    if (hRec.key && hRec.value) {
+      const existing = ipcConfig.headers.findIndex((eh) => eh.key === hRec.key);
+      if (existing >= 0) {
+        ipcConfig.headers[existing] = { key: hRec.key, value: hRec.value, disabled: false };
+      } else {
+        ipcConfig.headers.push({ key: hRec.key, value: hRec.value, disabled: false });
+      }
+    }
+  }
+}
+
+async function executePreRequestScripts(
+  tabId: string,
+  code: string,
+  scriptCtx: ScriptContext,
+  source: string,
+  ipcConfig: IpcHttpRequestConfig,
+  envScopes: VariableScope,
+  set: (fn: (state: RequestState) => void) => void,
+): Promise<boolean> {
+  try {
+    const scriptStart = Date.now();
+    const scriptResult: ScriptResult = await executeScript({ code, context: scriptCtx });
+    logScriptResult(tabId, "pre-request", scriptResult, scriptStart);
+    if (scriptResult.modifiedRequest) {
+      if (scriptResult.modifiedRequest.headers) {
+        applyScriptHeaders(ipcConfig, scriptResult.modifiedRequest);
+      }
+    }
+    applyScriptVariables(scriptResult, envScopes);
+    return true;
+  } catch (scriptErr) {
+    useConsoleStore.getState().addEntry(tabId, {
+      level: "error",
+      message: `[Pre-request][${source}] 执行失败: ${scriptErr}`,
+      source: "pre-request",
+    });
+    set((state) => {
+      state.error = `Script Error [${source}]: ${scriptErr}`;
+      delete state.loadingTabs[tabId];
+    });
+    return false;
+  }
+}
+
+async function executePostResponseScripts(
+  tabId: string,
+  code: string,
+  scriptCtx: ScriptContext,
+  source: string,
+  envScopes: VariableScope,
+  setTestResults: (tabId: string, results: TestResult[]) => void,
+): Promise<void> {
+  try {
+    const scriptStart = Date.now();
+    const scriptResult: ScriptResult = await executeScript({ code, context: scriptCtx });
+    logScriptResult(tabId, "post-response", scriptResult, scriptStart);
+    if (scriptResult.testResults.length > 0) {
+      setTestResults(tabId, scriptResult.testResults);
+    }
+    applyScriptVariables(scriptResult, envScopes);
+  } catch (scriptErr) {
+    useConsoleStore.getState().addEntry(tabId, {
+      level: "error",
+      message: `[Post-response][${source}] 执行失败: ${scriptErr}`,
+      source: "post-response",
+    });
+  }
+}
+
 export interface RequestData {
   headers: Header[];
   params: QueryParam[];
@@ -354,40 +428,8 @@ export const useRequestStore = create<RequestStore>()(
               folderPath: folderPathNames,
               collectionName,
             };
-            try {
-              const scriptStart = Date.now();
-              const scriptResult: ScriptResult = await executeScript({ code: entry.code, context: scriptCtx });
-              logScriptResult(tabId, "pre-request", scriptResult, scriptStart);
-              if (scriptResult.modifiedRequest) {
-                const mod = scriptResult.modifiedRequest;
-                if (mod.headers) {
-                  const extraHeaders = Array.isArray(mod.headers) ? mod.headers : [];
-                  for (const h of extraHeaders) {
-                    const hRec = h as { key?: string; value?: string };
-                    if (hRec.key && hRec.value) {
-                      const existing = ipcConfig.headers.findIndex((eh) => eh.key === hRec.key);
-                      if (existing >= 0) {
-                        ipcConfig.headers[existing] = { key: hRec.key, value: hRec.value, disabled: false };
-                      } else {
-                        ipcConfig.headers.push({ key: hRec.key, value: hRec.value, disabled: false });
-                      }
-                    }
-                  }
-                }
-              }
-              applyScriptVariables(scriptResult, envScopes);
-            } catch (scriptErr) {
-              useConsoleStore.getState().addEntry(tabId, {
-                level: "error",
-                message: `[Pre-request][${entry.source}] 执行失败: ${scriptErr}`,
-                source: "pre-request",
-              });
-              set((state) => {
-                state.error = `Script Error [${entry.source}]: ${scriptErr}`;
-                delete state.loadingTabs[tabId];
-              });
-              return;
-            }
+            const ok = await executePreRequestScripts(tabId, entry.code, scriptCtx, entry.source, ipcConfig, envScopes, set);
+            if (!ok) return;
           }
         } else {
           const preScript = requestData.scripts?.preRequest;
@@ -397,39 +439,8 @@ export const useRequestStore = create<RequestStore>()(
               environment: envScopes.environment,
               globals: envScopes.global,
             };
-            try {
-              const scriptStart = Date.now();
-              const scriptResult: ScriptResult = await executeScript({ code: preScript, context: scriptCtx });
-              logScriptResult(tabId, "pre-request", scriptResult, scriptStart);
-              if (scriptResult.modifiedRequest) {
-                const mod = scriptResult.modifiedRequest;
-                if (mod.headers) {
-                  const extraHeaders = Array.isArray(mod.headers) ? mod.headers : [];
-                  for (const h of extraHeaders) {
-                    const hRec = h as { key?: string; value?: string };
-                    if (hRec.key && hRec.value) {
-                      const existing = ipcConfig.headers.findIndex((eh) => eh.key === hRec.key);
-                      if (existing >= 0) {
-                        ipcConfig.headers[existing] = { key: hRec.key, value: hRec.value, disabled: false };
-                      } else {
-                        ipcConfig.headers.push({ key: hRec.key, value: hRec.value, disabled: false });
-                      }
-                    }
-                  }
-                }
-              }
-            } catch (scriptErr) {
-              useConsoleStore.getState().addEntry(tabId, {
-                level: "error",
-                message: `[Pre-request][Request] 执行失败: ${scriptErr}`,
-                source: "pre-request",
-              });
-              set((state) => {
-                state.error = `Script Error [Request]: ${scriptErr}`;
-                delete state.loadingTabs[tabId];
-              });
-              return;
-            }
+            const ok = await executePreRequestScripts(tabId, preScript, scriptCtx, "Request", ipcConfig, envScopes, set);
+            if (!ok) return;
           }
         }
 
@@ -470,21 +481,7 @@ export const useRequestStore = create<RequestStore>()(
             folderPath: folderPathNames,
             collectionName,
           };
-          try {
-            const scriptStart = Date.now();
-            const scriptResult: ScriptResult = await executeScript({ code: entry.code, context: scriptCtx });
-            logScriptResult(tabId, "post-response", scriptResult, scriptStart);
-            if (scriptResult.testResults.length > 0) {
-              get().setTestResults(tabId, scriptResult.testResults);
-            }
-            applyScriptVariables(scriptResult, envScopes);
-          } catch (scriptErr) {
-            useConsoleStore.getState().addEntry(tabId, {
-              level: "error",
-              message: `[Post-response][${entry.source}] 执行失败: ${scriptErr}`,
-              source: "post-response",
-            });
-          }
+          await executePostResponseScripts(tabId, entry.code, scriptCtx, entry.source, envScopes, get().setTestResults);
         }
       } else {
         const postScript = requestData.scripts?.postResponse;
@@ -495,20 +492,7 @@ export const useRequestStore = create<RequestStore>()(
             environment: envScopes.environment,
             globals: envScopes.global,
           };
-          try {
-            const scriptStart = Date.now();
-            const scriptResult: ScriptResult = await executeScript({ code: postScript, context: scriptCtx });
-            logScriptResult(tabId, "post-response", scriptResult, scriptStart);
-            if (scriptResult.testResults.length > 0) {
-              get().setTestResults(tabId, scriptResult.testResults);
-            }
-          } catch (scriptErr) {
-            useConsoleStore.getState().addEntry(tabId, {
-              level: "error",
-              message: `[Post-response][Request] 执行失败: ${scriptErr}`,
-              source: "post-response",
-            });
-          }
+          await executePostResponseScripts(tabId, postScript, scriptCtx, "Request", envScopes, get().setTestResults);
         }
       }
 
@@ -550,16 +534,14 @@ export const useRequestStore = create<RequestStore>()(
 
   initTabData: (tabId, data) =>
     set((state) => {
-      if (!state.requestDataMap[tabId]) {
-        state.requestDataMap[tabId] = {
-          headers: data?.headers ?? [],
-          params: data?.params ?? [],
-          body: data?.body ?? null,
-          auth: data?.auth ?? { ...DEFAULT_AUTH },
-          settings: data?.settings ?? { timeoutMs: 30000, followRedirects: true, maxRedirects: 10, verifySsl: true },
-          scripts: data?.scripts ?? { preRequest: undefined, postResponse: undefined },
-        };
-      }
+      state.requestDataMap[tabId] = {
+        headers: data?.headers ?? [],
+        params: data?.params ?? [],
+        body: data?.body ?? null,
+        auth: data?.auth ?? { ...DEFAULT_AUTH },
+        settings: data?.settings ?? { timeoutMs: 30000, followRedirects: true, maxRedirects: 10, verifySsl: true },
+        scripts: data?.scripts ?? { preRequest: undefined, postResponse: undefined },
+      };
     }),
 
   markDirty: (tabId) =>

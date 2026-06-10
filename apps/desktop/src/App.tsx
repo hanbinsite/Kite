@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { AppLayout } from "./components/layout/AppLayout";
 import { Sidebar } from "./components/sidebar/Sidebar";
 import { CollapsedSidebar } from "./components/sidebar/CollapsedSidebar";
@@ -8,14 +9,16 @@ import { SettingsPage } from "./components/settings";
 import { CodeSnippetDrawer, CollectionRunnerDialog, ImportDialog, ExportDialog, VariableInspector } from "./components/drawers";
 import { useUIStore, useTabStore } from "@api-client/core";
 import { Plus, Settings, FolderOpen, History, Code2, Terminal, Play, Upload, Download, Variable, Bot } from "lucide-react";
-import { useTheme, useKeyboardShortcuts, useAutoSave } from "./hooks";
+import { useTheme, useKeyboardShortcuts, useAutoSave, useSaveShortcut } from "./hooks";
 import { useRequestStore, initWsEventListener, initSseEventListener, initMqttEventListener, initGrpcEventListener, initMockEventListener, useCollectionStore, useEnvironmentStore } from "./stores";
 import { useProviderStore } from "@api-client/core/ai";
 import { i18n } from "./i18n";
 
 export function App() {
+  const { t } = useTranslation();
   useTheme();
   useAutoSave();
+  useSaveShortcut();
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isCodeDrawerOpen, setIsCodeDrawerOpen] = useState(false);
   const [isRunnerOpen, setIsRunnerOpen] = useState(false);
@@ -66,7 +69,7 @@ export function App() {
       }
       if (e.key.toLowerCase() === "n" && isMeta) {
         e.preventDefault();
-        openTab({ name: "New Request", method: "GET", url: "" });
+        openTab({ name: t("tabs.newRequest"), method: "GET", url: "" });
       }
       if (e.key.toLowerCase() === "c" && isMeta && e.shiftKey) {
         e.preventDefault();
@@ -128,15 +131,15 @@ export function App() {
   const commands: CommandItem[] = [
     {
       id: "new-request",
-      label: "New Request",
+      label: t("commandPalette.actions.newRequest"),
       category: "action",
       icon: <Plus className="w-4 h-4" />,
-      action: () => openTab({ name: "New Request", method: "GET", url: "" }),
+      action: () => openTab({ name: t("tabs.newRequest"), method: "GET", url: "" }),
       shortcut: "Cmd+N",
     },
     {
       id: "toggle-sidebar",
-      label: "Toggle Sidebar",
+      label: t("commandPalette.actions.toggleSidebar"),
       category: "action",
       icon: <Settings className="w-4 h-4" />,
       action: toggleSidebar,
@@ -144,21 +147,21 @@ export function App() {
     },
     {
       id: "open-collection",
-      label: "Open Collection",
+      label: t("commandPalette.actions.openCollection"),
       category: "action",
       icon: <FolderOpen className="w-4 h-4" />,
       action: () => {},
     },
     {
       id: "view-history",
-      label: "View History",
+      label: t("commandPalette.actions.viewHistory"),
       category: "recent",
       icon: <History className="w-4 h-4" />,
       action: () => {},
     },
     {
       id: "generate-code",
-      label: "Generate Code",
+      label: t("commandPalette.actions.generateCode"),
       category: "action",
       icon: <Code2 className="w-4 h-4" />,
       action: () => setIsCodeDrawerOpen(true),
@@ -166,7 +169,7 @@ export function App() {
     },
     {
       id: "toggle-console",
-      label: "Toggle Console",
+      label: t("commandPalette.actions.toggleConsole"),
       category: "action",
       icon: <Terminal className="w-4 h-4" />,
       action: toggleConsole,
@@ -174,35 +177,35 @@ export function App() {
     },
     {
       id: "collection-runner",
-      label: "Collection Runner",
+      label: t("commandPalette.actions.collectionRunner"),
       category: "action",
       icon: <Play className="w-4 h-4" />,
       action: () => setIsRunnerOpen(true),
     },
     {
       id: "import",
-      label: "Import Collection",
+      label: t("commandPalette.actions.importCollection"),
       category: "action",
       icon: <Upload className="w-4 h-4" />,
       action: () => setIsImportOpen(true),
     },
     {
       id: "export",
-      label: "Export Collection",
+      label: t("commandPalette.actions.exportCollection"),
       category: "action",
       icon: <Download className="w-4 h-4" />,
       action: () => setIsExportOpen(true),
     },
     {
       id: "variable-inspector",
-      label: "Variable Inspector",
+      label: t("commandPalette.actions.variableInspector"),
       category: "action",
       icon: <Variable className="w-4 h-4" />,
       action: () => setIsVariableInspectorOpen(true),
     },
     {
       id: "ai-chat",
-      label: "AI Assistant",
+      label: t("commandPalette.actions.aiAssistant"),
       category: "ai",
       icon: <Bot className="w-4 h-4" />,
       action: () => { setBottomPanelTab("ai"); toggleAiPanel(); },

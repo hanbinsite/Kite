@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Search, Command, FolderOpen, Variable } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface CommandItem {
   id: string;
@@ -28,6 +29,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 const CATEGORY_ORDER = ["recent", "collection", "variable", "action", "ai"] as const;
 
 export function CommandPalette({ isOpen, onClose, items }: CommandPaletteProps) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -156,7 +158,7 @@ export function CommandPalette({ isOpen, onClose, items }: CommandPaletteProps) 
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type a command or search..."
+            placeholder={t("commandPalette.placeholder")}
             className="flex-1 bg-transparent text-sm text-fg-primary placeholder:text-fg-tertiary outline-none"
           />
           <span className="text-xs text-fg-tertiary px-1.5 py-0.5 bg-bg-hover rounded">ESC</span>

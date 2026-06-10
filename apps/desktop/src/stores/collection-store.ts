@@ -10,7 +10,7 @@ import {
   type IpcAuthConfig,
   buildIpcAuth,
 } from "@api-client/core/http";
-import type { BodyConfig, AuthConfig, Header, ScriptConfig, CollectionConfig, FolderConfig } from "@api-client/types";
+import type { BodyConfig, AuthConfig, Header, QueryParam, ScriptConfig, CollectionConfig, FolderConfig } from "@api-client/types";
 import type { ResolvedHierarchy, ResolvedHierarchyFolder } from "@api-client/core";
 
 export interface CollectionRequest {
@@ -19,6 +19,7 @@ export interface CollectionRequest {
   name: string;
   url: string;
   headers?: Header[];
+  params?: QueryParam[];
   auth?: AuthConfig;
   body?: BodyConfig;
   scripts?: ScriptConfig;
@@ -33,7 +34,7 @@ export interface CollectionFolder {
 }
 
 export type CollectionTreeNode =
-  | { type: "request"; id: string; method: string; name: string; url: string; headers?: Header[]; auth?: AuthConfig; body?: BodyConfig; scripts?: ScriptConfig }
+  | { type: "request"; id: string; method: string; name: string; url: string; headers?: Header[]; params?: QueryParam[]; auth?: AuthConfig; body?: BodyConfig; scripts?: ScriptConfig }
   | { type: "folder"; id: string; name: string; description?: string; config?: FolderConfig; items: CollectionTreeNode[] };
 
 export interface CollectionItem {
@@ -118,7 +119,7 @@ function treeToIpcItems(items: CollectionTreeNode[]): IpcCollectionItem[] {
       method: item.method,
       url: item.url,
       headers: item.headers ?? [],
-      params: [],
+      params: item.params ?? [],
       body: bodyToIpc(item.body),
       auth: authToIpc(item.auth),
       scripts: item.scripts ? { pre_request: item.scripts.preRequest, post_response: item.scripts.postResponse } : { pre_request: undefined, post_response: undefined },
@@ -196,6 +197,7 @@ function ipcItemsToTree(items: IpcCollectionItem[]): CollectionTreeNode[] {
       method: item.method ?? "GET",
       url: item.url ?? "",
       headers: item.headers,
+      params: item.params,
       auth: ipcAuthToAuth(item.auth),
       body: ipcBodyToBody(item.body),
       scripts: item.scripts ? {
@@ -213,34 +215,35 @@ function findAndRemoveNode(items: CollectionTreeNode[], id: string): CollectionT
             item.items = findAndRemoveNode(item.items, id);
         }
         return true;
-    });
+    }).map((item) => item);
 }
 
 function findAndRenameNode(items: CollectionTreeNode[], id: string, name: string): CollectionTreeNode[] {
-    for (const item of items) {
-        if (item.type === "request" && item.id === id) { item.name = name; break; }
-        if (item.type === "folder" && item.id === id) { item.name = name; break; }
-        if (item.type === "folder") { findAndRenameNode(item.items, id, name); }
-    }
-    return items;
+    return items.map((item) => {
+        if ((item.type === "request" || item.type === "folder") && item.id === id) {
+            return { ...item, name };
+        }
+        if (item.type === "folder") {
+            return { ...item, items: findAndRenameNode(item.items, id, name) };
+        }
+        return item;
+    });
 }
 
 function findAndDuplicateNode(items: CollectionTreeNode[], requestId: string): CollectionTreeNode[] {
-  for (const item of items) {
+  return items.flatMap((item) => {
     if (item.type === "request" && item.id === requestId) {
       const copy: CollectionTreeNode = { ...item, id: crypto.randomUUID(), name: `${item.name} (copy)` };
-      return [...items, copy];
+      return [item, copy];
     }
     if (item.type === "folder") {
-      const before = item.items.length;
       const newChildren = findAndDuplicateNode(item.items, requestId);
-      if (newChildren.length > before) {
-        item.items = newChildren;
-        return items;
+      if (newChildren !== item.items) {
+        return [{ ...item, items: newChildren }];
       }
     }
-  }
-  return items;
+    return [item];
+  });
 }
 
 function findInTree(

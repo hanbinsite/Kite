@@ -8,6 +8,7 @@ export interface AiChatRequest {
   messages: AiMessage[];
   temperature?: number;
   maxTokens?: number;
+  sessionId?: string;
 }
 
 export interface AiChatResponse {
@@ -32,6 +33,10 @@ export interface AiStreamChunk {
   sessionId: string;
   delta: string;
   done: boolean;
+}
+
+export interface AiApiKeyStatus {
+  hasKey: boolean;
 }
 
 export interface AgentAction {
@@ -80,6 +85,16 @@ export async function removeProvider(providerId: string): Promise<void> {
   return invoke<void>("ai_remove_provider", { providerId });
 }
 
+export async function setApiKey(providerId: string, apiKey: string): Promise<void> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<void>("ai_set_api_key", { providerId, apiKey });
+}
+
+export async function getApiKeyStatus(providerId: string): Promise<AiApiKeyStatus> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<AiApiKeyStatus>("ai_get_api_key_status", { providerId });
+}
+
 export async function testConnection(providerId: string, baseUrl: string, model: string): Promise<{ promptTokens: number; completionTokens: number; totalTokens: number }> {
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke<{ promptTokens: number; completionTokens: number; totalTokens: number }>("ai_test_connection", { providerId, baseUrl, model });
@@ -93,6 +108,21 @@ export async function aiChat(request: AiChatRequest): Promise<AiChatResponse> {
 export async function aiStreamChat(request: AiChatRequest): Promise<string> {
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke<string>("ai_stream_chat", { request });
+}
+
+export async function aiSaveSession(sessionId: string, messages: AiMessage[]): Promise<void> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<void>("ai_save_session", { sessionId, messages });
+}
+
+export async function aiLoadSession(sessionId: string): Promise<AiMessage[]> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<AiMessage[]>("ai_load_session", { sessionId });
+}
+
+export async function aiDeleteSession(sessionId: string): Promise<void> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<void>("ai_delete_session", { sessionId });
 }
 
 export { useProviderStore, useChatStore } from "./store";

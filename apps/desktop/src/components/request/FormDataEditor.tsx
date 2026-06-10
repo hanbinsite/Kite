@@ -1,4 +1,5 @@
-import { useState, useCallback, useRef } from "react";
+import { useRef, useCallback, useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Plus, Trash2, Check, FileText, Type } from "lucide-react";
 import type { FormDataParam } from "@api-client/types";
 
@@ -18,9 +19,13 @@ interface FormDataEditorProps {
   onChange: (items: FormDataParam[]) => void;
 }
 
-function paramToItem(p: FormDataParam): FormDataItem {
+interface FormDataItemWithId extends FormDataItem {
+  id: string;
+}
+
+function paramToItem(id: string, p: FormDataParam): FormDataItemWithId {
   return {
-    id: crypto.randomUUID(),
+    id,
     key: p.key,
     value: p.value,
     type: p.type,
@@ -42,39 +47,40 @@ function itemToParam(item: FormDataItem): FormDataParam {
 }
 
 export function FormDataEditor({ items, onChange }: FormDataEditorProps) {
+  const { t } = useTranslation();
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
+  const emptyRowIdRef = useRef(crypto.randomUUID());
+  const idMapRef = useRef<Record<number, string>>({});
 
-  const formItems = items.map(paramToItem);
+  const formItems: FormDataItemWithId[] = useMemo(() =>
+    items.map((p, i) => {
+      const id = idMapRef.current[i] ?? (idMapRef.current[i] = crypto.randomUUID());
+      return paramToItem(id, p);
+    }),
+    [items]
+  );
 
-  const rowsWithEmpty = (() => {
+  const rowsWithEmpty = useMemo(() => {
     const last = formItems[formItems.length - 1];
     if (last && (last.key || last.value)) {
-      return [...formItems, { id: crypto.randomUUID(), key: "", value: "", type: "text" as const, disabled: false }];
+      return [...formItems, { id: emptyRowIdRef.current, key: "", value: "", type: "text" as const, disabled: false }];
     }
     if (formItems.length === 0) {
-      return [{ id: crypto.randomUUID(), key: "", value: "", type: "text" as const, disabled: false }];
+      return [{ id: emptyRowIdRef.current, key: "", value: "", type: "text" as const, disabled: false }];
     }
     return formItems;
-  })();
+  }, [formItems]);
 
   const updateItem = useCallback(
     (id: string, updates: Partial<FormDataItem>) => {
       const updated = rowsWithEmpty.map((item) =>
         item.id === id ? { ...item, ...updates } : item,
       );
-      const changedIdx = updated.findIndex((i) => i.id === id);
-      const changed = updated[changedIdx];
-      if (changed && (changed.key || changed.value)) {
-        const next = updated[changedIdx + 1];
-        if (!next) {
-          updated.push({ id: crypto.randomUUID(), key: "", value: "", type: "text", disabled: false });
-        }
-      }
       onChange(
         updated
-          .filter((item) => item.key || item.value || updated.indexOf(item) === updated.length - 1)
+          .filter((item) => item.key || item.value || item.id === emptyRowIdRef.current)
           .map(itemToParam),
       );
     },
@@ -123,9 +129,9 @@ export function FormDataEditor({ items, onChange }: FormDataEditorProps) {
       />
       <div className="formdata-header grid grid-cols-[20px_160px_80px_1fr_28px] h-[28px] px-3 items-center border-b border-border-muted text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em]">
         <span />
-        <span>Key</span>
-        <span>Type</span>
-        <span>Value</span>
+        <span>{t("request.key")}</span>
+        <span>{t("common.type")}</span>
+        <span>{t("common.value")}</span>
         <span />
       </div>
 
@@ -155,7 +161,7 @@ export function FormDataEditor({ items, onChange }: FormDataEditorProps) {
                 type="text"
                 value={item.key}
                 onChange={(e) => updateItem(item.id, { key: e.target.value })}
-                placeholder="Key"
+                placeholder={t("request.key")}
                 className="w-full border-none outline-none bg-transparent font-mono text-[12px] text-fg-primary leading-[16px] placeholder:text-fg-tertiary"
               />
             </div>
@@ -179,7 +185,7 @@ export function FormDataEditor({ items, onChange }: FormDataEditorProps) {
                 ) : (
                   <Type size={11} />
                 )}
-                {item.type === "file" ? "File" : "Text"}
+                {item.type === "file" ? t("request.file") : t("request.text")}
               </button>
             </div>
 
@@ -195,7 +201,7 @@ export function FormDataEditor({ items, onChange }: FormDataEditorProps) {
                       <span className="font-mono text-[11px] text-fg-primary truncate">{item.fileName}</span>
                     </>
                   ) : (
-                    <span className="font-sans text-[11px] text-fg-tertiary">Select file...</span>
+                    <span className="font-sans text-[11px] text-fg-tertiary">{t("request.selectFile")}</span>
                   )}
                 </div>
               ) : (
@@ -203,7 +209,7 @@ export function FormDataEditor({ items, onChange }: FormDataEditorProps) {
                   type="text"
                   value={item.value}
                   onChange={(e) => updateItem(item.id, { value: e.target.value })}
-                  placeholder="Value"
+                  placeholder={t("common.value")}
                   className="w-full border-none outline-none bg-transparent font-mono text-[12px] text-fg-primary leading-[16px] placeholder:text-fg-tertiary"
                 />
               )}
@@ -233,7 +239,7 @@ export function FormDataEditor({ items, onChange }: FormDataEditorProps) {
         className="flex items-center gap-[6px] h-[32px] px-3 font-sans text-[12px] text-fg-tertiary cursor-pointer transition-all duration-50 hover:text-brand hover:bg-brand-muted"
       >
         <Plus size={14} />
-        Add Field
+        {t("request.addField")}
       </button>
     </div>
   );

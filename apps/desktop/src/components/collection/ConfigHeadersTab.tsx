@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useCollectionStore } from "../../stores/collection-store";
 import type { Header, CollectionConfig, FolderConfig } from "@api-client/types";
+import { findFolderConfig } from "./findFolderConfig";
 
 interface ConfigHeadersTabProps {
   collectionId: string;
@@ -107,17 +108,4 @@ export function ConfigHeadersTab({ collectionId, folderId, headers }: ConfigHead
       </div>
     </div>
   );
-}
-
-function findFolderConfig(items: Array<{ type: string; id: string; config?: unknown; items?: unknown[] }>, folderId: string): FolderConfig | undefined {
-  for (const item of items) {
-    if (item.type === "folder" && item.id === folderId) {
-      return item.config as FolderConfig | undefined;
-    }
-    if (item.type === "folder" && item.items) {
-      const result = findFolderConfig(item.items as Array<{ type: string; id: string; config?: unknown; items?: unknown[] }>, folderId);
-      if (result) return result;
-    }
-  }
-  return undefined;
 }

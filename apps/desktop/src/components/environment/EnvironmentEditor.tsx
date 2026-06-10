@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useEnvironmentStore } from "../../stores/environment-store";
 import { KeyValueEditor, type KeyValue } from "../request/KeyValueEditor";
 import type { Variable } from "@api-client/types";
@@ -12,9 +13,9 @@ interface EnvironmentEditorProps {
 }
 
 const ENV_TYPES = [
-  { id: "dev", label: "Development" },
-  { id: "staging", label: "Staging" },
-  { id: "production", label: "Production" },
+  { id: "dev", labelKey: "settings.general.development" },
+  { id: "staging", labelKey: "settings.general.staging" },
+  { id: "production", labelKey: "settings.general.production" },
 ] as const;
 
 function variablesToKv(variables: Variable[]): KeyValue[] {
@@ -46,6 +47,7 @@ function ensureEmptyRow(items: KeyValue[]): KeyValue[] {
 }
 
 export function EnvironmentEditor({ environmentId, isOpen, onClose }: EnvironmentEditorProps) {
+  const { t } = useTranslation();
   const environment = useEnvironmentStore((s) => s.environments.find((e) => e.id === environmentId));
   const updateEnvironment = useEnvironmentStore((s) => s.updateEnvironment);
   const persistEnvironment = useEnvironmentStore((s) => s.persistEnvironment);
@@ -67,7 +69,7 @@ export function EnvironmentEditor({ environmentId, isOpen, onClose }: Environmen
   const handleSave = () => {
     // 验证���称
     if (!name.trim()) {
-      setNameError("Environment name is required");
+      setNameError(t("settings.environments.nameRequired"));
       return;
     }
 
@@ -104,7 +106,7 @@ export function EnvironmentEditor({ environmentId, isOpen, onClose }: Environmen
           {/* Header */}
           <div className="flex items-center h-12 px-5 border-b border-border-muted shrink-0">
             <Dialog.Title className="font-sans text-base font-semibold text-fg-primary">
-              Edit Environment: {environment.name}
+              {t("settings.environments.editorTitle", { name: environment.name })}
             </Dialog.Title>
             <Dialog.Close asChild>
               <button
@@ -122,7 +124,7 @@ export function EnvironmentEditor({ environmentId, isOpen, onClose }: Environmen
               {/* Environment Name */}
               <div className="flex flex-col gap-2">
                 <label className="font-sans text-[11px] font-semibold text-fg-secondary">
-                  Environment Name
+                  {t("settings.environments.nameLabel")}
                 </label>
                 <input
                   type="text"
@@ -131,7 +133,7 @@ export function EnvironmentEditor({ environmentId, isOpen, onClose }: Environmen
                     setName(e.target.value);
                     setNameError("");
                   }}
-                  placeholder="e.g. Development"
+                  placeholder={t("settings.environments.namePlaceholder")}
                   className={`w-full h-[32px] px-3 bg-bg-input border rounded-md font-sans text-[13px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary ${
                     nameError ? "border-accent-danger" : "border-border-muted"
                   }`}
@@ -144,7 +146,7 @@ export function EnvironmentEditor({ environmentId, isOpen, onClose }: Environmen
               {/* Environment Type */}
               <div className="flex flex-col gap-2">
                 <label className="font-sans text-[11px] font-semibold text-fg-secondary">
-                  Environment Type
+                  {t("settings.environments.typeLabel")}
                 </label>
                 <div className="flex items-center gap-3">
                   {ENV_TYPES.map((type) => (
@@ -160,7 +162,7 @@ export function EnvironmentEditor({ environmentId, isOpen, onClose }: Environmen
                         className="w-4 h-4 accent-brand cursor-pointer"
                       />
                       <span className="font-sans text-[13px] text-fg-primary">
-                        {type.label}
+                        {t(type.labelKey)}
                       </span>
                     </label>
                   ))}
@@ -170,13 +172,13 @@ export function EnvironmentEditor({ environmentId, isOpen, onClose }: Environmen
               {/* Variables */}
               <div className="flex flex-col gap-2">
                 <label className="font-sans text-[11px] font-semibold text-fg-secondary">
-                  Variables
+                  {t("settings.environments.variablesLabel")}
                 </label>
                 <div className="border border-border-muted rounded-md overflow-hidden h-[280px]">
                   <KeyValueEditor
                     items={variables}
                     onChange={handleVariablesChange}
-                    placeholder={{ key: "Variable Name", value: "Value" }}
+                    placeholder={{ key: t("common.name"), value: t("common.value") }}
                     showDescription={false}
                   />
                 </div>
@@ -196,7 +198,7 @@ export function EnvironmentEditor({ environmentId, isOpen, onClose }: Environmen
               onClick={handleSave}
               className="h-8 px-4 rounded-md font-sans text-[13px] font-medium text-white bg-brand hover:bg-brand-hover cursor-pointer transition-colors"
             >
-              Save Changes
+              {t("settings.environments.saveChanges")}
             </button>
           </div>
         </Dialog.Content>

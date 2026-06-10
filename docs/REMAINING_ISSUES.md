@@ -253,7 +253,7 @@
 
 - **ISSUE-7.23**: 脚本执行阻塞 Tokio 线程 — `script.rs` 使用 `std::thread` 但 Tauri 异步线程仍等待
 - **ISSUE-7.24**: `pm.sendRequest` 无 cookie 共享 — 使用独立 HTTP 客户端
-- **ISSUE-7.25**: AI streaming 未实现 — `ai_chat` 等待完整响应
+- **ISSUE-7.25**: AI streaming 未实现 — ✅ FIXED — 新增 `ai_stream_chat` Rust 命令 + 前端 `listen` 逐字推送 + ChatStore streaming 模式
 - **ISSUE-7.26**: `pm_api.rs` 空文件 — 模块声明存在但未实现
 - **ISSUE-7.27**: JS 注入风险 — `build_pm_js` 使用字符串格式化注入变量值
 - **ISSUE-7.28**: Settings 存 localStorage 而非 Rust SQLite — 与其他设置的持久化方式不一致
@@ -267,4 +267,62 @@
 
 ---
 
-*最后更新：2026-05-07 (ISSUE-7.1~7.19 已修复)*
+## 第八批 — Phase 4 AI 核心功能实现（2026-05-07）
+
+> 实现了 Phase 4 AI 模块 Week 1 的核心功能（15-Phase4-AI模块任务清单.md §4.01~4.03 + §4.06~4.08 + §4.11）
+
+### ✅ 已完成功能
+
+- **ISSUE-8.1**: AI Streaming Chat — ✅ DONE — Rust `ai_stream_chat` SSE 解析 + `app.emit("ai-stream-chunk")` 逐字推送 + 前端 `listen` 逐字追加 + 光标闪烁动画
+- **ISSUE-8.2**: Slash Commands — ✅ DONE — 9 条命令 (`/explain` `/fix` `/test` `/doc` `/mock` `/extract` `/diff` `/create` `/analyze`) + 自动补全菜单 + 模糊搜索
+- **ISSUE-8.3**: 响应上下文注入 — ✅ DONE — 自动注入当前响应 (status + body preview) + 请求信息 + 环境变量 + 集合信息
+- **ISSUE-8.4**: Response Explain/Fix 按钮 — ✅ DONE — 2xx 显示 Explain (Brain 图标) / 4xx+5xx 显示 Fix (Wrench 图标) + 点击触发 AI Slash Command
+- **ISSUE-8.5**: AgentAction 类型定义 — ✅ DONE — `AgentAction` 接口定义 8 种 action type + `SlashCommand` 接口 + `SLASH_COMMANDS` 常量
+- **ISSUE-8.6**: ChatStore Streaming 模式 — ✅ DONE — `streamingSessions` 状态 + `sendSlashCommand` + `updateLastAssistantMessage`
+
+---
+
+*最后更新：2026-05-07 (ISSUE-7.25 修复 + ISSUE-8.1~8.6 完成)*
+
+---
+
+## 第九批 — AI 模块深度审计修复（2026-05-09）
+
+> 基于 Phase 4 AI 代码全量审计，发现 7 个问题（HIGH 5 / MEDIUM 2），全部已修复。
+
+### ✅ 已修复 — HIGH (5 项)
+
+- **ISSUE-9.1**: AI stream listener 不按 sessionId 过滤 — ✅ FIXED — 前端 `listen` 回调新增 `if (chunk.sessionId !== sessionId) return;` 过滤，Rust 端透传前端 `request.sessionId` 而非生成随机 UUID
+- **ISSUE-9.2**: SSE 行解析跨 TCP chunk 截断 — ✅ FIXED — 新增 `line_buf: String` 行缓冲区，累积至 `\n` 再解析，末尾残留行也做兜底处理
+- **ISSUE-9.3**: `ai_test_connection` 不发送 API Key — ✅ FIXED — 重构为从 keyring 读取 API key 并附加 `Authorization: Bearer` header，provider_id 改为必要参数
+- **ISSUE-9.4**: 缺少 `ai_set_api_key` 命令 — ✅ FIXED — 新增 `ai_set_api_key` / `ai_get_api_key_status` 两个 Tauri Command，API key 存 keyring 不经 IPC 传输
+- **ISSUE-9.5**: Settings 页缺少 AI 类别 — ✅ FIXED — 新增 AI Provider 配置页面：添加/删除 provider + API key 管理（keyring）+ Test Connection + Active 切换 + key 状态指示器
+
+### ✅ 已修复 — MEDIUM (2 项)
+
+- **ISSUE-9.6**: AI 对话不持久化（关闭 Tab 丢失）— ✅ FIXED — 新增 `ai_save_session` / `ai_load_session` / `ai_delete_session` 三个 Rust Command，持久化到 `{app_data}/ai-sessions/{tabId}.json`，ChatStore `sendMessage`/`sendSlashCommand` 完成后自动 `saveSession`，Tab 切换时自动 `loadSession`
+- **ISSUE-9.7**: `AiChatRequest.sessionId` 缺失 — ✅ FIXED — Rust `AiChatRequest` 新增 `session_id: Option<String>` 字段，前端 `aiStreamChat` 调用时传入 tab sessionId，Rust 端透传到 `AiStreamChunk.session_id` 而非随机生成
+
+---
+
+*最后更新：2026-05-09 (ISSUE-9.1~9.7 全部修复)*
+
+---
+
+## 第十批 — AI 模块第二轮深度审计修复（2026-05-09）
+
+> 基于修复后代码的二次审计，发现 4 个问题（HIGH 2 / MEDIUM 2），全部已修复。
+
+### ✅ 已修复 — HIGH (2 项)
+
+- **ISSUE-10.1**: ResponsePanel Explain/Fix 按钮不注入上下文 — ✅ FIXED — 原代码调用 `sendSlashCommand(sessionId, providerId, "/fix")` 不传 `contextMessages`，AI 无法感知当前响应内容。修复：构建包含 request info + response status/body preview 的上下文消息，传入 `sendSlashCommand` 第 4 参数
+- **ISSUE-10.2**: `ai_save_session`/`ai_load_session` session_id 路径遍历 — ✅ FIXED — `session_id` 直接拼接文件路径 `format!("{}.json", session_id)`，恶意 ID 如 `"../../etc/passwd"` 可逃逸 `ai-sessions/` 目录。修复：新增 `validate_session_id()` 校验不含 `/` `\` `..`，三个命令均调用
+
+### ✅ 已修复 — MEDIUM (2 项)
+
+- **ISSUE-10.3**: `ai_remove_provider` keyring 错误阻断删除 — ✅ FIXED — 原代码 `keyring::Entry::new(...)?` 失败时整个 remove 操作返回错误，但 provider 配置已删除。修复：改为 `if let Ok(entry) = ...` 容忍 keyring 错误
+- **ISSUE-10.4**: `clearMessages` 不删除持久化文件 — ✅ FIXED — 原代码仅清内存，不调 `aiDeleteSession`。下次 loadSession 恢复旧数据。修复：clearMessages 后调用 `aiDeleteSession(sessionId)`
+
+---
+
+*最后更新：2026-05-09 (ISSUE-10.1~10.4 全部修复)*

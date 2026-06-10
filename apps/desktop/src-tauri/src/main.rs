@@ -84,9 +84,14 @@ commands::crypto::delete_vault_secret,
             ai::provider::ai_set_provider,
             ai::provider::ai_add_provider,
             ai::provider::ai_remove_provider,
+            ai::provider::ai_set_api_key,
+            ai::provider::ai_get_api_key_status,
             ai::provider::ai_test_connection,
             ai::provider::ai_chat,
             ai::provider::ai_stream_chat,
+            ai::provider::ai_save_session,
+            ai::provider::ai_load_session,
+            ai::provider::ai_delete_session,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
@@ -95,6 +100,7 @@ commands::crypto::delete_vault_secret,
                     let _ = tokio::fs::create_dir_all(data_dir.join("collections")).await;
                     let _ = tokio::fs::create_dir_all(data_dir.join("environments")).await;
                     let _ = tokio::fs::create_dir_all(data_dir.join("vault")).await;
+                    let _ = tokio::fs::create_dir_all(data_dir.join("ai-sessions")).await;
 
                     if let Ok(s) = storage::Storage::new(&data_dir) {
                         let state = app_handle.state::<AppState>();

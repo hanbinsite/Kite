@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Search,
   Plus,
@@ -11,7 +12,6 @@ import {
   FileText,
 } from "lucide-react";
 import { useUIStore, useTabStore, type Tab } from "@api-client/core";
-import { useEnvironmentStore } from "../../stores/environment-store";
 import { useRequestStore } from "../../stores/request-store";
 import { useCollectionStore, type CollectionTreeNode } from "../../stores/collection-store";
 import { queryHistoryEntries, getCollection, type IpcCollectionItem } from "@api-client/core/http";
@@ -43,7 +43,7 @@ function SidebarSection({
 
   return (
     <div className="border-b border-border-muted">
-      <div className="w-full flex items-center gap-1 px-3 h-7 text-xs font-semibold uppercase tracking-wider text-fg-secondary">
+      <div className="w-full flex items-center gap-1 px-3 h-7 text-[13px] font-semibold uppercase tracking-wider text-fg-secondary">
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="flex items-center gap-1 flex-1 hover:bg-bg-hover transition-colors -mx-3 px-3 h-7"
@@ -147,7 +147,7 @@ function CollectionTreeItems({
           return (
             <div key={item.id}>
               <div
-                className="group flex items-center gap-1 px-3 py-0.5 text-[11px] hover:bg-bg-hover cursor-pointer"
+                className="group flex items-center gap-1 px-3 py-0.5 text-[13px] hover:bg-bg-hover cursor-pointer"
                 onClick={() => toggleExpand(item.id)}
                 onDoubleClick={() => startEditing(item.id, item.name)}
                 onContextMenu={(e) => {
@@ -173,7 +173,7 @@ function CollectionTreeItems({
                       }
                     }}
                     onClick={(e) => e.stopPropagation()}
-                    className="flex-1 bg-bg-input border border-border-focus rounded px-1 text-[11px] text-fg-primary outline-none"
+                    className="flex-1 bg-bg-input border border-border-focus rounded px-1 text-[13px] text-fg-primary outline-none"
                   />
                 ) : (
                   <span className="flex-1 text-fg-secondary truncate">{item.name}</span>
@@ -226,7 +226,7 @@ function CollectionTreeItems({
         return (
           <div
             key={item.id}
-            className="group flex items-center gap-2 px-3 py-0.5 text-[11px] hover:bg-bg-hover cursor-pointer font-mono"
+            className="group flex items-center gap-2 px-3 py-0.5 text-[13px] hover:bg-bg-hover cursor-pointer font-mono"
       onClick={() => {
         openTab({
           name: item.name,
@@ -285,11 +285,8 @@ function CollectionTreeItems({
 }
 
 export function Sidebar() {
+  const { t } = useTranslation();
   const openSettings = useUIStore((s) => s.openSettings);
-  const activeEnvId = useEnvironmentStore((s) => s.activeEnvironmentId);
-  const environments = useEnvironmentStore((s) => s.environments);
-  const setActiveEnvironment = useEnvironmentStore((s) => s.setActiveEnvironment);
-  const loadEnvironments = useEnvironmentStore((s) => s.loadFromDisk);
   const openTab = useTabStore((s) => s.openTab);
   const initTabData = useRequestStore((s) => s.initTabData);
 
@@ -334,7 +331,6 @@ const deleteRequest = useCollectionStore((s) => s.deleteRequest);
 
   useEffect(() => {
     loadCollections();
-    loadEnvironments();
     queryHistoryEntries(50).then(setHistoryEntries).catch(() => {});
   }, []);
 
@@ -401,9 +397,10 @@ const deleteRequest = useCollectionStore((s) => s.deleteRequest);
         auth = { type: authType, config: authConfig } as AuthConfig;
       }
       let settings: RequestSettings = { timeoutMs: item.settings?.timeout_ms ?? 30000, followRedirects: item.settings?.follow_redirects ?? true, maxRedirects: item.settings?.max_redirects ?? 10, verifySsl: item.settings?.verify_ssl ?? true };
+      const scripts = item.scripts ? { preRequest: item.scripts.pre_request, postResponse: item.scripts.post_response } : undefined;
       const tabId = useTabStore.getState().activeTabId;
       if (tabId) {
-        initTabData(tabId, { headers, params, body, auth, settings });
+        initTabData(tabId, { headers, params, body, auth, settings, scripts });
       }
     }).catch(() => {});
   };
@@ -524,15 +521,15 @@ const commitEdit = () => {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const yesterday = new Date(today.getTime() - 86400000);
     const todayGroup: { label: string; items: HistoryEntry[] } = {
-      label: "Today",
+      label: t("sidebar.today"),
       items: [],
     };
     const yesterdayGroup: { label: string; items: HistoryEntry[] } = {
-      label: "Yesterday",
+      label: t("sidebar.yesterday"),
       items: [],
     };
     const earlierGroup: { label: string; items: HistoryEntry[] } = {
-      label: "Earlier",
+      label: t("sidebar.earlier"),
       items: [],
     };
     for (const entry of entries) {
@@ -554,7 +551,7 @@ const commitEdit = () => {
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search..."
+          placeholder={t("common.search")}
           className="flex-1 bg-transparent text-sm text-fg-primary placeholder:text-fg-tertiary outline-none"
         />
         <button
@@ -567,7 +564,7 @@ const commitEdit = () => {
 
       <div className="flex-1 overflow-y-auto">
       <SidebarSection
-        title="Collections"
+        title={t("sidebar.collections")}
         defaultOpen
         action={
           <button
@@ -685,24 +682,24 @@ const commitEdit = () => {
   </div>
 )}
 {isExpanded && col.items.length === 0 && (
-          <div className="ml-5 px-3 py-1 text-[10px] text-fg-tertiary">No requests</div>
+          <div className="ml-5 px-3 py-1 text-[12px] text-fg-tertiary">{t("sidebar.noRequests")}</div>
         )}
       </div>
     );
   })}
 </SidebarSection>
 
-      <SidebarSection title="History">
+      <SidebarSection title={t("sidebar.history")}>
         {(() => {
           const filteredHistory = searchQuery
             ? historyEntries.filter((e) => e.url.toLowerCase().includes(searchQuery.toLowerCase()) || e.method.toLowerCase().includes(searchQuery.toLowerCase()))
             : historyEntries;
         return filteredHistory.length === 0 ? (
-          <div className="px-3 py-2 text-xs text-fg-tertiary">No history yet</div>
+          <div className="px-3 py-2 text-[13px] text-fg-tertiary">{t("sidebar.noHistory")}</div>
         ) : (
           groupHistory(filteredHistory).map((group) => (
               <div key={group.label}>
-                <div className="px-3 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-fg-tertiary">
+                <div className="px-3 pt-1 pb-0.5 text-[12px] font-semibold uppercase tracking-wider text-fg-tertiary">
                   {group.label}
                 </div>
                 {group.items.map((entry) => {
@@ -722,7 +719,7 @@ const commitEdit = () => {
                           url: entry.url,
                         })
                       }
-                      className="w-full px-3 py-1 text-[11px] text-left hover:bg-bg-hover cursor-pointer flex items-center gap-2 font-mono"
+                      className="w-full px-3 py-1 text-[13px] text-left hover:bg-bg-hover cursor-pointer flex items-center gap-2 font-mono"
                     >
                       <span
                         className={`font-semibold min-w-[32px] ${getMethodColor(entry.method)}`}
@@ -732,7 +729,7 @@ const commitEdit = () => {
                       <span className="text-fg-primary truncate flex-1">
                         {urlPath}
                       </span>
-                      <span className="text-fg-tertiary text-[10px] font-sans shrink-0">
+                      <span className="text-fg-tertiary text-[12px] font-sans shrink-0">
                         {entry.duration}ms
                       </span>
                     </button>
@@ -743,29 +740,6 @@ const commitEdit = () => {
 );
 })()}
 </SidebarSection>
-
-        <SidebarSection title="Environments">
-          {environments.map((env) => (
-            <button
-              key={env.id}
-              onClick={() => setActiveEnvironment(env.id)}
-              className="w-full px-3 py-1 text-sm text-left hover:bg-bg-hover cursor-pointer flex items-center gap-2"
-            >
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  env.id === activeEnvId ? "bg-brand" : "bg-fg-tertiary"
-                }`}
-              />
-              <span
-                className={
-                  env.id === activeEnvId ? "text-fg-primary" : "text-fg-secondary"
-                }
-              >
-                {env.name}
-              </span>
-            </button>
-          ))}
-        </SidebarSection>
       </div>
 
       <div className="h-10 border-t border-border-muted flex items-center justify-between px-3">

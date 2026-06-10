@@ -116,8 +116,8 @@ export function EnvSelector() {
           <div
             ref={dropdownRef}
             data-env-dropdown
-            className="w-[220px] bg-bg-elevated rounded-lg border border-border-muted shadow-lg py-1 z-dropdown animate-fade-in"
-            style={dropdownStyle}
+            className="w-[220px] bg-bg-elevated rounded-lg border border-border-muted shadow-lg py-1 animate-fade-in"
+            style={{ ...dropdownStyle, zIndex: 200 }}
           >
     {environments.map((env) => {
       const envK = getEnvKey(env);

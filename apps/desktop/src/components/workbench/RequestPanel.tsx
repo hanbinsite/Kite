@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
+import { useTranslation } from "react-i18next";
 import { KeyValueEditor, type KeyValue } from "../request/KeyValueEditor";
 import { FormDataEditor } from "../request/FormDataEditor";
 import { InlineEditor } from "../editor/InlineEditor";
@@ -8,34 +9,34 @@ import { useRequestStore } from "../../stores";
 import type { BodyConfig, AuthConfig, BodyMode, RawLanguage, Header, QueryParam, FormDataParam } from "@api-client/types";
 
 const REQUEST_TABS = [
-    { id: "params", label: "Params" },
-    { id: "headers", label: "Headers" },
-    { id: "body", label: "Body" },
-    { id: "auth", label: "Auth" },
-    { id: "scripts", label: "Scripts" },
-    { id: "settings", label: "Settings" },
+    { id: "params", labelKey: "request.params" },
+    { id: "headers", labelKey: "request.headers" },
+    { id: "body", labelKey: "request.body" },
+    { id: "auth", labelKey: "request.auth" },
+    { id: "scripts", labelKey: "request.scripts" },
+    { id: "settings", labelKey: "request.settings" },
 ] as const;
 
 type RequestTabId = (typeof REQUEST_TABS)[number]["id"];
 
-const BODY_TYPES: { id: BodyMode; label: string }[] = [
-    { id: "none", label: "none" },
-    { id: "formdata", label: "form-data" },
-    { id: "urlencoded", label: "x-www-form-urlencoded" },
-    { id: "raw", label: "raw" },
-    { id: "binary", label: "binary" },
-    { id: "graphql", label: "GraphQL" },
+const BODY_TYPES: { id: BodyMode; labelKey: string }[] = [
+    { id: "none", labelKey: "body.none" },
+    { id: "formdata", labelKey: "body.formdata" },
+    { id: "urlencoded", labelKey: "body.urlencoded" },
+    { id: "raw", labelKey: "body.raw" },
+    { id: "binary", labelKey: "body.binary" },
+    { id: "graphql", labelKey: "body.graphql" },
 ];
 
 const AUTH_TYPES = [
-    { id: "none", label: "No Auth" },
-    { id: "apikey", label: "API Key" },
-    { id: "bearer", label: "Bearer Token" },
-    { id: "basic", label: "Basic Auth" },
-    { id: "jwt", label: "JWT" },
-    { id: "oauth1", label: "OAuth 1.0" },
-    { id: "oauth2", label: "OAuth 2.0" },
-    { id: "awsv4", label: "AWS Signature v4" },
+    { id: "none", labelKey: "auth.noAuth" },
+    { id: "apikey", labelKey: "auth.apikey" },
+    { id: "bearer", labelKey: "auth.bearer" },
+    { id: "basic", labelKey: "auth.basic" },
+    { id: "jwt", labelKey: "auth.jwt" },
+    { id: "oauth1", labelKey: "auth.oauth1" },
+    { id: "oauth2", labelKey: "auth.oauth2" },
+    { id: "awsv4", labelKey: "auth.awsv4" },
 ];
 
 const RAW_LANGUAGES: { id: RawLanguage; label: string }[] = [
@@ -128,6 +129,7 @@ function ensureEmptyRow(items: KeyValue[]): KeyValue[] {
 }
 
 export function RequestPanel() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<RequestTabId>("params");
   const [scriptTab, setScriptTab] = useState<"pre" | "post">("pre");
 
@@ -236,21 +238,6 @@ export function RequestPanel() {
     const [indicatorStyle, setIndicatorStyle] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
 
   useEffect(() => {
-    const el = tabRefs.current[activeTab];
-    if (el) {
-      const parent = el.parentElement;
-      if (parent) {
-        const parentRect = parent.getBoundingClientRect();
-        const elRect = el.getBoundingClientRect();
-        setIndicatorStyle({
-          left: elRect.left - parentRect.left,
-          width: elRect.width,
-        });
-      }
-    }
-  }, [activeTab]);
-
-  useEffect(() => {
     const updateIndicator = () => {
       const el = tabRefs.current[activeTab];
       if (el) {
@@ -265,6 +252,8 @@ export function RequestPanel() {
         }
       }
     };
+
+    updateIndicator();
 
     const observer = new ResizeObserver(updateIndicator);
     const parent = tabRefs.current[activeTab]?.parentElement;
@@ -568,7 +557,7 @@ export function RequestPanel() {
                                 activeTab === tab.id ? "active text-fg-primary" : "text-fg-secondary hover:text-fg-primary"
                             }`}
                         >
-                            {tab.label}
+                            {t(tab.labelKey)}
                             {badge !== null && (
                                 <span
                                     className={`request-tab-badge font-sans text-2xs font-semibold min-w-[16px] h-[16px] px-[4px] flex items-center justify-center rounded-full ${
@@ -598,7 +587,7 @@ export function RequestPanel() {
                     <KeyValueEditor
                         items={params}
                         onChange={handleParamsChange}
-                        placeholder={{ key: "Parameter", value: "Value" }}
+                        placeholder={{ key: t("request.parameter"), value: t("common.value") }}
                     />
                 )}
 
@@ -606,7 +595,7 @@ export function RequestPanel() {
                     <KeyValueEditor
                         items={headers}
                         onChange={handleHeadersChange}
-                        placeholder={{ key: "Header", value: "Value" }}
+                        placeholder={{ key: t("request.header"), value: t("common.value") }}
                     />
                 )}
 
@@ -645,7 +634,7 @@ export function RequestPanel() {
                                                 : "border-border-default"
                                         }`}
                                     />
-                                    {bt.label}
+                                    {t(bt.labelKey)}
                                 </div>
                             ))}
                             {bodyConfig.mode === "raw" && (
@@ -701,7 +690,7 @@ export function RequestPanel() {
                                 <FormDataEditor
                                     items={storeBody?.formdata ?? []}
                                     onChange={(formdata) => {
-                                        setFormdataKvs(ensureEmptyRow(formdataToKv(formdata)));
+                                        setFormdataKvs(formdataToKv(formdata));
                                         handleBodyConfigChange({ mode: "formdata", formdata });
                                     }}
                                 />
@@ -711,7 +700,7 @@ export function RequestPanel() {
                                 <KeyValueEditor
                                     items={urlencodedKvs}
                                     onChange={handleUrlencodedChange}
-                                    placeholder={{ key: "Key", value: "Value" }}
+                                    placeholder={{ key: t("request.key"), value: t("common.value") }}
                                 />
                             )}
 
@@ -794,7 +783,7 @@ export function RequestPanel() {
                             className="auth-type-select w-[220px] h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-sans text-[13px] text-fg-primary cursor-pointer outline-none focus:border-border-focus focus:shadow-[0_0_0_3px_var(--color-brand-muted)]"
                         >
                             {AUTH_TYPES.map((at) => (
-                                <option key={at.id} value={at.id}>{at.label}</option>
+                                <option key={at.id} value={at.id}>{t(at.labelKey)}</option>
                             ))}
                         </select>
                         {renderAuthFields()}

@@ -14,7 +14,13 @@
       "Bash(pnpm typecheck *)",
       "Bash(findstr :1420)",
       "Bash(powershell -Command \"Get-Content '15-集合级配���设计.md' -Encoding UTF8 | Select-Object -First 100\")",
-      "Bash(python3 -c \"import os; files = [f for f in os.listdir\\('.'\\) if '15-' in f]; print\\('\\\\n'.join\\(files\\)\\)\")"
+      "Bash(python3 -c \"import os; files = [f for f in os.listdir\\('.'\\) if '15-' in f]; print\\('\\\\n'.join\\(files\\)\\)\")",
+      "Bash(npm run *)",
+      "Bash(findstr LISTENING)",
+      "Bash(exit 0)",
+      "Bash(node *)",
+      "Bash(pnpm *)",
+      "Bash(findstr \"api-client\")"
     ]
   }
 }

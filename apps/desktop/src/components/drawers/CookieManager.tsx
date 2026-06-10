@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useCookieStore } from "../../stores/cookie-store";
+import { useTranslation } from "react-i18next";
 import type { CookieEntry } from "@api-client/core/cookie";
 import { Trash2, Plus, Search, Cookie as CookieIcon, X } from "lucide-react";
 
@@ -11,6 +12,7 @@ function isExpired(expires?: string): boolean {
 }
 
 function AddCookieForm({ onAdd, onCancel }: { onAdd: (c: Omit<CookieEntry, "id">) => void; onCancel: () => void }) {
+  const { t } = useTranslation();
   const [domain, setDomain] = useState("");
   const [name, setName] = useState("");
   const [value, setValue] = useState("");
@@ -43,11 +45,11 @@ function AddCookieForm({ onAdd, onCancel }: { onAdd: (c: Omit<CookieEntry, "id">
         </button>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="Domain (.example.com)" className="h-[24px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary outline-none focus:border-border-focus font-mono placeholder:text-fg-tertiary" />
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className="h-[24px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary outline-none focus:border-border-focus font-mono placeholder:text-fg-tertiary" />
-        <input value={value} onChange={(e) => setValue(e.target.value)} placeholder="Value" className="h-[24px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary outline-none focus:border-border-focus font-mono placeholder:text-fg-tertiary" />
-        <input value={path} onChange={(e) => setPath(e.target.value)} placeholder="Path" className="h-[24px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary outline-none focus:border-border-focus font-mono placeholder:text-fg-tertiary" />
-        <input value={expires} onChange={(e) => setExpires(e.target.value)} placeholder="Expires (ISO date)" className="h-[24px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary outline-none focus:border-border-focus font-mono placeholder:text-fg-tertiary" />
+        <input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder={t("cookies.domainPlaceholder")} className="h-[24px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary outline-none focus:border-border-focus font-mono placeholder:text-fg-tertiary" />
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("common.name")} className="h-[24px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary outline-none focus:border-border-focus font-mono placeholder:text-fg-tertiary" />
+        <input value={value} onChange={(e) => setValue(e.target.value)} placeholder={t("common.value")} className="h-[24px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary outline-none focus:border-border-focus font-mono placeholder:text-fg-tertiary" />
+        <input value={path} onChange={(e) => setPath(e.target.value)} placeholder={t("common.path")} className="h-[24px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary outline-none focus:border-border-focus font-mono placeholder:text-fg-tertiary" />
+        <input value={expires} onChange={(e) => setExpires(e.target.value)} placeholder={t("cookies.expiresPlaceholder")} className="h-[24px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary outline-none focus:border-border-focus font-mono placeholder:text-fg-tertiary" />
         <select value={sameSite} onChange={(e) => setSameSite(e.target.value)} className="h-[24px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary outline-none">
           {SAME_SITE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
         </select>

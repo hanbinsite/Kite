@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Plus, Trash2, Check } from "lucide-react";
 
 export interface KeyValue {
@@ -19,9 +20,11 @@ interface KeyValueEditorProps {
 export function KeyValueEditor({
   items,
   onChange,
-  placeholder = { key: "Key", value: "Value" },
+  placeholder,
   showDescription = true,
 }: KeyValueEditorProps) {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder ?? { key: t("request.key"), value: t("common.value") };
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
   const emptyRowIdRef = useRef(crypto.randomUUID());
 
@@ -49,7 +52,7 @@ export function KeyValueEditor({
       }
       onChange(updated.filter((item) => item.key || item.value || updated.indexOf(item) === updated.length - 1));
     },
-    [rowsWithEmpty, onChange],
+    [items, onChange],
   );
 
   const deleteItem = useCallback(
@@ -59,12 +62,14 @@ export function KeyValueEditor({
       }
       onChange(rowsWithEmpty.filter((item) => item.id !== id));
     },
-    [rowsWithEmpty, onChange],
+    [items, onChange],
   );
 
   const addItem = useCallback(() => {
     onChange([...items, { id: crypto.randomUUID(), key: "", value: "", enabled: true, description: "" }]);
   }, [items, onChange]);
+
+  const displayItems = rowsWithEmpty;
 
   const gridCols = showDescription
     ? "grid-cols-[20px_200px_1fr_180px_28px]"
@@ -76,14 +81,14 @@ export function KeyValueEditor({
         className={`kv-editor-header grid ${gridCols} h-[28px] px-3 items-center border-b border-border-muted text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em] shrink-0`}
       >
         <span />
-        <span>{placeholder.key}</span>
-        <span>{placeholder.value}</span>
-        {showDescription && <span>Description</span>}
+        <span>{resolvedPlaceholder.key}</span>
+        <span>{resolvedPlaceholder.value}</span>
+        {showDescription && <span>{t("common.description")}</span>}
         <span />
       </div>
 
       <div className="kv-editor-body flex-1 overflow-y-auto px-3 min-h-0">
-        {rowsWithEmpty.map((item) => (
+        {displayItems.map((item) => (
           <div
             key={item.id}
             onMouseEnter={() => setHoveredRowId(item.id)}
@@ -108,7 +113,7 @@ export function KeyValueEditor({
                 type="text"
                 value={item.key}
                 onChange={(e) => updateItem(item.id, { key: e.target.value })}
-                placeholder={placeholder.key}
+                placeholder={resolvedPlaceholder.key}
                 className="w-full border-none outline-none bg-transparent font-mono text-[12px] text-fg-primary leading-[16px] placeholder:text-fg-tertiary"
               />
             </div>
@@ -118,7 +123,7 @@ export function KeyValueEditor({
                 type="text"
                 value={item.value}
                 onChange={(e) => updateItem(item.id, { value: e.target.value })}
-                placeholder={placeholder.value}
+                placeholder={resolvedPlaceholder.value}
                 className="w-full border-none outline-none bg-transparent font-mono text-[12px] text-fg-primary leading-[16px] placeholder:text-fg-tertiary"
               />
             </div>
@@ -129,7 +134,7 @@ export function KeyValueEditor({
                   type="text"
                   value={item.description ?? ""}
                   onChange={(e) => updateItem(item.id, { description: e.target.value })}
-                  placeholder="Description"
+                  placeholder={t("common.description")}
                   className="w-full border-none outline-none bg-transparent font-sans text-[12px] text-fg-secondary leading-[16px] placeholder:text-fg-tertiary"
                 />
               </div>
@@ -154,7 +159,7 @@ export function KeyValueEditor({
         className="kv-editor-add flex items-center gap-[6px] h-[32px] px-3 font-sans text-[12px] text-fg-tertiary cursor-pointer transition-all duration-50 hover:text-brand hover:bg-brand-muted shrink-0"
       >
         <Plus size={14} />
-        Add Row
+        {t("request.addRow")}
       </button>
     </div>
   );

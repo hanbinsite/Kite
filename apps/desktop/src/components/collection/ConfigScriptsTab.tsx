@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useCollectionStore } from "../../stores/collection-store";
 import type { ScriptConfig, CollectionConfig, FolderConfig } from "@api-client/types";
+import { findFolderConfig } from "./findFolderConfig";
 
 interface ConfigScriptsTabProps {
   collectionId: string;
@@ -26,6 +28,7 @@ const POST_SNIPPETS = [
 ];
 
 export function ConfigScriptsTab({ collectionId, folderId, scripts, isFolder }: ConfigScriptsTabProps) {
+  const { t } = useTranslation();
   const [activeScript, setActiveScript] = useState<"pre" | "post">("pre");
   const [preRequest, setPreRequest] = useState(scripts?.preRequest ?? "");
   const [postResponse, setPostResponse] = useState(scripts?.postResponse ?? "");
@@ -64,8 +67,8 @@ export function ConfigScriptsTab({ collectionId, folderId, scripts, isFolder }: 
 
   const snippets = activeScript === "pre" ? PRE_SNIPPETS : POST_SNIPPETS;
   const executionOrder = isFolder
-    ? "此脚本将在 Collection pre-request 之后、子文件夹/请求 pre-request 之前执行"
-    : "此脚本将在所有文件夹和请求 pre-request 之前执行";
+    ? t("scripts.preExecutionOrderFolder")
+    : t("scripts.preExecutionOrderCollection");
 
   return (
     <div className="max-w-[800px]">
@@ -78,7 +81,7 @@ export function ConfigScriptsTab({ collectionId, folderId, scripts, isFolder }: 
               : "bg-bg-elevated text-fg-secondary hover:text-fg-primary"
           }`}
         >
-          Pre-request
+          {t("scripts.preRequest")}
         </button>
         <button
           onClick={() => setActiveScript("post")}
@@ -88,14 +91,16 @@ export function ConfigScriptsTab({ collectionId, folderId, scripts, isFolder }: 
               : "bg-bg-elevated text-fg-secondary hover:text-fg-primary"
           }`}
         >
-          Post-response
+          {t("scripts.postResponse")}
         </button>
       </div>
 
       <div className="mb-2 text-[11px] text-fg-secondary bg-bg-elevated rounded px-3 py-2">
-        {activeScript === "pre" ? executionOrder : isFolder
-          ? "此脚本将在请求 post-response 之后、Collection post-response 之前执行"
-          : "此脚本将在所有文件夹和请求 post-response 之后执行"}
+        {activeScript === "pre"
+          ? executionOrder
+          : isFolder
+            ? t("scripts.postExecutionOrderFolder")
+            : t("scripts.postExecutionOrderCollection")}
       </div>
 
       <div className="flex gap-2 mb-2">
@@ -125,21 +130,10 @@ export function ConfigScriptsTab({ collectionId, folderId, scripts, isFolder }: 
             handlePostChange(e.target.value);
           }
         }}
-        placeholder={activeScript === "pre" ? "// Write pre-request script here..." : "// Write post-response script here..."}
+        placeholder={activeScript === "pre" ? t("scripts.prePlaceholder") : t("scripts.postPlaceholder")}
         rows={16}
         className="w-full bg-bg-elevated text-fg-primary text-[13px] font-mono px-3 py-2 rounded border border-bg-elevated focus:border-brand focus:outline-none resize-y"
       />
     </div>
   );
-}
-
-function findFolderConfig(items: Array<{ type: string; id: string; config?: unknown; items?: unknown[] }>, folderId: string): FolderConfig | undefined {
-  for (const item of items) {
-    if (item.type === "folder" && item.id === folderId) return item.config as FolderConfig | undefined;
-    if (item.type === "folder" && item.items) {
-      const result = findFolderConfig(item.items as Array<{ type: string; id: string; config?: unknown; items?: unknown[] }>, folderId);
-      if (result) return result;
-    }
-  }
-  return undefined;
 }

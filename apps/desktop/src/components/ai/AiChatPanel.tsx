@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useChatStore, useProviderStore, buildContextMessage, SLASH_COMMANDS } from "@api-client/core/ai";
-import type { SlashCommand } from "@api-client/core/ai";
+import type { SlashCommand, AiProviderConfig } from "@api-client/core/ai";
 import { useTabStore, useUIStore } from "@api-client/core";
 import { useCollectionStore, useEnvironmentStore, useRequestStore } from "../../stores";
-import { Send, Bot, User, Loader2, X, PanelRightClose, FileText, Globe, FolderOpen, Zap, ChevronRight } from "lucide-react";
-import type { AiProviderConfig } from "@api-client/core/ai";
+import { Send, Bot, User, Loader2, X, PanelRightClose, FileText, Globe, FolderOpen, Zap, ChevronRight, Key } from "lucide-react";
 
 function renderMarkdown(text: string): string {
   return text
@@ -15,6 +15,7 @@ function renderMarkdown(text: string): string {
 }
 
 export function AiChatPanel() {
+  const { t } = useTranslation();
   const activeTabId = useTabStore((s) => s.activeTabId);
   const tabs = useTabStore((s) => s.tabs);
   const activeTab = tabs.find((t) => t.id === activeTabId);
@@ -31,10 +32,12 @@ export function AiChatPanel() {
   const sendMessage = useChatStore((s) => s.sendMessage);
   const sendSlashCommand = useChatStore((s) => s.sendSlashCommand);
   const clearMessages = useChatStore((s) => s.clearMessages);
+  const loadSession = useChatStore((s) => s.loadSession);
 
   const providers = useProviderStore((s) => s.providers);
   const activeProviderId = useProviderStore((s) => s.activeProviderId);
   const setActiveProvider = useProviderStore((s) => s.setActiveProvider);
+  const apiKeyStatus = useProviderStore((s) => s.apiKeyStatus);
 
   const environments = useEnvironmentStore((s) => s.environments);
   const collections = useCollectionStore((s) => s.collections);
@@ -51,6 +54,12 @@ export function AiChatPanel() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const activeProvider = providers.find((p: AiProviderConfig) => p.id === activeProviderId);
+
+  useEffect(() => {
+    if (aiPanelOpen && sessionId) {
+      loadSession(sessionId);
+    }
+  }, [sessionId, aiPanelOpen, loadSession]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -141,13 +150,18 @@ export function AiChatPanel() {
       <div className="h-10 flex items-center justify-between px-3 border-b border-border-default">
         <div className="flex items-center gap-2">
           <Bot className="w-3.5 h-3.5 text-brand" />
-          <span className="text-[12px] font-semibold text-fg-primary">AI Assistant</span>
+          <span className="text-[12px] font-semibold text-fg-primary">{t("ai.assistant")}</span>
           {activeProvider && (
             <button
               onClick={() => setShowProviders(!showProviders)}
-              className="text-[10px] text-fg-tertiary hover:text-fg-primary transition-colors cursor-pointer"
+              className="flex items-center gap-1 text-[10px] text-fg-tertiary hover:text-fg-primary transition-colors cursor-pointer"
             >
               {activeProvider.model}
+              {apiKeyStatus[activeProvider.id] ? (
+                <Key className="w-2.5 h-2.5 text-accent-success" />
+              ) : (
+                <Key className="w-2.5 h-2.5 text-accent-danger" />
+              )}
             </button>
           )}
         </div>
@@ -175,9 +189,14 @@ export function AiChatPanel() {
             <button
               key={p.id}
               onClick={() => { setActiveProvider(p.id); setShowProviders(false); }}
-              className={`w-full text-left px-3 py-1.5 text-[11px] cursor-pointer transition-colors ${p.id === activeProviderId ? "bg-brand/10 text-brand" : "text-fg-secondary hover:bg-bg-hover"}`}
+              className={`w-full text-left px-3 py-1.5 text-[11px] cursor-pointer transition-colors flex items-center gap-2 ${p.id === activeProviderId ? "bg-brand/10 text-brand" : "text-fg-secondary hover:bg-bg-hover"}`}
             >
-              {p.name} — {p.model}
+              <span className="flex-1">{p.name} — {p.model}</span>
+              {apiKeyStatus[p.id] ? (
+                <Key className="w-2.5 h-2.5 text-accent-success" />
+              ) : (
+                <Key className="w-2.5 h-2.5 text-accent-danger" />
+              )}
             </button>
           ))}
         </div>
@@ -186,7 +205,7 @@ export function AiChatPanel() {
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-3">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-fg-tertiary text-xs gap-3">
-            <span>Ask me anything about your APIs</span>
+            <span>{t("ai.emptyState")}</span>
             <div className="flex flex-wrap gap-1 justify-center">
               {SLASH_COMMANDS.slice(0, 5).map((cmd) => (
                 <button
@@ -241,21 +260,21 @@ export function AiChatPanel() {
         <div className="flex items-center gap-2 px-3 py-1.5">
           <label className="flex items-center gap-1 text-[10px] text-fg-tertiary cursor-pointer select-none">
             <input type="checkbox" checked={includeRequest} onChange={(e) => setIncludeRequest(e.target.checked)} className="accent-brand" />
-            <FileText className="w-3 h-3" /> Request
+            <FileText className="w-3 h-3" /> {t("common.request")}
           </label>
           <label className="flex items-center gap-1 text-[10px] text-fg-tertiary cursor-pointer select-none">
             <input type="checkbox" checked={includeEnvironment} onChange={(e) => setIncludeEnvironment(e.target.checked)} className="accent-brand" />
-            <Globe className="w-3 h-3" /> Env
+            <Globe className="w-3 h-3" /> {t("common.environment")}
           </label>
           <label className="flex items-center gap-1 text-[10px] text-fg-tertiary cursor-pointer select-none">
             <input type="checkbox" checked={includeCollection} onChange={(e) => setIncludeCollection(e.target.checked)} className="accent-brand" />
-            <FolderOpen className="w-3 h-3" /> Collection
+            <FolderOpen className="w-3 h-3" /> {t("common.collection")}
           </label>
         </div>
         <div className="px-3 pb-3 relative">
           {!activeProviderId ? (
             <div className="text-[11px] text-fg-tertiary text-center py-2">
-              No AI provider configured. Add one in Settings → AI.
+              {t("ai.noProvider")}
             </div>
           ) : (
             <div className="flex items-end gap-2">
@@ -265,7 +284,7 @@ export function AiChatPanel() {
                   value={input}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
-                  placeholder="Type a message or / for commands..."
+                  placeholder={t("ai.messagePlaceholder")}
                   rows={2}
                   disabled={loading}
                   className="w-full bg-bg-input border border-border-default rounded-md px-3 py-2 text-xs text-fg-primary placeholder:text-fg-tertiary outline-none focus:border-border-focus resize-none disabled:opacity-50"

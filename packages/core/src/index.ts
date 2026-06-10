@@ -41,6 +41,8 @@ export type {
   AiChatRequest,
   AiChatResponse,
   AiMessage,
+  AiStreamChunk,
+  AiApiKeyStatus,
 } from "./ai";
 
 export {

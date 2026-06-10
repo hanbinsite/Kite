@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, Fragment } from "react";
-import { X, Settings, Globe, Type, Database, Info, Server, Cookie, Trash2, Leaf } from "lucide-react";
+import { X, Settings, Globe, Type, Database, Info, Server, Cookie, Trash2, Leaf, Bot } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useUIStore } from "@api-client/core";
 import type { Theme } from "@api-client/core";
 import { useSettingsStore } from "../../stores/settings-store";
 import { useCookieStore } from "../../stores/cookie-store";
 import { useEnvironmentStore } from "../../stores/environment-store";
+import { useProviderStore } from "@api-client/core/ai";
+import type { AiProviderConfig } from "@api-client/core/ai";
 import { clearHistory as clearHistoryIpc } from "@api-client/core/http";
 import type { CookieEntry } from "@api-client/core/cookie";
 import { EnvironmentEditor } from "../environment";
@@ -24,6 +26,7 @@ const FONT_SIZE_OPTIONS = [
 
 const CATEGORIES = [
   { id: "general", labelKey: "settings.categories.general", icon: Settings },
+  { id: "ai", labelKey: "settings.categories.ai", icon: Bot },
   { id: "environments", labelKey: "settings.categories.environments", icon: Leaf },
   { id: "proxy", labelKey: "settings.categories.proxy", icon: Globe },
   { id: "mock", labelKey: "settings.categories.mock", icon: Server },
@@ -132,6 +135,7 @@ export function SettingsPage() {
 
           <div className="flex-1 overflow-y-auto py-5 px-6">
             {category === "general" && <GeneralSection />}
+            {category === "ai" && <AiSection />}
             {category === "environments" && <EnvironmentsSection onEditEnvironment={setEditingEnvId} />}
             {category === "proxy" && <ProxySection />}
             {category === "mock" && <MockSection />}
@@ -199,6 +203,207 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h3 className="font-sans text-md font-semibold text-fg-primary mb-4">{children}</h3>;
 }
 
+function AiSection() {
+  const { t } = useTranslation();
+  const providers = useProviderStore((s) => s.providers);
+  const activeProviderId = useProviderStore((s) => s.activeProviderId);
+  const apiKeyStatus = useProviderStore((s) => s.apiKeyStatus);
+  const setActiveProvider = useProviderStore((s) => s.setActiveProvider);
+  const addProvider = useProviderStore((s) => s.addProvider);
+  const removeProvider = useProviderStore((s) => s.removeProvider);
+  const setApiKey = useProviderStore((s) => s.setApiKey);
+  const testProviderConnection = useProviderStore((s) => s.testProviderConnection);
+
+  const [showAdd, setShowAdd] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newBaseUrl, setNewBaseUrl] = useState("");
+  const [newModel, setNewModel] = useState("");
+  const [newApiKey, setNewApiKey] = useState("");
+  const [editingKeyProviderId, setEditingKeyProviderId] = useState<string | null>(null);
+  const [editApiKey, setEditApiKey] = useState("");
+  const [testResult, setTestResult] = useState<Record<string, string | null>>({});
+
+  const handleAddProvider = async () => {
+    if (!newName || !newBaseUrl || !newModel) return;
+    const id = `provider-${Date.now()}`;
+    const config: AiProviderConfig = {
+      id,
+      name: newName,
+      providerType: "openai-compatible",
+      baseUrl: newBaseUrl,
+      model: newModel,
+      isDefault: providers.length === 0,
+    };
+    await addProvider(config, newApiKey || undefined);
+    setNewName("");
+    setNewBaseUrl("");
+    setNewModel("");
+    setNewApiKey("");
+    setShowAdd(false);
+  };
+
+  const handleTestConnection = async (provider: AiProviderConfig) => {
+    setTestResult((prev) => ({ ...prev, [provider.id]: null }));
+    const result = await testProviderConnection(provider.id, provider.baseUrl, provider.model);
+    setTestResult((prev) => ({ ...prev, [provider.id]: result }));
+  };
+
+  const handleSetApiKey = async (providerId: string) => {
+    if (!editApiKey) return;
+    await setApiKey(providerId, editApiKey);
+    setEditingKeyProviderId(null);
+    setEditApiKey("");
+  };
+
+  return (
+    <div className="mb-6">
+      <SectionTitle>{t("ai.providersTitle")}</SectionTitle>
+      <div className="flex flex-col gap-2 mb-4">
+        {providers.map((p: AiProviderConfig) => (
+          <div
+            key={p.id}
+            className={`flex items-center gap-3 h-12 px-3 rounded-md border transition-colors ${
+              p.id === activeProviderId
+                ? "border-brand bg-brand-muted"
+                : "border-border-muted hover:bg-bg-hover"
+            }`}
+          >
+            <div className="flex flex-col flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-sans text-[13px] text-fg-primary truncate">{p.name}</span>
+                <span className="font-mono text-[11px] text-fg-tertiary">{p.model}</span>
+              </div>
+              <span className="font-mono text-[10px] text-fg-tertiary truncate">{p.baseUrl}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              {apiKeyStatus[p.id] ? (
+                <span className="text-[10px] text-accent-success">{t("ai.keySet")}</span>
+              ) : (
+                <button
+                  onClick={() => { setEditingKeyProviderId(p.id); setEditApiKey(""); }}
+                  className="text-[10px] text-accent-danger hover:text-accent-danger/80 cursor-pointer"
+                >
+                  {t("ai.noKey")}
+                </button>
+              )}
+              <button
+                onClick={() => handleTestConnection(p)}
+                className="h-6 px-2 rounded text-[10px] text-fg-tertiary hover:text-fg-primary hover:bg-bg-hover cursor-pointer transition-colors"
+              >
+                {t("common.test")}
+              </button>
+              {testResult[p.id] && (
+                <span className={`text-[10px] max-w-[120px] truncate ${testResult[p.id]?.startsWith("Connected") ? "text-accent-success" : "text-accent-danger"}`}>
+                  {testResult[p.id]}
+                </span>
+              )}
+              {p.id !== activeProviderId && (
+                <button
+                  onClick={() => setActiveProvider(p.id)}
+                  className="h-6 px-2 rounded text-[10px] text-brand hover:bg-brand/10 cursor-pointer transition-colors"
+                >
+                  {t("ai.setActive")}
+                </button>
+              )}
+              {p.id === activeProviderId && (
+                <span className="text-[10px] text-brand font-medium">{t("common.active")}</span>
+              )}
+              <button
+                onClick={() => removeProvider(p.id)}
+                className="p-1 rounded hover:bg-bg-hover text-fg-tertiary hover:text-accent-danger cursor-pointer transition-colors"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        ))}
+        {editingKeyProviderId && (
+          <div className="flex items-center gap-2 h-10 px-3 rounded-md border border-brand/50 bg-brand/5">
+            <span className="text-[11px] text-fg-secondary">{t("ai.apiKeyLabel")}</span>
+            <input
+              type="password"
+              value={editApiKey}
+              onChange={(e) => setEditApiKey(e.target.value)}
+              placeholder="sk-..."
+              className="flex-1 h-7 px-2 bg-bg-input border border-border-muted rounded text-[12px] text-fg-primary font-mono outline-none focus:border-border-focus placeholder:text-fg-tertiary"
+              onKeyDown={(e) => e.key === "Enter" && handleSetApiKey(editingKeyProviderId)}
+            />
+            <button
+              onClick={() => handleSetApiKey(editingKeyProviderId)}
+              className="h-7 px-3 rounded-md bg-brand text-white text-[11px] font-medium cursor-pointer hover:bg-brand-hover transition-colors"
+            >
+              Save
+            </button>
+            <button
+              onClick={() => { setEditingKeyProviderId(null); setEditApiKey(""); }}
+              className="h-7 px-2 rounded-md text-fg-tertiary text-[11px] cursor-pointer hover:text-fg-primary transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+
+      {showAdd ? (
+        <div className="border border-brand/30 bg-brand/5 rounded-md p-3 space-y-2">
+          <input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder={t("ai.providerNamePlaceholder")}
+            className="w-full h-8 px-3 bg-bg-input border border-border-muted rounded-md text-[13px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary"
+          />
+          <input
+            value={newBaseUrl}
+            onChange={(e) => setNewBaseUrl(e.target.value)}
+            placeholder={t("ai.baseUrlPlaceholder")}
+            className="w-full h-8 px-3 bg-bg-input border border-border-muted rounded-md text-[12px] text-fg-primary font-mono outline-none focus:border-border-focus placeholder:text-fg-tertiary"
+          />
+          <input
+            value={newModel}
+            onChange={(e) => setNewModel(e.target.value)}
+            placeholder={t("ai.modelPlaceholder")}
+            className="w-full h-8 px-3 bg-bg-input border border-border-muted rounded-md text-[12px] text-fg-primary font-mono outline-none focus:border-border-focus placeholder:text-fg-tertiary"
+          />
+          <input
+            type="password"
+            value={newApiKey}
+            onChange={(e) => setNewApiKey(e.target.value)}
+            placeholder={t("ai.apiKeyPlaceholder")}
+            className="w-full h-8 px-3 bg-bg-input border border-border-muted rounded-md text-[12px] text-fg-primary font-mono outline-none focus:border-border-focus placeholder:text-fg-tertiary"
+          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleAddProvider}
+              disabled={!newName || !newBaseUrl || !newModel}
+              className="h-8 px-4 rounded-md bg-brand text-white text-[12px] font-medium cursor-pointer hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {t("ai.addProvider")}
+            </button>
+            <button
+              onClick={() => { setShowAdd(false); setNewName(""); setNewBaseUrl(""); setNewModel(""); setNewApiKey(""); }}
+              className="h-8 px-3 rounded-md text-fg-tertiary text-[12px] cursor-pointer hover:text-fg-primary transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setShowAdd(true)}
+          className="w-full h-9 flex items-center justify-center gap-2 rounded-md border border-dashed border-border-muted text-fg-secondary hover:border-brand hover:text-brand hover:bg-brand-muted transition-colors cursor-pointer"
+        >
+          <span className="text-lg leading-none">+</span>
+          <span className="font-sans text-[13px] font-medium">{t("ai.addProviderButton")}</span>
+        </button>
+      )}
+
+      <div className="mt-4 text-[11px] text-fg-tertiary">
+        {t("ai.keyringHint")}
+      </div>
+    </div>
+  );
+}
+
 function GeneralSection() {
   const { t } = useTranslation();
   const theme = useUIStore((s) => s.theme);
@@ -214,10 +419,10 @@ function GeneralSection() {
 
   return (
     <div className="mb-6">
-      <SectionTitle>General</SectionTitle>
+      <SectionTitle>{t("settings.general.title")}</SectionTitle>
       <div className="flex flex-col gap-3">
         <Field label={t("settings.general.theme")} desc={t("settings.general.themeDesc")}>
-          <SettingsSelect value={theme} onChange={(v) => setTheme(v as Theme)} options={[{ value: "dark", label: "Dark" }, { value: "light", label: "Light" }, { value: "system", label: "System" }]} />
+          <SettingsSelect value={theme} onChange={(v) => setTheme(v as Theme)} options={[{ value: "dark", label: t("settings.general.dark") }, { value: "light", label: t("settings.general.light") }, { value: "system", label: t("settings.general.system") }]} />
         </Field>
         <Field label={t("settings.general.language")} desc={t("settings.general.languageDesc")}>
           <SettingsSelect
@@ -236,7 +441,7 @@ function GeneralSection() {
           <SettingsSelect value={fontSize} onChange={(v) => updateSetting("fontSize", v)} options={FONT_SIZE_OPTIONS} />
         </Field>
         <Field label={t("settings.general.defaultEnvironment")} desc={t("settings.general.defaultEnvironmentDesc")}>
-          <SettingsSelect value={defaultEnv} onChange={(v) => updateSetting("defaultEnv", v)} options={[{ value: "development", label: "Development" }, { value: "staging", label: "Staging" }, { value: "production", label: "Production" }]} />
+          <SettingsSelect value={defaultEnv} onChange={(v) => updateSetting("defaultEnv", v)} options={[{ value: "development", label: t("settings.general.development") }, { value: "staging", label: t("settings.general.staging") }, { value: "production", label: t("settings.general.production") }]} />
         </Field>
         <Field label={t("settings.general.autoSave")} desc={t("settings.general.autoSaveDesc")}>
           <SettingsToggle active={autoSave} onChange={(v) => updateSetting("autoSave", v)} />
@@ -253,18 +458,19 @@ function GeneralSection() {
 }
 
 function ProxySection() {
+  const { t } = useTranslation();
   const proxyUrl = useSettingsStore((s) => s.proxyUrl);
   const bypassList = useSettingsStore((s) => s.bypassList);
   const updateSetting = useSettingsStore((s) => s.updateSetting);
 
   return (
     <div className="mb-6">
-      <SectionTitle>Proxy</SectionTitle>
+      <SectionTitle>{t("settings.proxy.title")}</SectionTitle>
       <div className="flex flex-col gap-3">
-        <Field label="Proxy URL" desc="HTTP/HTTPS proxy server address">
+        <Field label={t("settings.proxy.proxyUrl")} desc={t("settings.proxy.proxyUrlDesc")}>
           <SettingsInput value={proxyUrl} onChange={(v) => updateSetting("proxyUrl", v)} placeholder="http://proxy:8080" mono />
         </Field>
-        <Field label="Proxy Bypass" desc="Hosts that bypass the proxy">
+        <Field label={t("settings.proxy.proxyBypass")} desc={t("settings.proxy.proxyBypassDesc")}>
           <textarea
             value={bypassList}
             onChange={(e) => updateSetting("bypassList", e.target.value)}
@@ -278,6 +484,7 @@ function ProxySection() {
 }
 
 function FontsSection() {
+  const { t } = useTranslation();
   const codeFont = useSettingsStore((s) => s.codeFont);
   const codeFontSize = useSettingsStore((s) => s.codeFontSize);
   const uiFontSize = useSettingsStore((s) => s.uiFontSize);
@@ -285,15 +492,15 @@ function FontsSection() {
 
   return (
     <div className="mb-6">
-      <SectionTitle>Fonts</SectionTitle>
+      <SectionTitle>{t("settings.fonts.title")}</SectionTitle>
       <div className="flex flex-col gap-3">
-        <Field label="Code Font" desc="Font for Monaco Editor and code blocks">
+        <Field label={t("settings.fonts.codeFont")} desc={t("settings.fonts.codeFontDesc")}>
           <SettingsSelect value={codeFont} onChange={(v) => updateSetting("codeFont", v)} options={[{ value: "JetBrains Mono", label: "JetBrains Mono" }, { value: "Fira Code", label: "Fira Code" }, { value: "Cascadia Code", label: "Cascadia Code" }, { value: "Source Code Pro", label: "Source Code Pro" }]} />
         </Field>
-        <Field label="Code Font Size" desc="Editor font size in pixels">
+        <Field label={t("settings.fonts.codeFontSize")} desc={t("settings.fonts.codeFontSizeDesc")}>
           <SettingsSelect value={codeFontSize} onChange={(v) => updateSetting("codeFontSize", v)} options={FONT_SIZE_OPTIONS} />
         </Field>
-        <Field label="UI Font Size" desc="Base UI font size in pixels">
+        <Field label={t("settings.fonts.uiFontSize")} desc={t("settings.fonts.uiFontSizeDesc")}>
           <SettingsSelect value={uiFontSize} onChange={(v) => updateSetting("uiFontSize", v)} options={FONT_SIZE_OPTIONS} />
         </Field>
       </div>
@@ -302,6 +509,7 @@ function FontsSection() {
 }
 
 function DataSection() {
+  const { t } = useTranslation();
   const [clearConfirm, setClearConfirm] = useState(false);
   const [resetConfirm, setResetConfirm] = useState(false);
 
@@ -319,9 +527,9 @@ function DataSection() {
 
   return (
     <div className="mb-6">
-      <SectionTitle>Data Management</SectionTitle>
+      <SectionTitle>{t("settings.data.title")}</SectionTitle>
       <div className="flex flex-col gap-3">
-        <Field label="Export Data" desc="Export all collections, environments, and settings">
+        <Field label={t("settings.data.exportData")} desc={t("settings.data.exportDataDesc")}>
           <button
             onClick={() => { const data = localStorage.getItem("api-client-settings") ?? "{}"; const blob = new Blob([data], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "api-client-settings.json"; a.click(); URL.revokeObjectURL(url); }}
             className="h-8 px-4 rounded-md bg-bg-elevated border border-border-muted font-sans text-[13px] font-medium text-fg-primary cursor-pointer transition-all duration-[100ms] shrink-0 hover:bg-bg-hover"
@@ -329,30 +537,30 @@ function DataSection() {
             Export
           </button>
         </Field>
-        <Field label="Import Data" desc="Import collections and settings from a file">
+        <Field label={t("settings.data.importData")} desc={t("settings.data.importDataDesc")}>
           <button
-            onClick={() => { const input = document.createElement("input"); input.type = "file"; input.accept = ".json"; input.onchange = (e) => { const file = (e.target as HTMLInputElement).files?.[0]; if (file) { const reader = new FileReader(); reader.onload = () => { try { JSON.parse(reader.result as string); localStorage.setItem("api-client-settings", reader.result as string); window.location.reload(); } catch { console.error("Invalid JSON file"); } }; reader.readAsText(file); } }; input.click(); }}
+            onClick={() => { const input = document.createElement("input"); input.type = "file"; input.accept = ".json"; input.onchange = (e) => { const file = (e.target as HTMLInputElement).files?.[0]; if (file) { const reader = new FileReader(); reader.onload = () => { try { JSON.parse(reader.result as string); localStorage.setItem("api-client-settings", reader.result as string); window.location.reload(); } catch { console.error(t("common.invalidJsonFile")); } }; reader.readAsText(file); } }; input.click(); }}
             className="h-8 px-4 rounded-md bg-bg-elevated border border-border-muted font-sans text-[13px] font-medium text-fg-primary cursor-pointer transition-all duration-[100ms] shrink-0 hover:bg-bg-hover"
           >
             Import
           </button>
         </Field>
-        <Field label="Clear History" desc="Remove all request history entries">
+        <Field label={t("settings.data.clearHistory")} desc={t("settings.data.clearHistoryDesc")}>
           <button
             onClick={handleClearHistory}
             onBlur={() => setClearConfirm(false)}
             className={`h-8 px-4 rounded-md border font-sans text-[13px] font-medium cursor-pointer transition-all duration-[100ms] shrink-0 ${clearConfirm ? "bg-accent-danger text-white border-accent-danger" : "bg-transparent border-accent-danger/30 text-accent-danger hover:bg-accent-danger/12 hover:border-accent-danger"}`}
           >
-            {clearConfirm ? "Confirm" : "Clear"}
+            {clearConfirm ? t("common.confirm") : t("common.clear")}
           </button>
         </Field>
-        <Field label="Reset Settings" desc="Reset all settings to defaults">
+        <Field label={t("settings.data.resetSettings")} desc={t("settings.data.resetSettingsDesc")}>
           <button
             onClick={handleResetSettings}
             onBlur={() => setResetConfirm(false)}
             className={`h-8 px-4 rounded-md border font-sans text-[13px] font-medium cursor-pointer transition-all duration-[100ms] shrink-0 ${resetConfirm ? "bg-accent-danger text-white border-accent-danger" : "bg-transparent border-accent-danger/30 text-accent-danger hover:bg-accent-danger/12 hover:border-accent-danger"}`}
           >
-            {resetConfirm ? "Confirm" : "Reset"}
+            {resetConfirm ? t("common.confirm") : t("common.reset")}
           </button>
         </Field>
       </div>
@@ -361,6 +569,7 @@ function DataSection() {
 }
 
 function EnvironmentsSection({ onEditEnvironment }: { onEditEnvironment: (id: string) => void }) {
+  const { t } = useTranslation();
   const environments = useEnvironmentStore((s) => s.environments);
   const addEnvironment = useEnvironmentStore((s) => s.addEnvironment);
   const deleteEnvironment = useEnvironmentStore((s) => s.deleteEnvironment);
@@ -378,7 +587,7 @@ function EnvironmentsSection({ onEditEnvironment }: { onEditEnvironment: (id: st
     const id = `env-${Date.now()}`;
     addEnvironment({
       id,
-      name: "New Environment",
+      name: t("settings.environments.newEnvironment"),
       variables: [],
       isActive: false,
     });
@@ -387,7 +596,7 @@ function EnvironmentsSection({ onEditEnvironment }: { onEditEnvironment: (id: st
 
   const handleDeleteEnvironment = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm("Are you sure you want to delete this environment?")) {
+    if (confirm(t("settings.environments.deleteConfirm"))) {
       deleteEnvironment(id);
     }
   };
@@ -416,7 +625,7 @@ function EnvironmentsSection({ onEditEnvironment }: { onEditEnvironment: (id: st
 
   return (
     <div className="mb-6">
-      <SectionTitle>Environments</SectionTitle>
+      <SectionTitle>{t("settings.environments.title")}</SectionTitle>
 
       <div className="flex flex-col gap-2 mb-4">
         {environments.map((env) => (
@@ -432,12 +641,12 @@ function EnvironmentsSection({ onEditEnvironment }: { onEditEnvironment: (id: st
             <span className={`w-2 h-2 rounded-full ${getEnvTypeColor(env.envType)} bg-current shrink-0`} />
             <span className="flex-1 font-sans text-[13px] text-fg-primary">{env.name}</span>
             <span className="font-sans text-[11px] text-fg-tertiary">
-              {env.variables.length} variable{env.variables.length !== 1 ? "s" : ""}
+              {t("settings.environments.variableCount", { count: env.variables.length })}
             </span>
             <button
               onClick={(e) => handleDeleteEnvironment(env.id, e)}
               className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-bg-hover text-fg-tertiary hover:text-accent-danger transition-all"
-              title="Delete environment"
+              title={t("settings.environments.deleteTitle")}
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -450,20 +659,20 @@ function EnvironmentsSection({ onEditEnvironment }: { onEditEnvironment: (id: st
         className="w-full h-9 flex items-center justify-center gap-2 rounded-md border border-dashed border-border-muted text-fg-secondary hover:border-brand hover:text-brand hover:bg-brand-muted transition-colors cursor-pointer"
       >
         <span className="text-lg leading-none">+</span>
-        <span className="font-sans text-[13px] font-medium">Add Environment</span>
+        <span className="font-sans text-[13px] font-medium">{t("settings.environments.addEnvironment")}</span>
       </button>
 
       {/* Global Variables Section */}
       <div className="mt-8">
-        <h4 className="font-sans text-[13px] font-semibold text-fg-primary mb-3">Global Variables</h4>
+        <h4 className="font-sans text-[13px] font-semibold text-fg-primary mb-3">{t("settings.environments.globalVariables")}</h4>
         <div className="text-[11px] text-fg-tertiary mb-3">
-          Global variables are available across all environments and collections.
+          {t("settings.environments.globalVariablesDesc")}
         </div>
         <div className="border border-border-muted rounded-md overflow-hidden h-[200px]">
           <KeyValueEditor
             items={globalVars}
             onChange={handleGlobalVarsChange}
-            placeholder={{ key: "Variable Name", value: "Value" }}
+            placeholder={{ key: t("common.name"), value: t("common.value") }}
             showDescription={false}
           />
         </div>
@@ -502,35 +711,37 @@ function ensureEmptyRow(items: KeyValue[]): KeyValue[] {
 }
 
 function AboutSection() {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center py-6 gap-2 text-center">
       <Settings className="w-16 h-16 text-brand mb-2" />
-      <div className="font-sans text-xl font-bold text-fg-primary">API Client</div>
+      <div className="font-sans text-xl font-bold text-fg-primary">{t("settings.about.appName")}</div>
       <div className="font-mono text-[12px] text-fg-tertiary">v0.1.0</div>
       <div className="font-sans text-[13px] text-fg-secondary max-w-[320px]">
-        A modern, cross-platform API development toolkit built with Tauri 2.x + React 19
+        {t("settings.about.description")}
       </div>
       <div className="flex gap-4 mt-3">
-        <a className="font-sans text-[12px] font-medium text-brand cursor-pointer transition-[color] duration-[100ms] hover:text-brand-hover">GitHub</a>
-        <a className="font-sans text-[12px] font-medium text-brand cursor-pointer transition-[color] duration-[100ms] hover:text-brand-hover">Documentation</a>
-        <a className="font-sans text-[12px] font-medium text-brand cursor-pointer transition-[color] duration-[100ms] hover:text-brand-hover">Changelog</a>
+        <a className="font-sans text-[12px] font-medium text-brand cursor-pointer transition-[color] duration-[100ms] hover:text-brand-hover">{t("settings.about.github")}</a>
+        <a className="font-sans text-[12px] font-medium text-brand cursor-pointer transition-[color] duration-[100ms] hover:text-brand-hover">{t("settings.about.documentation")}</a>
+        <a className="font-sans text-[12px] font-medium text-brand cursor-pointer transition-[color] duration-[100ms] hover:text-brand-hover">{t("settings.about.changelog")}</a>
       </div>
     </div>
   );
 }
 
 function MockSection() {
+  const { t } = useTranslation();
   const [port, setPort] = useState("4010");
 
   return (
     <div className="mb-6">
-      <SectionTitle>Mock Server</SectionTitle>
+      <SectionTitle>{t("settings.mock.title")}</SectionTitle>
       <div className="flex flex-col gap-3">
-        <Field label="Server Port" desc="Port for the mock HTTP server">
+        <Field label={t("settings.mock.serverPort")} desc={t("settings.mock.serverPortDesc")}>
           <SettingsInput value={port} onChange={setPort} placeholder="4010" mono />
         </Field>
         <div className="text-fg-secondary text-[12px] font-sans">
-          Configure mock routes in the Mock Server panel. Start/stop the server from the protocol tab.
+          {t("settings.mock.description")}
         </div>
       </div>
     </div>
@@ -538,6 +749,7 @@ function MockSection() {
 }
 
 function CookiesSection() {
+  const { t } = useTranslation();
   const cookies = useCookieStore((s) => s.cookies);
   const loadCookies = useCookieStore((s) => s.loadCookies);
   const removeCookie = useCookieStore((s) => s.removeCookie);
@@ -566,9 +778,9 @@ function CookiesSection() {
 
   return (
     <div className="mb-6">
-      <SectionTitle>Cookie Jar</SectionTitle>
+      <SectionTitle>{t("settings.cookies.title")}</SectionTitle>
       <div className="flex flex-col gap-3">
-        <Field label="Filter by Domain" desc="Show cookies for a specific domain">
+        <Field label={t("settings.cookies.filterByDomain")} desc={t("settings.cookies.filterByDomainDesc")}>
           <div className="flex items-center gap-1">
             <input
               value={filterDomain}
@@ -581,24 +793,24 @@ function CookiesSection() {
               onClick={handleFilter}
               className="h-8 px-3 rounded-md bg-brand text-white text-[12px] font-semibold cursor-pointer hover:bg-brand-hover transition-colors"
             >
-              Filter
+              {t("common.filter")}
             </button>
           </div>
         </Field>
         <div className="max-h-[240px] overflow-y-auto border border-border-muted rounded-md">
           {cookies.length === 0 ? (
             <div className="flex items-center justify-center h-[60px] text-fg-tertiary text-[12px]">
-              No cookies found
+              {t("settings.cookies.noCookiesFound")}
             </div>
           ) : (
             <table className="w-full text-[11px]">
               <thead>
                 <tr className="bg-bg-elevated text-fg-tertiary">
-                  <th className="text-left px-2 py-1 font-semibold">Domain</th>
-                  <th className="text-left px-2 py-1 font-semibold">Name</th>
-                  <th className="text-left px-2 py-1 font-semibold">Value</th>
-                  <th className="text-left px-2 py-1 font-semibold">Path</th>
-                  <th className="text-left px-2 py-1 font-semibold">Expires</th>
+                  <th className="text-left px-2 py-1 font-semibold">{t("common.domain")}</th>
+                  <th className="text-left px-2 py-1 font-semibold">{t("common.name")}</th>
+                  <th className="text-left px-2 py-1 font-semibold">{t("common.value")}</th>
+                  <th className="text-left px-2 py-1 font-semibold">{t("common.path")}</th>
+                  <th className="text-left px-2 py-1 font-semibold">{t("common.expires")}</th>
                   <th className="w-[30px]"></th>
                 </tr>
               </thead>
@@ -611,7 +823,7 @@ function CookiesSection() {
                       <td className="px-2 py-1 font-mono text-fg-primary truncate max-w-[80px]">{c.name}</td>
                       <td className="px-2 py-1 font-mono text-fg-secondary truncate max-w-[100px]">{c.value}</td>
                       <td className="px-2 py-1 font-mono text-fg-tertiary">{c.path}</td>
-                      <td className="px-2 py-1 font-mono text-fg-tertiary">{c.expires ? new Date(c.expires).toLocaleDateString() : "Session"}</td>
+                      <td className="px-2 py-1 font-mono text-fg-tertiary">{c.expires ? new Date(c.expires).toLocaleDateString() : t("common.session")}</td>
                       <td className="px-2 py-1">
                         <button
                           onClick={() => c.id != null && removeCookie(c.id)}
@@ -627,13 +839,13 @@ function CookiesSection() {
             </table>
           )}
         </div>
-        <Field label="Clear All Cookies" desc="Remove all stored cookies">
+        <Field label={t("settings.cookies.clearAll")} desc={t("settings.cookies.clearAllDesc")}>
           <button
             onClick={handleClear}
             onBlur={() => setClearConfirm(false)}
             className={`h-8 px-4 rounded-md border font-sans text-[13px] font-medium cursor-pointer transition-all duration-[100ms] shrink-0 ${clearConfirm ? "bg-accent-danger text-white border-accent-danger" : "bg-transparent border-accent-danger/30 text-accent-danger hover:bg-accent-danger/12 hover:border-accent-danger"}`}
           >
-            {clearConfirm ? "Confirm" : "Clear All"}
+            {clearConfirm ? t("common.confirm") : t("common.clearAll")}
           </button>
         </Field>
       </div>

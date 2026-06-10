@@ -2,9 +2,11 @@ import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import { messages } from "./messages";
 
-// i18n should read language from the same source as UIStore
-// UIStore is the single source of truth for language preference
-const language = (localStorage.getItem("language") as "en" | "zh-CN") || "zh-CN";
+function normalizeLanguage(language: string | null): "en" | "zh-CN" {
+  return language === "en" || language === "zh-CN" ? language : "zh-CN";
+}
+
+const language = normalizeLanguage(localStorage.getItem("language"));
 
 void i18n
   .use(initReactI18next)
@@ -18,6 +20,9 @@ void i18n
     interpolation: {
       escapeValue: false,
     },
+    keySeparator: ".",
+    nsSeparator: false,
   });
 
 export { i18n };
+export { normalizeLanguage };

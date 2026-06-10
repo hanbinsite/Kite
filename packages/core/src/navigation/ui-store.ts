@@ -50,12 +50,16 @@ interface UIStoreImpl extends UIStore {
   setBottomPanelTab: (tab: "response" | "ai") => void;
 }
 
+function normalizeTheme(value: string | null): Theme {
+  return value === "dark" || value === "light" || value === "system" ? value : "dark";
+}
+
 export const useUIStore = create<UIStoreImpl>()((set) => ({
-  theme: (localStorage.getItem("theme") as Theme) || "dark",
+  theme: normalizeTheme(localStorage.getItem("theme")),
   language: (localStorage.getItem("language") as "en" | "zh-CN") || "zh-CN",
   sidebarVisible: true,
   sidebarCollapsed: localStorage.getItem("sidebarCollapsed") === "true",
-  sidebarWidth: 220,
+  sidebarWidth: 280,
   splitRatio: 0.5,
   settingsOpen: false,
   settingsCategory: undefined,
@@ -68,11 +72,11 @@ export const useUIStore = create<UIStoreImpl>()((set) => ({
   toggleSidebar: () => measureSync("sidebar:toggle", () => set((state) => {
     const nextCollapsed = !state.sidebarCollapsed;
     localStorage.setItem("sidebarCollapsed", String(nextCollapsed));
-    return { sidebarCollapsed: nextCollapsed, sidebarVisible: true };
+    return { sidebarCollapsed: nextCollapsed };
   })),
   setSidebarCollapsed: (collapsed) => {
     localStorage.setItem("sidebarCollapsed", String(collapsed));
-    set({ sidebarCollapsed: collapsed, sidebarVisible: true });
+    set({ sidebarCollapsed: collapsed });
   },
   setSidebarWidth: (width) => set({ sidebarWidth: width }),
   setSplitRatio: (ratio) => set({ splitRatio: ratio }),

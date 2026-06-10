@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -12,6 +13,8 @@ interface ConfirmDialogProps {
   variant?: "danger" | "warning" | "default";
   onConfirm: () => void;
   onCancel: () => void;
+  secondaryLabel?: string;
+  onSecondary?: () => void;
 }
 
 export function ConfirmDialog({
@@ -19,12 +22,17 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
+  confirmLabel,
+  cancelLabel,
   variant = "default",
   onConfirm,
   onCancel,
+  secondaryLabel,
+  onSecondary,
 }: ConfirmDialogProps) {
+  const { t } = useTranslation();
+  const resolvedConfirmLabel = confirmLabel ?? t("common.confirm");
+  const resolvedCancelLabel = cancelLabel ?? t("common.cancel");
   const confirmRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -66,8 +74,19 @@ export function ConfirmDialog({
               }}
               className="h-[32px] px-4 rounded-md font-sans text-[13px] font-medium text-fg-secondary bg-bg-hover hover:bg-bg-active cursor-pointer transition-colors"
             >
-              {cancelLabel}
+              {resolvedCancelLabel}
             </button>
+            {secondaryLabel && onSecondary && (
+              <button
+                onClick={() => {
+                  onSecondary();
+                  onOpenChange(false);
+                }}
+                className="h-[32px] px-4 rounded-md font-sans text-[13px] font-medium text-white bg-brand hover:bg-brand-hover cursor-pointer transition-colors"
+              >
+                {secondaryLabel}
+              </button>
+            )}
             <button
               ref={confirmRef}
               onClick={() => {
@@ -76,7 +95,7 @@ export function ConfirmDialog({
               }}
               className={`h-[32px] px-4 rounded-md font-sans text-[13px] font-medium cursor-pointer transition-colors ${confirmBtnClass}`}
             >
-              {confirmLabel}
+              {resolvedConfirmLabel}
             </button>
           </div>
         </Dialog.Content>

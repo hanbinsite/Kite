@@ -22,7 +22,7 @@ export interface TabState {
 }
 
 export interface TabActions {
-  openTab: (tab: Omit<Tab, "id" | "isModified">) => void;
+  openTab: (tab: Omit<Tab, "id" | "isModified">) => string;
   closeTab: (id: string) => void;
   closeOtherTabs: (id: string) => void;
   closeAllTabs: () => void;
@@ -33,7 +33,7 @@ export interface TabActions {
 export type TabStore = TabState & TabActions;
 
 interface TabStoreImpl extends TabStore {
-  openTab: (tab: Omit<Tab, "id" | "isModified">) => void;
+  openTab: (tab: Omit<Tab, "id" | "isModified">) => string;
   closeTab: (id: string) => void;
   closeOtherTabs: (id: string) => void;
   closeAllTabs: () => void;
@@ -45,43 +45,40 @@ export const useTabStore = create<TabStoreImpl>()((set) => ({
   tabs: [],
   activeTabId: null,
 
-  openTab: (tabData) =>
+  openTab: (tabData) => {
+    let resultId = "";
     set((state) => {
+      let existing: Tab | undefined;
       if (tabData.protocol === "collection-config" && tabData.meta) {
-        const existing = state.tabs.find(
+        existing = state.tabs.find(
           (t) => t.protocol === "collection-config" &&
             t.meta?.collectionId === tabData.meta?.collectionId &&
             t.meta?.folderId === tabData.meta?.folderId
         );
-        if (existing) {
-          return { activeTabId: existing.id };
-        }
       } else if (tabData.requestId) {
-        const existing = state.tabs.find((t) => t.requestId === tabData.requestId);
-        if (existing) {
-          return { activeTabId: existing.id };
-        }
-      } else {
-        let existing: Tab | undefined;
-        if (tabData.url) {
-          existing = state.tabs.find(
-            (t) => t.method === tabData.method && t.url === tabData.url && !t.requestId
-          );
-        } else if (tabData.name && tabData.name !== "New Request") {
-          existing = state.tabs.find(
-            (t) => t.method === tabData.method && t.name === tabData.name && !t.url && !t.requestId
-          );
-        }
-        if (existing) {
-          return { activeTabId: existing.id };
-        }
+        existing = state.tabs.find((t) => t.requestId === tabData.requestId);
+      } else if (tabData.url) {
+        existing = state.tabs.find(
+          (t) => t.method === tabData.method && t.url === tabData.url && !t.requestId
+        );
+      } else if (tabData.name && tabData.name !== "New Request") {
+        existing = state.tabs.find(
+          (t) => t.method === tabData.method && t.name === tabData.name && !t.url && !t.requestId
+        );
+      }
+      if (existing) {
+        resultId = existing.id;
+        return { activeTabId: existing.id };
       }
       const id = crypto.randomUUID();
+      resultId = id;
       return {
         tabs: [...state.tabs, { ...tabData, id, isModified: false }],
         activeTabId: id,
       };
-    }),
+    });
+    return resultId;
+  },
 
   closeTab: (id) =>
     set((state) => {

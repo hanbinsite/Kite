@@ -2,6 +2,7 @@ import { useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X, Search, Copy, Check, ChevronDown, ChevronRight } from "lucide-react";
 import { useEnvironmentStore } from "../../stores/environment-store";
+import { useTranslation } from "react-i18next";
 
 interface VariableInspectorProps {
   isOpen: boolean;
@@ -9,6 +10,7 @@ interface VariableInspectorProps {
 }
 
 export function VariableInspector({ isOpen, onClose }: VariableInspectorProps) {
+  const { t } = useTranslation();
   const environments = useEnvironmentStore((s) => s.environments);
   const globals = useEnvironmentStore((s) => s.globals);
   const [search, setSearch] = useState("");
@@ -77,7 +79,7 @@ export function VariableInspector({ isOpen, onClose }: VariableInspectorProps) {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search variables..."
+              placeholder={t("common.search")}
               className="flex-1 bg-transparent text-xs text-fg-primary placeholder:text-fg-tertiary outline-none"
             />
             <span className="text-[11px] text-fg-tertiary">{totalVars} variables</span>
