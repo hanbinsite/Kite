@@ -47,4 +47,4 @@ coverage
 *.temp
 
 # TypeScript build info
-*.tsbuildinfo
+*.tsbuildinfo.claude/worktrees/
