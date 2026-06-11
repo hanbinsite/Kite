@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { i18n } from "../../i18n";
 import {
   Search,
   Plus,
@@ -194,7 +195,7 @@ function CollectionTreeItems({
                       });
                     }}
                     className="p-0.5 hover:bg-bg-hover rounded"
-                    title="Folder Settings"
+                    title={i18n.t("sidebar.folderSettings")}
                   >
                     <Settings className="w-3 h-3 text-fg-tertiary" />
                   </button>
@@ -277,7 +278,7 @@ function CollectionTreeItems({
                   deleteRequest(collectionId, item.id);
                 }}
                 className="p-0.5 opacity-0 group-hover:opacity-100 hover:bg-bg-hover rounded"
-                title="Delete request"
+                title={i18n.t("sidebar.deleteRequest")}
               >
                 <X className="w-3 h-3 text-fg-tertiary" />
               </button>
@@ -406,9 +407,9 @@ const deleteRequest = useCollectionStore((s) => s.deleteRequest);
 
   const handleAddCollection = () => {
     const id = crypto.randomUUID();
-    addCollection(id, "New Collection");
+    addCollection(id, t("sidebar.newCollection"));
     setEditingId(id);
-    setEditingName("New Collection");
+    setEditingName(t("sidebar.newCollection"));
   };
 
   const startEditing = (id: string, name: string) => {
@@ -442,7 +443,7 @@ const commitEdit = () => {
 
   const handleAddRequest = (collectionId: string) => {
     const reqId = crypto.randomUUID();
-    addRequestToCollection(collectionId, { id: reqId, method: "GET", name: "New Request", url: "" });
+    addRequestToCollection(collectionId, { id: reqId, method: "GET", name: t("sidebar.newRequest"), url: "" });
     setExpandedIds((prev) => new Set(prev).add(collectionId));
   };
 
@@ -451,7 +452,7 @@ const commitEdit = () => {
     if (action === "settings") {
       if (target.type === "collection") {
         openTab({
-          name: `⚙ ${collections.find((c) => c.id === target.id)?.name ?? "Settings"}`,
+          name: `⚙ ${collections.find((c) => c.id === target.id)?.name ?? t("settings.title")}`,
           method: "",
           url: "",
           protocol: "collection-config",
@@ -461,7 +462,7 @@ const commitEdit = () => {
         const colId = target.collectionId ?? target.parentId;
         if (colId) {
           openTab({
-            name: `⚙ Folder Settings`,
+            name: `⚙ ${t("sidebar.folderSettings")}`,
             method: "",
             url: "",
             protocol: "collection-config",
@@ -483,10 +484,10 @@ const commitEdit = () => {
           break;
         case "add-folder": {
           const folderId = crypto.randomUUID();
-          addFolderToCollection(target.id, folderId, "New Folder");
+          addFolderToCollection(target.id, folderId, t("sidebar.newFolder"));
           setExpandedIds((prev) => new Set(prev).add(target.id));
           setEditingId(folderId);
-          setEditingName("New Folder");
+          setEditingName(t("sidebar.newFolder"));
           break;
         }
         case "delete":
@@ -558,7 +559,7 @@ const commitEdit = () => {
           className="flex-1 bg-transparent text-sm text-fg-primary placeholder:text-fg-tertiary outline-none"
         />
         <button
-          onClick={() => openTab({ name: "New Request", method: "GET", url: "" })}
+          onClick={() => openTab({ name: t("sidebar.newRequest"), method: "GET", url: "" })}
           className="p-1 hover:bg-bg-hover rounded transition-colors"
         >
           <Plus className="w-4 h-4 text-fg-secondary" />
@@ -638,7 +639,7 @@ const commitEdit = () => {
                         });
                       }}
                       className="p-0.5 hover:bg-bg-hover rounded"
-                      title="Collection Settings"
+                      title={t("sidebar.collectionSettings")}
                     >
                       <Settings className="w-3 h-3 text-fg-tertiary" />
                     </button>
@@ -648,7 +649,7 @@ const commitEdit = () => {
                         handleAddRequest(col.id);
                       }}
                       className="p-0.5 hover:bg-bg-hover rounded"
-                      title="Add request"
+                      title={t("sidebar.addRequest")}
                     >
                       <Plus className="w-3 h-3 text-fg-tertiary" />
                     </button>
@@ -658,7 +659,7 @@ const commitEdit = () => {
                         deleteCollection(col.id);
                       }}
                       className="p-0.5 hover:bg-bg-hover rounded"
-                      title="Delete collection"
+                      title={t("sidebar.deleteCollection")}
                     >
                       <X className="w-3 h-3 text-fg-tertiary" />
                     </button>
@@ -752,7 +753,7 @@ const commitEdit = () => {
         <button
           onClick={() => openSettings()}
           className="p-1.5 hover:bg-bg-hover rounded transition-colors"
-          title="Settings"
+          title={t("settings.title")}
         >
           <Settings className="w-4 h-4 text-fg-tertiary" />
         </button>

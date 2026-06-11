@@ -91,7 +91,7 @@ export function WebSocketPanel({ connectionId }: WebSocketPanelProps) {
           type="text"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="ws://localhost:8080"
+          placeholder={t("ws.urlPlaceholder")}
           disabled={status === "connected" || status === "connecting"}
           className="flex-1 h-[28px] px-2 bg-bg-input border border-border-muted rounded text-[12px] text-fg-primary placeholder:text-fg-tertiary outline-none focus:border-border-focus disabled:opacity-50 font-mono"
         />
@@ -105,7 +105,7 @@ export function WebSocketPanel({ connectionId }: WebSocketPanelProps) {
           } disabled:opacity-50 disabled:cursor-not-allowed`}
         >
           {status === "connected" ? <Unlink size={12} /> : <Link size={12} />}
-          {status === "connected" ? "Disconnect" : status === "connecting" ? "Connecting..." : "Connect"}
+          {status === "connected" ? t("ws.disconnect") : status === "connecting" ? t("ws.connecting") : t("ws.connect")}
         </button>
       </div>
 
@@ -190,7 +190,7 @@ export function WebSocketPanel({ connectionId }: WebSocketPanelProps) {
               <button
                 onClick={() => clearMessages(connectionId)}
                 className="flex items-center justify-center w-[28px] h-[28px] rounded text-fg-tertiary hover:text-fg-secondary hover:bg-bg-hover cursor-pointer transition-colors"
-                title="Clear messages"
+                title={t("ws.clearMessages")}
               >
                 <Trash2 size={12} />
               </button>

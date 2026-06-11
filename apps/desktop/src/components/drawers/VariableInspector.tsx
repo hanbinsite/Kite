@@ -45,7 +45,7 @@ export function VariableInspector({ isOpen, onClose }: VariableInspectorProps) {
   );
 
   const scopeData: { scope: string; label: string; vars: { key: string; value: string; enabled: boolean }[] }[] = [
-    { scope: "globals", label: "Globals", vars: filteredGlobals },
+    { scope: "globals", label: t("variableInspector.globals"), vars: filteredGlobals },
     ...environments.map((env) => ({
       scope: `env-${env.id}`,
       label: env.name,
@@ -65,7 +65,7 @@ export function VariableInspector({ isOpen, onClose }: VariableInspectorProps) {
         <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[480px] max-h-[400px] bg-bg-elevated/85 backdrop-blur-[20px] border border-white/[0.06] rounded-xl shadow-xl z-modal flex flex-col overflow-hidden">
           <div className="h-12 flex items-center justify-between px-4 border-b border-border-default">
             <Dialog.Title className="font-sans text-sm font-semibold text-fg-primary">
-              Variable Inspector
+              {t("variableInspector.title")}
             </Dialog.Title>
             <Dialog.Close asChild>
               <button className="p-1 rounded hover:bg-bg-hover text-fg-tertiary hover:text-fg-primary cursor-pointer transition-colors">

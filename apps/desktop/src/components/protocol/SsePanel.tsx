@@ -55,7 +55,7 @@ export function SsePanel({ connectionId }: SsePanelProps) {
           type="text"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://example.com/events"
+          placeholder={t("sse.urlPlaceholder")}
           disabled={status === "connected" || status === "connecting"}
           className="flex-1 h-[28px] px-2 bg-bg-input border border-border-muted rounded text-[12px] text-fg-primary placeholder:text-fg-tertiary outline-none focus:border-border-focus disabled:opacity-50 font-mono"
         />
@@ -69,7 +69,7 @@ export function SsePanel({ connectionId }: SsePanelProps) {
           } disabled:opacity-50 disabled:cursor-not-allowed`}
         >
           {status === "connected" ? <Unlink size={12} /> : <Link size={12} />}
-          {status === "connected" ? "Disconnect" : status === "connecting" ? "Connecting..." : "Connect"}
+          {status === "connected" ? t("sse.disconnect") : status === "connecting" ? t("sse.connecting") : t("sse.connect")}
         </button>
       </div>
 
@@ -82,12 +82,12 @@ export function SsePanel({ connectionId }: SsePanelProps) {
 
       <div className="flex items-center justify-between h-[28px] px-3 border-b border-border-muted shrink-0">
         <span className="font-sans text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em]">
-          Events ({dataEvents.length})
+          {t("sse.events", { count: dataEvents.length })}
         </span>
         <button
           onClick={() => clearEvents(connectionId)}
           className="p-1 rounded hover:bg-bg-hover text-fg-tertiary hover:text-fg-secondary cursor-pointer transition-colors"
-          title="Clear events"
+          title={t("sse.clearEvents")}
         >
           <Trash2 size={12} />
         </button>

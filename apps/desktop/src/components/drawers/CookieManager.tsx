@@ -57,11 +57,11 @@ function AddCookieForm({ onAdd, onCancel }: { onAdd: (c: Omit<CookieEntry, "id">
       <div className="flex items-center gap-3">
         <label className="flex items-center gap-1 font-sans text-[10px] text-fg-secondary cursor-pointer">
           <input type="checkbox" checked={secure} onChange={(e) => setSecure(e.target.checked)} className="accent-brand" />
-          Secure
+          {t("cookies.secure")}
         </label>
         <label className="flex items-center gap-1 font-sans text-[10px] text-fg-secondary cursor-pointer">
           <input type="checkbox" checked={httpOnly} onChange={(e) => setHttpOnly(e.target.checked)} className="accent-brand" />
-          HttpOnly
+          {t("cookies.httpOnly")}
         </label>
         <div className="flex-1" />
         <button
@@ -69,7 +69,7 @@ function AddCookieForm({ onAdd, onCancel }: { onAdd: (c: Omit<CookieEntry, "id">
           disabled={!domain.trim() || !name.trim()}
           className="h-[24px] px-3 rounded bg-brand text-white text-[10px] font-semibold cursor-pointer hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Add
+          {t("common.add")}
         </button>
       </div>
     </div>
@@ -118,7 +118,7 @@ export function CookieManager() {
           className="flex items-center gap-1 h-[24px] px-2 rounded bg-brand/10 text-brand text-[10px] font-semibold cursor-pointer hover:bg-brand/20 transition-colors"
         >
           <Plus size={10} />
-          Add
+          {t("common.add")}
         </button>
         <button
           onClick={handleClear}
@@ -127,7 +127,7 @@ export function CookieManager() {
             clearConfirm ? "bg-accent-danger text-white border-accent-danger" : "border-accent-danger/30 text-accent-danger hover:bg-accent-danger/12"
           }`}
         >
-          {clearConfirm ? "Confirm" : "Clear All"}
+          {clearConfirm ? t("common.confirm") : t("common.clearAll")}
         </button>
       </div>
 
@@ -137,7 +137,7 @@ export function CookieManager() {
           value={filterDomain}
           onChange={(e) => setFilterDomain(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleFilter()}
-          placeholder="Filter by domain..."
+          placeholder={t("cookies.filterByDomain")}
           className="flex-1 h-[24px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary outline-none focus:border-border-focus font-mono placeholder:text-fg-tertiary"
         />
       </div>
@@ -168,9 +168,9 @@ export function CookieManager() {
                   <span className="font-mono text-fg-primary shrink-0 max-w-[100px] truncate">{c.name}</span>
                   <span className="font-mono text-fg-secondary flex-1 truncate">{c.value}</span>
                   <span className="font-mono text-fg-tertiary text-[10px] shrink-0">{c.path}</span>
-                  {c.secure && <span className="font-sans text-[9px] text-accent-info shrink-0">Secure</span>}
-                  {c.httpOnly && <span className="font-sans text-[9px] text-accent-warning shrink-0">HttpOnly</span>}
-                  {expired && <span className="font-sans text-[9px] text-accent-danger shrink-0">Expired</span>}
+                  {c.secure && <span className="font-sans text-[9px] text-accent-info shrink-0">{t("cookies.secure")}</span>}
+                  {c.httpOnly && <span className="font-sans text-[9px] text-accent-warning shrink-0">{t("cookies.httpOnly")}</span>}
+                  {expired && <span className="font-sans text-[9px] text-accent-danger shrink-0">{t("cookies.expired")}</span>}
                   <button
                     onClick={() => c.id != null && removeCookie(c.id)}
                     className="p-1 rounded hover:bg-bg-hover text-fg-tertiary hover:text-accent-danger cursor-pointer transition-colors shrink-0"

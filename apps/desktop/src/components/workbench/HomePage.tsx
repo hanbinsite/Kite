@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Zap, Clock, FolderOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTabStore, useUIStore } from "@api-client/core";
@@ -12,19 +12,6 @@ const METHOD_BG: Record<string, string> = {
   delete: "bg-method-delete",
 };
 
-function formatTimeAgo(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin} min ago`;
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}h ago`;
-  const diffDay = Math.floor(diffHr / 24);
-  return `${diffDay}d ago`;
-}
-
 export function HomePage() {
   const { t } = useTranslation();
   const openTab = useTabStore((s) => s.openTab);
@@ -34,6 +21,19 @@ export function HomePage() {
   useEffect(() => {
     queryHistoryEntries(10).then(setHistory).catch(() => setHistory([]));
   }, []);
+
+  const formatTimeAgo = useCallback((dateStr: string): string => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return t("home.justNow");
+    if (diffMin < 60) return t("home.minAgo", { count: diffMin });
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return t("home.hrAgo", { count: diffHr });
+    const diffDay = Math.floor(diffHr / 24);
+    return t("home.dayAgo", { count: diffDay });
+  }, [t]);
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center bg-bg-base overflow-y-auto p-8">

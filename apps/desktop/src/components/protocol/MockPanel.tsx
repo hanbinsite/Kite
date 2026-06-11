@@ -21,6 +21,7 @@ function generateId() {
 }
 
 function RouteEditor({ route, onChange, onRemove }: { route: MockRoute; onChange: (r: MockRoute) => void; onRemove: () => void }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [newHeaderKey, setNewHeaderKey] = useState("");
   const [newHeaderValue, setNewHeaderValue] = useState("");
@@ -69,7 +70,7 @@ function RouteEditor({ route, onChange, onRemove }: { route: MockRoute; onChange
           value={route.path}
           onChange={(e) => onChange({ ...route, path: e.target.value })}
           onClick={(e) => e.stopPropagation()}
-          placeholder="/api/path"
+          placeholder={t("mock.pathPlaceholder")}
           className="flex-1 h-[22px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary placeholder:text-fg-tertiary outline-none focus:border-border-focus font-mono"
         />
         <span className="font-mono text-[11px] text-fg-secondary tabular-nums">{route.status}</span>
@@ -84,14 +85,14 @@ function RouteEditor({ route, onChange, onRemove }: { route: MockRoute; onChange
       {expanded && (
         <div className="flex flex-col gap-2 px-3 py-2 border-t border-border-muted">
           <div className="flex items-center gap-2">
-            <span className="font-sans text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em] w-[50px] shrink-0">Status</span>
+            <span className="font-sans text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em] w-[50px] shrink-0">{t("common.status")}</span>
             <input
               type="number"
               value={route.status}
               onChange={(e) => onChange({ ...route, status: Number(e.target.value) || 200 })}
               className="w-[72px] h-[22px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary outline-none focus:border-border-focus font-mono"
             />
-            <span className="font-sans text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em] w-[50px] shrink-0 ml-2">Delay</span>
+            <span className="font-sans text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em] w-[50px] shrink-0 ml-2">{t("mock.delay")}</span>
             <input
               type="number"
               value={route.delayMs}
@@ -99,11 +100,11 @@ function RouteEditor({ route, onChange, onRemove }: { route: MockRoute; onChange
               className="w-[72px] h-[22px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary outline-none focus:border-border-focus font-mono"
               placeholder="0"
             />
-            <span className="font-sans text-[10px] text-fg-tertiary">ms</span>
+            <span className="font-sans text-[10px] text-fg-tertiary">{t("mock.delayUnit")}</span>
           </div>
 
           <div>
-            <span className="font-sans text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em]">Headers</span>
+            <span className="font-sans text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em]">{t("request.headers")}</span>
             <div className="flex flex-col gap-1 mt-1">
               {route.headers.map((h: KeyValue, i: number) => (
                 <div key={i} className="flex items-center gap-1">
@@ -115,7 +116,7 @@ function RouteEditor({ route, onChange, onRemove }: { route: MockRoute; onChange
                       onChange({ ...route, headers });
                     }}
                     className="w-[120px] h-[22px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary outline-none focus:border-border-focus font-mono"
-                    placeholder="Header"
+                    placeholder={t("mock.headerPlaceholder")}
                   />
                   <input
                     type="text"
@@ -125,7 +126,7 @@ function RouteEditor({ route, onChange, onRemove }: { route: MockRoute; onChange
                       onChange({ ...route, headers });
                     }}
                     className="flex-1 h-[22px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary outline-none focus:border-border-focus font-mono"
-                    placeholder="Value"
+                    placeholder={t("mock.valuePlaceholder")}
                   />
                   <button
                     onClick={() => removeHeader(i)}
@@ -142,7 +143,7 @@ function RouteEditor({ route, onChange, onRemove }: { route: MockRoute; onChange
                   onChange={(e) => setNewHeaderKey(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && addHeader()}
                   className="w-[120px] h-[22px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary placeholder:text-fg-tertiary outline-none focus:border-border-focus font-mono"
-                  placeholder="Header"
+                  placeholder={t("mock.headerPlaceholder")}
                 />
                 <input
                   type="text"
@@ -150,26 +151,26 @@ function RouteEditor({ route, onChange, onRemove }: { route: MockRoute; onChange
                   onChange={(e) => setNewHeaderValue(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && addHeader()}
                   className="flex-1 h-[22px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary placeholder:text-fg-tertiary outline-none focus:border-border-focus font-mono"
-                  placeholder="Value"
+                  placeholder={t("mock.valuePlaceholder")}
                 />
                 <button
                   onClick={addHeader}
                   disabled={!newHeaderKey.trim()}
                   className="h-[22px] px-2 rounded bg-bg-elevated border border-border-muted text-[10px] text-fg-secondary cursor-pointer hover:bg-bg-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Add
+{t("common.add")}
                 </button>
               </div>
             </div>
           </div>
 
           <div>
-            <span className="font-sans text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em]">Body</span>
+            <span className="font-sans text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em]">{t("mock.body")}</span>
             <textarea
               value={route.body}
               onChange={(e) => onChange({ ...route, body: e.target.value })}
               className="w-full h-[60px] mt-1 px-2 py-1 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary outline-none focus:border-border-focus font-mono resize-none placeholder:text-fg-tertiary"
-              placeholder="Response body (JSON, text, etc.)"
+              placeholder={t("mock.bodyPlaceholder")}
             />
           </div>
         </div>
@@ -247,7 +248,7 @@ export function MockPanel() {
           } disabled:opacity-50 disabled:cursor-not-allowed`}
         >
           {status.running ? <Square size={12} /> : <Play size={12} />}
-          {status.running ? "Stop" : "Start"}
+          {status.running ? t("mock.stop") : t("mock.start")}
         </button>
       </div>
 
@@ -260,7 +261,7 @@ export function MockPanel() {
 
       <div className="flex items-center justify-between h-[28px] px-3 border-b border-border-muted shrink-0">
         <span className="font-sans text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em]">
-          Routes ({routes.length})
+          {t("mock.routes", { count: routes.length })}
         </span>
         <div className="flex items-center gap-1">
           <button
@@ -268,12 +269,12 @@ export function MockPanel() {
             className="flex items-center gap-1 h-[22px] px-2 rounded bg-brand/10 text-brand text-[10px] font-semibold cursor-pointer hover:bg-brand/20 transition-colors"
           >
             <Plus size={10} />
-            Add Route
+            {t("mock.addRoute")}
           </button>
           <button
             onClick={clearRoutes}
             className="p-1 rounded hover:bg-bg-hover text-fg-tertiary hover:text-fg-secondary cursor-pointer transition-colors"
-            title="Clear all routes"
+            title={t("mock.clearRoutes")}
           >
             <Trash2 size={12} />
           </button>
@@ -303,12 +304,12 @@ export function MockPanel() {
         <>
           <div className="flex items-center justify-between h-[28px] px-3 border-t border-b border-border-muted shrink-0">
             <span className="font-sans text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em]">
-              Requests ({requestLog.length})
+              {t("mock.requests", { count: requestLog.length })}
             </span>
             <button
               onClick={clearLog}
               className="p-1 rounded hover:bg-bg-hover text-fg-tertiary hover:text-fg-secondary cursor-pointer transition-colors"
-              title="Clear log"
+              title={t("mock.clearLog")}
             >
               <Trash2 size={12} />
             </button>

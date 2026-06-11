@@ -86,7 +86,7 @@ export function MqttPanel({ connectionId }: MqttPanelProps) {
           type="text"
           value={config.broker}
           onChange={(e) => setConfig((c) => ({ ...c, broker: e.target.value }))}
-          placeholder="Broker host"
+          placeholder={t("mqtt.brokerPlaceholder")}
           disabled={status === "connected" || status === "connecting"}
           className="flex-1 h-[28px] px-2 bg-bg-input border border-border-muted rounded text-[12px] text-fg-primary placeholder:text-fg-tertiary outline-none focus:border-border-focus disabled:opacity-50 font-mono"
         />
@@ -107,7 +107,7 @@ export function MqttPanel({ connectionId }: MqttPanelProps) {
           } disabled:opacity-50 disabled:cursor-not-allowed`}
         >
           {status === "connected" ? <Unlink size={12} /> : <Link size={12} />}
-          {status === "connected" ? "Disconnect" : status === "connecting" ? "Connecting..." : "Connect"}
+          {status === "connected" ? t("mqtt.disconnect") : status === "connecting" ? t("mqtt.connecting") : t("mqtt.connect")}
         </button>
       </div>
 
@@ -126,7 +126,7 @@ export function MqttPanel({ connectionId }: MqttPanelProps) {
               type="text"
               value={subTopic}
               onChange={(e) => setSubTopic(e.target.value)}
-              placeholder="topic/filter"
+              placeholder={t("mqtt.topicPlaceholder")}
               className="flex-1 h-[24px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary placeholder:text-fg-tertiary outline-none focus:border-border-focus font-mono"
               onKeyDown={(e) => e.key === "Enter" && handleSubscribe()}
             />
@@ -144,14 +144,14 @@ export function MqttPanel({ connectionId }: MqttPanelProps) {
               type="text"
               value={pubTopic}
               onChange={(e) => setPubTopic(e.target.value)}
-              placeholder="topic"
+              placeholder={t("mqtt.topicPlaceholder")}
               className="w-[140px] h-[24px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary placeholder:text-fg-tertiary outline-none focus:border-border-focus font-mono"
             />
             <input
               type="text"
               value={pubPayload}
               onChange={(e) => setPubPayload(e.target.value)}
-              placeholder="payload"
+              placeholder={t("mqtt.payloadPlaceholder")}
               className="flex-1 h-[24px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary placeholder:text-fg-tertiary outline-none focus:border-border-focus font-mono"
               onKeyDown={(e) => e.key === "Enter" && handlePublish()}
             />
@@ -173,7 +173,7 @@ export function MqttPanel({ connectionId }: MqttPanelProps) {
           </div>
           {subscriptions.length > 0 && (
             <div className="flex items-center gap-1 flex-wrap">
-              <span className="font-sans text-[10px] text-fg-tertiary">Subs:</span>
+              <span className="font-sans text-[10px] text-fg-tertiary">{t("mqtt.subs")}</span>
               {subscriptions.map((t) => (
                 <span key={t} className="font-mono text-[10px] px-1.5 py-0.5 bg-method-mqtt/10 text-method-mqtt rounded">
                   {t}
@@ -186,12 +186,12 @@ export function MqttPanel({ connectionId }: MqttPanelProps) {
 
       <div className="flex items-center justify-between h-[28px] px-3 border-b border-border-muted shrink-0">
         <span className="font-sans text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em]">
-          Messages ({messages.length})
+          {t("mqtt.messages", { count: messages.length })}
         </span>
         <button
           onClick={() => clearMessages(connectionId)}
           className="p-1 rounded hover:bg-bg-hover text-fg-tertiary hover:text-fg-secondary cursor-pointer transition-colors"
-          title="Clear messages"
+          title={t("mqtt.clearMessages")}
         >
           <Trash2 size={12} />
         </button>

@@ -35,7 +35,7 @@ export function ConsolePanel() {
         <button
           onClick={() => activeTabId && clearEntries(activeTabId)}
           className="p-1 rounded hover:bg-bg-hover text-fg-tertiary hover:text-fg-secondary cursor-pointer transition-colors"
-          title="Clear console"
+          title={t("console.clearConsole")}
         >
           <Trash2 size={12} />
         </button>

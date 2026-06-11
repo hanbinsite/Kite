@@ -158,7 +158,7 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
                 disabled={isRunning}
                 className="h-7 px-2 bg-bg-input border border-border-default rounded-md text-fg-primary text-xs focus:border-border-focus outline-none disabled:opacity-50"
               >
-                <option value="">Select...</option>
+                <option value="">{t("runner.selectCollection")}</option>
                 {collections.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -172,7 +172,7 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
                 disabled={isRunning}
                 className="h-7 px-2 bg-bg-input border border-border-default rounded-md text-fg-primary text-xs focus:border-border-focus outline-none disabled:opacity-50"
               >
-                <option value="">None</option>
+                <option value="">{t("runner.none")}</option>
                 {environments.map((e) => (
                   <option key={e.id} value={e.id}>{e.name}</option>
                 ))}
@@ -201,7 +201,7 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
                 disabled={isRunning}
                 className="h-7 w-16 px-2 bg-bg-input border border-border-default rounded-md text-fg-primary text-xs focus:border-border-focus outline-none disabled:opacity-50"
               />
-              <span className="text-fg-tertiary">ms</span>
+              <span className="text-fg-tertiary">{t("runner.ms")}</span>
             </label>
             <label className="flex items-center gap-1.5 cursor-pointer select-none">
               <input
@@ -219,7 +219,7 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
                 onClick={cancelRun}
                 className="h-7 px-3 bg-accent-danger hover:bg-accent-danger/90 text-white rounded-md text-xs font-medium cursor-pointer transition-colors flex items-center gap-1"
               >
-                <Square className="w-3 h-3" /> Stop
+                <Square className="w-3 h-3" /> {t("common.stop")}
               </button>
             ) : (
               <button
@@ -227,7 +227,7 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
                 disabled={!selectedCollectionId}
                 className="h-7 px-3 bg-brand hover:bg-brand-hover text-white rounded-md text-xs font-medium cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
               >
-                <Play className="w-3 h-3" /> Run
+                <Play className="w-3 h-3" /> {t("runner.run")}
               </button>
             )}
           </div>
@@ -238,11 +238,11 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
                 <thead>
                   <tr className="h-7 bg-bg-elevated text-[10px] font-semibold text-fg-tertiary uppercase">
                     <th className="text-left px-4 w-8">#</th>
-                    <th className="text-left px-2">Name</th>
-                    <th className="text-left px-2 w-14">Status</th>
-                    <th className="text-left px-2 w-16">Time</th>
-                    <th className="text-left px-2 w-14">Size</th>
-                    <th className="text-center px-2 w-10">Pass</th>
+                    <th className="text-left px-2">{t("common.name")}</th>
+                    <th className="text-left px-2 w-14">{t("common.status")}</th>
+                    <th className="text-left px-2 w-16">{t("runner.time")}</th>
+                    <th className="text-left px-2 w-14">{t("runner.size")}</th>
+                    <th className="text-center px-2 w-10">{t("runner.pass")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -279,7 +279,7 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
               <span>{progressPercent}%</span>
               {status === "completed" && (
                 <span className="text-fg-tertiary">
-                  {result.passedRequests}/{result.totalRequests} passed
+                  {result.passedRequests}/{result.totalRequests} {t("runner.passed")}
                 </span>
               )}
             </div>
@@ -321,6 +321,7 @@ function IterationRow({
   selectedDetail: { iteration: number; requestIndex: number } | null;
   onSelectDetail: (detail: { iteration: number; requestIndex: number } | null) => void;
 }) {
+  const { t } = useTranslation();
   const passCount = iteration.requests.filter((r) => r.status === "success").length;
   const failCount = iteration.requests.filter((r) => r.status === "failure").length;
 
@@ -334,10 +335,10 @@ function IterationRow({
           <div className="flex items-center gap-2">
             {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
             <span className="font-medium text-fg-primary">
-              Iteration {iteration.iteration + 1}
+              {t("runner.iteration", { num: iteration.iteration + 1 })}
             </span>
-            <span className="text-accent-success">{passCount} passed</span>
-            {failCount > 0 && <span className="text-accent-danger">{failCount} failed</span>}
+            <span className="text-accent-success">{passCount} {t("runner.passed")}</span>
+            {failCount > 0 && <span className="text-accent-danger">{failCount} {t("runner.failed")}</span>}
           </div>
         </td>
       </tr>

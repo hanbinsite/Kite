@@ -110,7 +110,7 @@ export function EnvSelector() {
         className={`flex items-center gap-1.5 h-[22px] px-2.5 rounded-full text-2xs font-medium border ${style.text} ${style.bg} ${style.border}`}
       >
         <span className="w-1.5 h-1.5 rounded-full bg-current" />
-        {activeEnv?.name || "No Env"}
+        {activeEnv?.name || t("env.noEnv")}
         <ChevronDown size={10} className="opacity-50" />
       </button>
 
@@ -146,7 +146,7 @@ export function EnvSelector() {
                   <button
                     onClick={(e) => handleEditEnv(env.id, e)}
                     className="p-1 mr-1 opacity-0 group-hover:opacity-100 hover:bg-bg-hover rounded"
-                    title="Edit environment"
+                    title={t("env.editEnvironment")}
                   >
                     <SettingsIcon className="w-3 h-3 text-fg-tertiary" />
                   </button>
@@ -178,14 +178,14 @@ export function EnvSelector() {
                 className="flex items-center gap-2 w-full h-7 px-3 text-xs text-fg-secondary hover:bg-bg-hover"
               >
                 <Plus className="w-3 h-3" />
-                <span>Add Environment</span>
+                <span>{t("env.addEnvironment")}</span>
               </button>
               <button
                 onClick={handleManageEnvs}
                 className="flex items-center gap-2 w-full h-7 px-3 text-xs text-fg-secondary hover:bg-bg-hover"
               >
                 <SettingsIcon className="w-3 h-3" />
-                <span>Manage Environments</span>
+                <span>{t("env.manageEnvironments")}</span>
               </button>
             </div>
           </div>,

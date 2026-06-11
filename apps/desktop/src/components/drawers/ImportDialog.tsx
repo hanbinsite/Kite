@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X, Upload, Clipboard, FileText, AlertCircle } from "lucide-react";
 import { importCollection, detectFormat, type ImportResult } from "@api-client/core";
@@ -66,6 +67,7 @@ const FORMAT_LABELS: Record<string, string> = {
 };
 
 export function ImportDialog({ isOpen, onClose }: ImportDialogProps) {
+  const { t } = useTranslation();
   const [input, setInput] = useState("");
   const [preview, setPreview] = useState<ImportResult | null>(null);
   const [importing, setImporting] = useState(false);
@@ -153,7 +155,7 @@ export function ImportDialog({ isOpen, onClose }: ImportDialogProps) {
         <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[560px] max-h-[520px] bg-bg-elevated/85 backdrop-blur-[20px] border border-white/[0.06] rounded-xl shadow-xl z-modal flex flex-col overflow-hidden">
           <div className="h-12 flex items-center justify-between px-4 border-b border-border-default">
             <Dialog.Title className="font-sans text-sm font-semibold text-fg-primary">
-              Import
+{t("common.import")}
             </Dialog.Title>
             <Dialog.Close asChild>
               <button className="p-1 rounded hover:bg-bg-hover text-fg-tertiary hover:text-fg-primary cursor-pointer transition-colors">
@@ -168,10 +170,10 @@ export function ImportDialog({ isOpen, onClose }: ImportDialogProps) {
                 onClick={handlePaste}
                 className="h-7 px-3 text-[11px] text-fg-secondary border border-border-default rounded-md hover:text-brand hover:border-brand hover:bg-brand/10 transition-colors cursor-pointer flex items-center gap-1.5"
               >
-                <Clipboard className="w-3 h-3" /> Paste
+                <Clipboard className="w-3 h-3" /> {t("import.paste")}
               </button>
               <label className="h-7 px-3 text-[11px] text-fg-secondary border border-border-default rounded-md hover:text-brand hover:border-brand hover:bg-brand/10 transition-colors cursor-pointer flex items-center gap-1.5">
-                <Upload className="w-3 h-3" /> File
+                <Upload className="w-3 h-3" /> {t("import.file")}
                 <input type="file" accept=".json,.har,.yaml,.yml" className="hidden" onChange={handleFileUpload} />
               </label>
               {detectedFormat && detectedFormat !== "unknown" && (
@@ -185,7 +187,7 @@ export function ImportDialog({ isOpen, onClose }: ImportDialogProps) {
             <textarea
               value={input}
               onChange={(e) => { setInput(e.target.value); setPreview(null); }}
-              placeholder="Paste cURL command, Postman Collection JSON, or HAR JSON here..."
+              placeholder={t("import.placeholder")}
               className="w-full h-32 p-3 bg-bg-input border border-border-default rounded-md text-fg-primary text-xs font-mono resize-none focus:border-border-focus outline-none placeholder:text-fg-tertiary"
               spellCheck={false}
             />
@@ -195,7 +197,7 @@ export function ImportDialog({ isOpen, onClose }: ImportDialogProps) {
               disabled={!input.trim()}
               className="h-8 px-4 bg-bg-hover hover:bg-bg-active text-fg-primary text-xs font-medium rounded-md cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Preview Import
+              {t("import.preview")}
             </button>
 
             {preview && (
@@ -212,7 +214,7 @@ export function ImportDialog({ isOpen, onClose }: ImportDialogProps) {
                 )}
                 <div className="px-3 py-2">
                   <div className="text-xs text-fg-secondary mb-1">
-                    {preview.requests.length} request{preview.requests.length !== 1 ? "s" : ""} will be imported as "{preview.collectionName}"
+                    {t("import.willBeImported", { count: preview.requests.length, name: preview.collectionName })}
                   </div>
                   <div className="max-h-[120px] overflow-auto space-y-0.5">
                     {preview.requests.map((req, i) => (
@@ -234,14 +236,14 @@ export function ImportDialog({ isOpen, onClose }: ImportDialogProps) {
               onClick={() => handleOpenChange(false)}
               className="h-7 px-3 text-[11px] text-fg-secondary hover:text-fg-primary transition-colors cursor-pointer"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
               onClick={handleImport}
               disabled={!preview || preview.requests.length === 0 || importing}
               className="h-7 px-4 bg-brand hover:bg-brand-hover text-white text-[11px] font-medium rounded-md cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {importing ? "Importing..." : "Import"}
+              {importing ? t("common.loading") : t("common.import")}
             </button>
           </div>
         </Dialog.Content>

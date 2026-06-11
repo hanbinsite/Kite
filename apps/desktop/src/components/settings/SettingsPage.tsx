@@ -324,7 +324,7 @@ function AiSection() {
               type="password"
               value={editApiKey}
               onChange={(e) => setEditApiKey(e.target.value)}
-              placeholder="sk-..."
+              placeholder={t("ai.apiKeyPlaceholder")}
               className="flex-1 h-7 px-2 bg-bg-input border border-border-muted rounded text-[12px] text-fg-primary font-mono outline-none focus:border-border-focus placeholder:text-fg-tertiary"
               onKeyDown={(e) => e.key === "Enter" && handleSetApiKey(editingKeyProviderId)}
             />
@@ -332,13 +332,13 @@ function AiSection() {
               onClick={() => handleSetApiKey(editingKeyProviderId)}
               className="h-7 px-3 rounded-md bg-brand text-white text-[11px] font-medium cursor-pointer hover:bg-brand-hover transition-colors"
             >
-              Save
+{t("common.save")}
             </button>
             <button
               onClick={() => { setEditingKeyProviderId(null); setEditApiKey(""); }}
               className="h-7 px-2 rounded-md text-fg-tertiary text-[11px] cursor-pointer hover:text-fg-primary transition-colors"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
           </div>
         )}
@@ -383,7 +383,7 @@ function AiSection() {
               onClick={() => { setShowAdd(false); setNewName(""); setNewBaseUrl(""); setNewModel(""); setNewApiKey(""); }}
               className="h-8 px-3 rounded-md text-fg-tertiary text-[12px] cursor-pointer hover:text-fg-primary transition-colors"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
           </div>
         </div>
@@ -474,7 +474,7 @@ function ProxySection() {
           <textarea
             value={bypassList}
             onChange={(e) => updateSetting("bypassList", e.target.value)}
-            placeholder="localhost, 127.0.0.1"
+            placeholder={t("settings.proxy.bypassPlaceholder")}
             className="w-[180px] h-20 px-[10px] py-1 bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none transition-[border-color] duration-[100ms] shrink-0 resize-none placeholder:text-fg-tertiary focus:border-border-focus focus:shadow-[0_0_0_3px_var(--color-brand-muted)]"
           />
         </Field>
@@ -534,7 +534,7 @@ function DataSection() {
             onClick={() => { const data = localStorage.getItem("api-client-settings") ?? "{}"; const blob = new Blob([data], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "api-client-settings.json"; a.click(); URL.revokeObjectURL(url); }}
             className="h-8 px-4 rounded-md bg-bg-elevated border border-border-muted font-sans text-[13px] font-medium text-fg-primary cursor-pointer transition-all duration-[100ms] shrink-0 hover:bg-bg-hover"
           >
-            Export
+            {t("common.export")}
           </button>
         </Field>
         <Field label={t("settings.data.importData")} desc={t("settings.data.importDataDesc")}>
@@ -542,7 +542,7 @@ function DataSection() {
             onClick={() => { const input = document.createElement("input"); input.type = "file"; input.accept = ".json"; input.onchange = (e) => { const file = (e.target as HTMLInputElement).files?.[0]; if (file) { const reader = new FileReader(); reader.onload = () => { try { JSON.parse(reader.result as string); localStorage.setItem("api-client-settings", reader.result as string); window.location.reload(); } catch { console.error(t("common.invalidJsonFile")); } }; reader.readAsText(file); } }; input.click(); }}
             className="h-8 px-4 rounded-md bg-bg-elevated border border-border-muted font-sans text-[13px] font-medium text-fg-primary cursor-pointer transition-all duration-[100ms] shrink-0 hover:bg-bg-hover"
           >
-            Import
+            {t("common.import")}
           </button>
         </Field>
         <Field label={t("settings.data.clearHistory")} desc={t("settings.data.clearHistoryDesc")}>
@@ -785,7 +785,7 @@ function CookiesSection() {
             <input
               value={filterDomain}
               onChange={(e) => setFilterDomain(e.target.value)}
-              placeholder="example.com"
+              placeholder={t("settings.cookies.filterByDomainDesc")}
               className="w-[140px] h-8 px-[10px] bg-bg-input border border-border-muted rounded-md text-fg-primary outline-none focus:border-border-focus font-mono text-[12px] placeholder:text-fg-tertiary"
               onKeyDown={(e) => e.key === "Enter" && handleFilter()}
             />

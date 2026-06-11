@@ -72,7 +72,7 @@ export function GrpcPanel({ connectionId }: GrpcPanelProps) {
           type="text"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="http://localhost:50051"
+          placeholder={t("grpc.urlPlaceholder")}
           className="flex-1 h-[28px] px-2 bg-bg-input border border-border-muted rounded text-[12px] text-fg-primary placeholder:text-fg-tertiary outline-none focus:border-border-focus font-mono"
         />
         <button
@@ -123,7 +123,7 @@ export function GrpcPanel({ connectionId }: GrpcPanelProps) {
             <option value="">{t("grpc.selectMethod")}</option>
             {serviceMethods.map((m) => (
               <option key={m.methodName} value={m.methodName}>
-                {m.methodName} ({m.serverStreaming ? "server streaming" : "unary"})
+                {m.methodName} ({m.serverStreaming ? t("grpc.serverStreaming") : t("grpc.unary")})
               </option>
             ))}
           </select>
@@ -134,7 +134,7 @@ export function GrpcPanel({ connectionId }: GrpcPanelProps) {
         <div className="px-3 py-1.5 border-b border-border-muted shrink-0">
           <span className="font-mono text-[10px] text-fg-tertiary">
             {selectedMethod.inputType} → {selectedMethod.outputType}
-            {selectedMethod.serverStreaming && " (server streaming)"}
+            {selectedMethod.serverStreaming && ` (${t("grpc.serverStreaming")})`}
           </span>
         </div>
       )}
@@ -156,7 +156,7 @@ export function GrpcPanel({ connectionId }: GrpcPanelProps) {
           value={requestJson}
           onChange={(e) => setRequestJson(e.target.value)}
           className="flex-1 min-h-[80px] p-3 bg-bg-input border-none outline-none resize-none font-mono text-[12px] text-fg-primary leading-snug"
-          placeholder="{}"
+          placeholder={t("grpc.requestPlaceholder")}
           spellCheck={false}
         />
 

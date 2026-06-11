@@ -290,20 +290,20 @@ export function RequestPanel() {
                 const config = auth.config as { token: string; prefix: string };
                 return (
                     <div className="auth-field flex flex-col gap-[6px]">
-                        <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Token</label>
+                        <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.token")}</label>
                         <input
                             type="text"
                             value={config.token ?? ""}
                             onChange={(e) => handleAuthChange({ type: "bearer", config: { ...config, token: e.target.value } })}
-                            placeholder="Bearer token"
+                            placeholder={t("auth.bearerTokenPlaceholder")}
                             className="auth-field-input w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus focus:shadow-[0_0_0_3px_var(--color-brand-muted)] placeholder:text-fg-tertiary placeholder:font-sans"
                         />
-                        <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Prefix</label>
+                        <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.prefix")}</label>
                         <input
                             type="text"
                             value={config.prefix ?? "Bearer"}
                             onChange={(e) => handleAuthChange({ type: "bearer", config: { ...config, prefix: e.target.value } })}
-                            placeholder="Bearer"
+                            placeholder={t("auth.prefixPlaceholder")}
                             className="auth-field-input w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans"
                         />
                     </div>
@@ -314,22 +314,22 @@ export function RequestPanel() {
                 return (
                     <>
                         <div className="auth-field flex flex-col gap-[6px]">
-                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Username</label>
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.username")}</label>
                             <input
                                 type="text"
                                 value={config.username ?? ""}
                                 onChange={(e) => handleAuthChange({ type: "basic", config: { ...config, username: e.target.value } })}
-                                placeholder="Username"
+                                placeholder={t("auth.username")}
                                 className="auth-field-input w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans"
                             />
                         </div>
                         <div className="auth-field flex flex-col gap-[6px]">
-                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Password</label>
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.password")}</label>
                             <input
                                 type="password"
                                 value={config.password ?? ""}
                                 onChange={(e) => handleAuthChange({ type: "basic", config: { ...config, password: e.target.value } })}
-                                placeholder="Password"
+                                placeholder={t("auth.passwordPlaceholder")}
                                 className="auth-field-input password w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans pr-[36px]"
                             />
                         </div>
@@ -341,34 +341,34 @@ export function RequestPanel() {
                 return (
                     <>
                         <div className="auth-field flex flex-col gap-[6px]">
-                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Key</label>
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.keyLabel")}</label>
                             <input
                                 type="text"
                                 value={config.key ?? ""}
                                 onChange={(e) => handleAuthChange({ type: "apikey", config: { ...config, key: e.target.value } })}
-                                placeholder="Header name"
+                                placeholder={t("auth.keyPlaceholder")}
                                 className="auth-field-input w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans"
                             />
                         </div>
                         <div className="auth-field flex flex-col gap-[6px]">
-                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Value</label>
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("common.value")}</label>
                             <input
                                 type="password"
                                 value={config.value ?? ""}
                                 onChange={(e) => handleAuthChange({ type: "apikey", config: { ...config, value: e.target.value } })}
-                                placeholder="API key value"
+                                placeholder={t("auth.apiKeyValuePlaceholder")}
                                 className="auth-field-input password w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans pr-[36px]"
                             />
                         </div>
                         <div className="auth-field flex flex-col gap-[6px]">
-                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Add to</label>
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.addTo")}</label>
                             <select
                                 value={config.addTo ?? "header"}
                                 onChange={(e) => handleAuthChange({ type: "apikey", config: { ...config, addTo: e.target.value as "header" | "query" } })}
                                 className="auth-type-select w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-sans text-[13px] text-fg-primary cursor-pointer outline-none focus:border-border-focus"
                             >
-                                <option value="header">Header</option>
-                                <option value="query">Query Params</option>
+                                <option value="header">{t("auth.headerOption")}</option>
+                                <option value="query">{t("auth.queryOption")}</option>
                             </select>
                         </div>
                     </>
@@ -379,22 +379,22 @@ export function RequestPanel() {
                 return (
                     <>
                         <div className="auth-field flex flex-col gap-[6px]">
-                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Access Token</label>
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.accessToken")}</label>
                             <input
                                 type="password"
                                 value={config.accessToken ?? ""}
                                 onChange={(e) => handleAuthChange({ type: "oauth2", config: { ...config, accessToken: e.target.value } })}
-                                placeholder="Access token"
+                                placeholder={t("auth.accessTokenPlaceholder")}
                                 className="auth-field-input password w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans pr-[36px]"
                             />
                         </div>
                         <div className="auth-field flex flex-col gap-[6px]">
-                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Token Type</label>
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.tokenType")}</label>
                             <input
                                 type="text"
                                 value={config.tokenType ?? "Bearer"}
                                 onChange={(e) => handleAuthChange({ type: "oauth2", config: { ...config, tokenType: e.target.value } })}
-                                placeholder="Bearer"
+placeholder={t("auth.tokenTypePlaceholder")}
                                 className="auth-field-input w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans"
                             />
                         </div>
@@ -405,12 +405,12 @@ export function RequestPanel() {
                 const config = auth.config as { token: string };
                 return (
                     <div className="auth-field flex flex-col gap-[6px]">
-                        <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Token</label>
+                        <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.token")}</label>
                         <input
                             type="password"
                             value={config.token ?? ""}
                             onChange={(e) => handleAuthChange({ type: "jwt", config: { token: e.target.value } })}
-                            placeholder="JWT token"
+                            placeholder={t("auth.jwtTokenPlaceholder")}
                             className="auth-field-input password w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans pr-[36px]"
                         />
                     </div>
@@ -424,47 +424,47 @@ export function RequestPanel() {
                             {t("auth.notImplementedOauth1")}
                         </div>
                         <div className="auth-field flex flex-col gap-[6px]">
-                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Consumer Key</label>
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.consumerKey")}</label>
                             <input
                                 type="text"
                                 value={config.consumerKey ?? ""}
                                 onChange={(e) => handleAuthChange({ type: "oauth1", config: { ...config, consumerKey: e.target.value } })}
-                                placeholder="Consumer key"
+                                placeholder={t("auth.consumerKey")}
                                 className="auth-field-input w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus focus:shadow-[0_0_0_3px_var(--color-brand-muted)] placeholder:text-fg-tertiary placeholder:font-sans"
                             />
                         </div>
                         <div className="auth-field flex flex-col gap-[6px]">
-                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Consumer Secret</label>
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.consumerSecret")}</label>
                             <input
                                 type="password"
                                 value={config.consumerSecret ?? ""}
                                 onChange={(e) => handleAuthChange({ type: "oauth1", config: { ...config, consumerSecret: e.target.value } })}
-                                placeholder="Consumer secret"
+                                placeholder={t("auth.consumerSecret")}
                                 className="auth-field-input password w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans pr-[36px]"
                             />
                         </div>
                         <div className="auth-field flex flex-col gap-[6px]">
-                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Token</label>
+<label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.token")}</label>
                             <input
                                 type="text"
                                 value={config.token ?? ""}
                                 onChange={(e) => handleAuthChange({ type: "oauth1", config: { ...config, token: e.target.value } })}
-                                placeholder="Token"
+                                placeholder={t("auth.token")}
                                 className="auth-field-input w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans"
                             />
                         </div>
                         <div className="auth-field flex flex-col gap-[6px]">
-                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Token Secret</label>
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.tokenSecret")}</label>
                             <input
                                 type="password"
                                 value={config.tokenSecret ?? ""}
                                 onChange={(e) => handleAuthChange({ type: "oauth1", config: { ...config, tokenSecret: e.target.value } })}
-                                placeholder="Token secret"
+                                placeholder={t("auth.tokenSecret")}
                                 className="auth-field-input password w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans pr-[36px]"
                             />
                         </div>
                         <div className="auth-field flex flex-col gap-[6px]">
-                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Signature Method</label>
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.signatureMethod")}</label>
                             <select
                                 value={config.signatureMethod ?? "HMAC-SHA1"}
                                 onChange={(e) => handleAuthChange({ type: "oauth1", config: { ...config, signatureMethod: e.target.value } })}
@@ -487,7 +487,7 @@ export function RequestPanel() {
                             {t("auth.notImplementedAwsV4")}
                         </div>
                         <div className="auth-field flex flex-col gap-[6px]">
-                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Access Key ID</label>
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.accessKeyId")}</label>
                             <input
                                 type="text"
                                 value={config.accessKeyId ?? ""}
@@ -497,42 +497,42 @@ export function RequestPanel() {
                             />
                         </div>
                         <div className="auth-field flex flex-col gap-[6px]">
-                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Secret Access Key</label>
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.secretAccessKey")}</label>
                             <input
                                 type="password"
                                 value={config.secretAccessKey ?? ""}
                                 onChange={(e) => handleAuthChange({ type: "awsv4", config: { ...config, secretAccessKey: e.target.value } })}
-                                placeholder="Secret access key"
+                                placeholder={t("auth.secretAccessKeyPlaceholder")}
                                 className="auth-field-input password w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans pr-[36px]"
                             />
                         </div>
                         <div className="auth-field flex flex-col gap-[6px]">
-                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Session Token</label>
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.sessionToken")}</label>
                             <input
                                 type="password"
                                 value={config.sessionToken ?? ""}
                                 onChange={(e) => handleAuthChange({ type: "awsv4", config: { ...config, sessionToken: e.target.value } })}
-                                placeholder="Optional"
+                                placeholder={t("auth.optionalPlaceholder")}
                                 className="auth-field-input password w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans pr-[36px]"
                             />
                         </div>
                         <div className="auth-field flex flex-col gap-[6px]">
-                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Service</label>
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.service")}</label>
                             <input
                                 type="text"
                                 value={config.service ?? ""}
                                 onChange={(e) => handleAuthChange({ type: "awsv4", config: { ...config, service: e.target.value } })}
-                                placeholder="e.g. execute-api, s3"
+                                placeholder={t("auth.servicePlaceholder")}
                                 className="auth-field-input w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans"
                             />
                         </div>
                         <div className="auth-field flex flex-col gap-[6px]">
-                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Region</label>
+                            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.region")}</label>
                             <input
                                 type="text"
                                 value={config.region ?? ""}
                                 onChange={(e) => handleAuthChange({ type: "awsv4", config: { ...config, region: e.target.value } })}
-                                placeholder="e.g. us-east-1"
+                                placeholder={t("auth.regionPlaceholder")}
                                 className="auth-field-input w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans"
                             />
                         </div>
@@ -542,7 +542,7 @@ export function RequestPanel() {
             default:
                 return (
                     <div className="auth-hint font-sans text-[11px] text-fg-tertiary leading-[16px] p-2 bg-bg-elevated rounded-md border-l-[2px] border-accent-info">
-                        This request will not use any authentication.
+                        {t("auth.noAuthHint")}
                     </div>
                 );
         }
@@ -683,7 +683,7 @@ export function RequestPanel() {
                                         value={rawContent}
                                         language={rawLanguage}
                                         onChange={handleRawContentChange}
-                                        placeholder="Request body..."
+                                        placeholder={t("body.requestBody")}
                                     />
                                 </div>
                             )}
@@ -731,10 +731,10 @@ export function RequestPanel() {
               {bodyConfig.binary ? (
                 <>
                   <span className="font-mono text-[12px] text-fg-primary truncate max-w-[200px]">{bodyConfig.binary.split(/[\\/]/).pop()}</span>
-                  <span className="text-fg-tertiary text-[11px]">Click to change file</span>
+                  <span className="text-fg-tertiary text-[11px]">{t("body.clickToChangeFile")}</span>
                 </>
               ) : (
-                <span className="text-fg-tertiary text-[12px]">Click or drop a file</span>
+                <span className="text-fg-tertiary text-[12px]">{t("body.clickOrDrop")}</span>
               )}
             </div>
           </div>
@@ -747,7 +747,7 @@ export function RequestPanel() {
                                             value={graphqlQuery}
                                             language="javascript"
                                             onChange={handleGraphqlQueryChange}
-                                            placeholder="Write your GraphQL query here..."
+                                            placeholder={t("body.graphqlQuery")}
                                         />
                                     </div>
                                     <div className="overflow-hidden">
@@ -755,7 +755,7 @@ export function RequestPanel() {
                                             value={graphqlVariables}
                                             language="json"
                                             onChange={handleGraphqlVariablesChange}
-                                            placeholder="Query variables (JSON)..."
+                                            placeholder={t("body.graphqlVariables")}
                                         />
                                     </div>
                                 </div>
@@ -799,13 +799,13 @@ export function RequestPanel() {
         onClick={() => setScriptTab("pre")}
         className={`scripts-tab h-[36px] px-[14px] flex items-center font-sans text-[12px] font-medium cursor-pointer ${scriptTab === "pre" ? "text-fg-primary active" : "text-fg-secondary hover:text-fg-primary"}`}
       >
-        Pre-request
+        {t("scripts.preRequest")}
       </button>
       <button
         onClick={() => setScriptTab("post")}
         className={`scripts-tab h-[36px] px-[14px] flex items-center font-sans text-[12px] font-medium cursor-pointer ${scriptTab === "post" ? "text-fg-primary active" : "text-fg-secondary hover:text-fg-primary"}`}
       >
-        Post-response
+        {t("scripts.postResponse")}
       </button>
     </div>
     <div className="flex-1 overflow-hidden">
@@ -815,7 +815,7 @@ export function RequestPanel() {
           if (scriptTab === "pre") { setRequestScripts({ ...storeScripts, preRequest: v || undefined }); }
           else { setRequestScripts({ ...storeScripts, postResponse: v || undefined }); }
         }}
-        placeholder={scriptTab === "pre" ? "// Write your pre-request script here..." : "// Write your post-response script here..."}
+        placeholder={scriptTab === "pre" ? t("scripts.prePlaceholder") : t("scripts.postPlaceholder")}
       />
     </div>
   </div>
@@ -824,7 +824,7 @@ export function RequestPanel() {
                 {activeTab === "settings" && (
                     <div className="flex flex-col h-full p-4 gap-3">
                         <div className="flex items-center gap-3">
-                            <label className="font-sans text-[11px] font-semibold text-fg-secondary w-[120px]">Timeout (ms)</label>
+                            <label className="font-sans text-[11px] font-semibold text-fg-secondary w-[120px]">{t("request.timeoutLabel")}</label>
                             <input
                                 type="number"
                                 value={storeSettings.timeoutMs}
@@ -838,7 +838,7 @@ export function RequestPanel() {
                             />
                         </div>
                         <div className="flex items-center gap-3">
-                            <label className="font-sans text-[11px] font-semibold text-fg-secondary w-[120px]">Follow redirects</label>
+                            <label className="font-sans text-[11px] font-semibold text-fg-secondary w-[120px]">{t("request.followRedirects")}</label>
                             <input
                                 type="checkbox"
                                 checked={storeSettings.followRedirects}
@@ -848,7 +848,7 @@ export function RequestPanel() {
                         </div>
                         {storeSettings.followRedirects && (
                             <div className="flex items-center gap-3">
-                                <label className="font-sans text-[11px] font-semibold text-fg-secondary w-[120px]">Max redirects</label>
+                                <label className="font-sans text-[11px] font-semibold text-fg-secondary w-[120px]">{t("request.maxRedirects")}</label>
                                 <input
                                     type="number"
                                     value={storeSettings.maxRedirects}
@@ -863,7 +863,7 @@ export function RequestPanel() {
                             </div>
                         )}
                         <div className="flex items-center gap-3">
-                            <label className="font-sans text-[11px] font-semibold text-fg-secondary w-[120px]">Verify SSL</label>
+                            <label className="font-sans text-[11px] font-semibold text-fg-secondary w-[120px]">{t("request.verifySsl")}</label>
                             <input
                                 type="checkbox"
                                 checked={storeSettings.verifySsl}
