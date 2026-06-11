@@ -161,7 +161,12 @@ export function RequestPanel() {
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
 
   useEffect(() => {
-    if (currentTabId) {
+    const tabId = useRequestStore.getState().currentTabId;
+    if (tabId) {
+      const data = useRequestStore.getState().requestDataMap[tabId];
+      const storeHeaders = data?.headers ?? [];
+      const storeParams = data?.params ?? [];
+      const storeBody = data?.body ?? null;
       setParams(ensureEmptyRow(paramsToKv(storeParams)));
       setHeaders(ensureEmptyRow(headersToKv(storeHeaders)));
       setBodyConfig(storeBody ?? { mode: "none" });
@@ -278,7 +283,7 @@ export function RequestPanel() {
             case "none":
                 return (
                     <div className="auth-hint font-sans text-[11px] text-fg-tertiary leading-[16px] p-2 bg-bg-elevated rounded-md border-l-[2px] border-accent-info">
-                        This request will not use any authentication.
+                        {t("auth.noAuthHint")}
                     </div>
                 );
             case "bearer": {
@@ -416,7 +421,7 @@ export function RequestPanel() {
                 return (
                     <>
                         <div className="auth-hint font-sans text-[11px] text-accent-warning leading-[16px] p-2 bg-accent-warning/8 rounded-md border-l-[2px] border-accent-warning">
-                            OAuth 1.0a request signing is not yet implemented. Credentials will be sent without signing.
+                            {t("auth.notImplementedOauth1")}
                         </div>
                         <div className="auth-field flex flex-col gap-[6px]">
                             <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Consumer Key</label>
@@ -479,7 +484,7 @@ export function RequestPanel() {
                 return (
                     <>
                         <div className="auth-hint font-sans text-[11px] text-accent-warning leading-[16px] p-2 bg-accent-warning/8 rounded-md border-l-[2px] border-accent-warning">
-                            AWS Signature v4 request signing is not yet implemented. Credentials will be sent without signing.
+                            {t("auth.notImplementedAwsV4")}
                         </div>
                         <div className="auth-field flex flex-col gap-[6px]">
                             <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">Access Key ID</label>
@@ -609,14 +614,11 @@ export function RequestPanel() {
                                         const newConfig: BodyConfig = { mode: bt.id };
                                         if (bt.id === "raw") {
                                             newConfig.raw = { language: rawLanguage, content: rawContent };
-                                        }
-                                        if (bt.id === "formdata") {
+                                        } else if (bt.id === "formdata") {
                                             newConfig.formdata = kvToFormdata(formdataKvs);
-                                        }
-                                        if (bt.id === "urlencoded") {
+                                        } else if (bt.id === "urlencoded") {
                                             newConfig.urlencoded = kvToUrlencoded(urlencodedKvs);
-                                        }
-                                        if (bt.id === "graphql") {
+                                        } else if (bt.id === "graphql") {
                                             newConfig.graphql = { query: graphqlQuery, variables: graphqlVariables };
                                         }
                                         handleBodyConfigChange(newConfig);
@@ -671,7 +673,7 @@ export function RequestPanel() {
                         <div className="flex-1 overflow-hidden">
                             {bodyConfig.mode === "none" && (
                                 <div className="flex items-center justify-center h-full text-fg-tertiary text-[12px]">
-                                    This request does not have a body
+                                    {t("body.noBody")}
                                 </div>
                             )}
 

@@ -82,7 +82,7 @@ export function VariableInspector({ isOpen, onClose }: VariableInspectorProps) {
               placeholder={t("common.search")}
               className="flex-1 bg-transparent text-xs text-fg-primary placeholder:text-fg-tertiary outline-none"
             />
-            <span className="text-[11px] text-fg-tertiary">{totalVars} variables</span>
+            <span className="text-[11px] text-fg-tertiary">{t("variableInspector.variableCount", { count: totalVars })}</span>
           </div>
 
           <div className="flex-1 overflow-auto">
@@ -99,7 +99,7 @@ export function VariableInspector({ isOpen, onClose }: VariableInspectorProps) {
                     <span className="text-fg-tertiary">{vars.length}</span>
                   </button>
                   {expanded && vars.length === 0 && (
-                    <div className="px-4 py-2 text-[11px] text-fg-tertiary">No variables</div>
+                    <div className="px-4 py-2 text-[11px] text-fg-tertiary">{t("variableInspector.noVariables")}</div>
                   )}
                   {expanded && vars.map((v) => (
                     <div key={v.key} className="flex items-center gap-2 px-4 h-7 hover:bg-bg-hover group">

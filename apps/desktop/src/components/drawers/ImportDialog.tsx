@@ -14,9 +14,20 @@ interface ImportDialogProps {
 function importBodyToBodyConfig(body: ImportResult["requests"][0]["body"]): BodyConfig | null {
   if (!body) return null;
   if (body.mode === "raw") return { mode: "raw", raw: { language: (body.language ?? "json") as "json", content: body.content ?? "" } };
-  if (body.mode === "urlencoded") return { mode: "urlencoded", urlencoded: [] };
+  if (body.mode === "urlencoded") return { mode: "urlencoded", urlencoded: body.content ? parseKeyValueString(body.content) : [] };
   if (body.mode === "formdata") return { mode: "formdata", formdata: [] };
+  if (body.mode === "graphql") return { mode: "graphql", graphql: { query: body.content ?? "", variables: "" } };
+  if (body.mode === "binary") return { mode: "binary", binary: body.content ?? "" };
   return null;
+}
+
+function parseKeyValueString(raw: string): { key: string; value: string; disabled: boolean }[] {
+  return raw.split("\n").filter(Boolean).map((line) => {
+    const idx = line.indexOf("=");
+    return idx >= 0
+      ? { key: line.slice(0, idx).trim(), value: line.slice(idx + 1).trim(), disabled: false }
+      : { key: line.trim(), value: "", disabled: false };
+  });
 }
 
 function importAuthToAuthConfig(auth: ImportResult["requests"][0]["auth"]): AuthConfig {

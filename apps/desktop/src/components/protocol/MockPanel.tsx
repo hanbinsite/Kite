@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useMockStore } from "../../stores/mock-store";
 import type { MockRoute, KeyValue } from "@api-client/core/mock";
 import { Play, Square, Plus, Trash2, AlertCircle, GripVertical, ChevronDown, ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
 
@@ -178,6 +179,7 @@ function RouteEditor({ route, onChange, onRemove }: { route: MockRoute; onChange
 }
 
 export function MockPanel() {
+  const { t } = useTranslation();
   const status = useMockStore((s) => s.status);
   const routes = useMockStore((s) => s.routes);
   const requestLog = useMockStore((s) => s.requestLog);
@@ -222,12 +224,12 @@ export function MockPanel() {
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 h-[44px] px-3 border-b border-border-muted shrink-0">
         <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${status.running ? "bg-accent-success" : "bg-fg-tertiary"}`} />
-        <span className="font-sans text-[13px] font-semibold text-fg-primary">Mock Server</span>
+        <span className="font-sans text-[13px] font-semibold text-fg-primary">{t("mock.serverTitle")}</span>
         {status.running && status.port && (
           <span className="font-mono text-[10px] text-accent-success">:{status.port}</span>
         )}
         <div className="flex-1" />
-        <label className="font-sans text-[10px] text-fg-tertiary">Port</label>
+        <label className="font-sans text-[10px] text-fg-tertiary">{t("mock.port")}</label>
         <input
           type="number"
           value={port}
@@ -281,7 +283,7 @@ export function MockPanel() {
       <div className="flex-1 overflow-y-auto min-h-0">
         {routes.length === 0 ? (
           <div className="flex items-center justify-center h-[120px] text-fg-tertiary text-[12px]">
-            No mock routes defined. Click "Add Route" to create one.
+            {t("mock.noRoutes")}
           </div>
         ) : (
           <div className="flex flex-col gap-1 p-2">
@@ -314,7 +316,7 @@ export function MockPanel() {
           <div className="h-[140px] overflow-y-auto min-h-0">
             {requestLog.length === 0 ? (
               <div className="flex items-center justify-center h-full text-fg-tertiary text-[11px]">
-                Waiting for requests on :{status.port}...
+                {t("mock.waitingForRequests", { port: status.port })}
               </div>
             ) : (
               <div className="flex flex-col">

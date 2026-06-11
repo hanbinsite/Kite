@@ -102,7 +102,7 @@ export function SettingsPage() {
       }}>
         <div className="absolute inset-0 bg-bg-overlay backdrop-blur-[4px]" />
         <div
-          className="relative w-[680px] h-[560px] bg-bg-surface border border-border-default rounded-xl shadow-lg flex flex-col overflow-hidden animate-fade-in-up"
+          className="relative w-[90vw] max-w-[680px] h-[85vh] max-h-[560px] bg-bg-surface border border-border-default rounded-xl shadow-lg flex flex-col overflow-hidden animate-fade-in-up"
           onClick={(e) => e.stopPropagation()}
         >
         <div className="flex items-center h-12 px-5 border-b border-border-muted shrink-0">

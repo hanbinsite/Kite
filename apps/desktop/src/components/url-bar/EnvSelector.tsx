@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, Plus, Trash2, Settings as SettingsIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useEnvironmentStore } from "../../stores/environment-store";
 import { useUIStore } from "@api-client/core";
 import { EnvironmentEditor } from "../environment";
@@ -39,8 +40,10 @@ function getEnvKey(env?: { id: string; envType?: string }): string {
 }
 
 export function EnvSelector() {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [editingEnvId, setEditingEnvId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const environments = useEnvironmentStore((s) => s.environments);
@@ -150,12 +153,18 @@ export function EnvSelector() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      deleteEnvironment(env.id);
+                      if (deleteConfirmId === env.id) {
+                        deleteEnvironment(env.id);
+                        setDeleteConfirmId(null);
+                      } else {
+                        setDeleteConfirmId(env.id);
+                      }
                     }}
-                    className="p-1 mr-1 opacity-0 group-hover:opacity-100 hover:bg-bg-hover rounded"
-                    title="Delete environment"
+                    onMouseLeave={() => { if (deleteConfirmId === env.id) setDeleteConfirmId(null); }}
+                    className={`p-1 mr-1 opacity-0 group-hover:opacity-100 hover:bg-bg-hover rounded ${deleteConfirmId === env.id ? "text-accent-danger bg-accent-danger/10" : "text-fg-tertiary"}`}
+                    title={t("sidebar.deleteCollection")}
                   >
-                    <Trash2 className="w-3 h-3 text-fg-tertiary" />
+                    <Trash2 className="w-3 h-3" />
                   </button>
                 </div>
               );

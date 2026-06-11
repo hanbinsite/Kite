@@ -7,6 +7,7 @@ import { useEnvironmentStore } from "../../stores/environment-store";
 import { getCollection, type IpcCollectionItem } from "@api-client/core/http";
 import type { RunnerRequestConfig } from "../../stores/runner-store";
 import type { BodyConfig, AuthConfig } from "@api-client/types";
+import { useTranslation } from "react-i18next";
 
 interface CollectionRunnerDialogProps {
   isOpen: boolean;
@@ -52,6 +53,7 @@ function formatSize(bytes: number): string {
 }
 
 export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDialogProps) {
+  const { t } = useTranslation();
   const { status, result, selectedResultDetail,
     startRun, cancelRun, resetRunner, setSelectedResultDetail } = useRunnerStore();
   const collections = useCollectionStore((s) => s.collections);
@@ -138,7 +140,7 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
         <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[640px] max-h-[480px] bg-bg-elevated/85 backdrop-blur-[20px] border border-white/[0.06] rounded-xl shadow-xl z-modal flex flex-col overflow-hidden">
           <div className="h-12 flex items-center justify-between px-4 border-b border-border-default">
             <Dialog.Title className="font-sans text-sm font-semibold text-fg-primary">
-              Collection Runner
+              {t("runner.title")}
             </Dialog.Title>
             <Dialog.Close asChild>
               <button className="p-1 rounded hover:bg-bg-hover text-fg-tertiary hover:text-fg-primary cursor-pointer transition-colors">
@@ -149,7 +151,7 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
 
           <div className="h-10 flex items-center gap-3 px-4 border-b border-border-default text-xs text-fg-secondary">
             <label className="flex items-center gap-1.5">
-              Collection:
+              {t("runner.collection")}
               <select
                 value={selectedCollectionId}
                 onChange={(e) => setSelectedCollectionId(e.target.value)}
@@ -163,7 +165,7 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
               </select>
             </label>
             <label className="flex items-center gap-1.5">
-              Env:
+              {t("runner.environment")}
               <select
                 value={selectedEnvironmentId ?? ""}
                 onChange={(e) => setSelectedEnvironmentId(e.target.value || null)}
@@ -177,7 +179,7 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
               </select>
             </label>
             <label className="flex items-center gap-1.5">
-              Iterations:
+              {t("runner.iterations")}
               <input
                 type="number"
                 min={1}
@@ -189,7 +191,7 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
               />
             </label>
             <label className="flex items-center gap-1.5">
-              Delay:
+              {t("runner.delay")}
               <input
                 type="number"
                 min={0}
@@ -209,7 +211,7 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
                 disabled={isRunning}
                 className="accent-brand"
               />
-              Persist
+{t("runner.persist")}
             </label>
             <div className="flex-1" />
             {isRunning ? (
@@ -262,7 +264,7 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
 
           {!result && (
             <div className="flex-1 flex items-center justify-center text-fg-tertiary text-xs">
-              {isRunning ? "Running..." : "Configure and run a collection"}
+              {isRunning ? t("runner.running") : t("runner.placeholder")}
             </div>
           )}
 
@@ -289,13 +291,13 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
               disabled={!result || result.iterations.length === 0}
               className="text-[11px] text-fg-secondary px-3 py-1 border border-border-default rounded-md hover:text-brand hover:border-brand hover:bg-brand/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
-              Export Results
+              {t("runner.exportResults")}
             </button>
             <button
               onClick={() => handleOpenChange(false)}
               className="text-[11px] text-fg-secondary px-3 py-1 hover:text-fg-primary transition-colors cursor-pointer"
             >
-              Close
+{t("common.close")}
             </button>
           </div>
         </Dialog.Content>

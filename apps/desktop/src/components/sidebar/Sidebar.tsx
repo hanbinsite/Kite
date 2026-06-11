@@ -120,6 +120,7 @@ interface CollectionTreeItemsProps {
   expandedIds: Set<string>;
   toggleExpand: (id: string) => void;
   onLoadRequestData: (requestId: string, collectionId: string) => void;
+  escapeCancelled: React.MutableRefObject<boolean>;
 }
 
 function CollectionTreeItems({
@@ -138,6 +139,7 @@ function CollectionTreeItems({
   expandedIds,
   toggleExpand,
   onLoadRequestData,
+  escapeCancelled,
 }: CollectionTreeItemsProps) {
   return (
     <>
@@ -169,6 +171,7 @@ function CollectionTreeItems({
                     onKeyDown={(e) => {
                       if (e.key === "Enter") commitEdit();
                       if (e.key === "Escape") {
+                        escapeCancelled.current = true;
                         startEditing("", "");
                       }
                     }}
@@ -215,6 +218,7 @@ function CollectionTreeItems({
                   expandedIds={expandedIds}
                   toggleExpand={toggleExpand}
                   onLoadRequestData={onLoadRequestData}
+                  escapeCancelled={escapeCancelled}
                 />
                 </div>
               )}
@@ -250,6 +254,7 @@ function CollectionTreeItems({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") commitEdit();
                   if (e.key === "Escape") {
+                    escapeCancelled.current = true;
                     startEditing("", "");
                   }
                 }}
@@ -306,8 +311,8 @@ const deleteRequest = useCollectionStore((s) => s.deleteRequest);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const editInputRef = useRef<HTMLInputElement | null>(null);
+  const escapeCancelled = useRef(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
-  const responses = useRequestStore((s) => s.responses);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
@@ -333,12 +338,6 @@ const deleteRequest = useCollectionStore((s) => s.deleteRequest);
     loadCollections();
     queryHistoryEntries(50).then(setHistoryEntries).catch(() => {});
   }, []);
-
-  useEffect(() => {
-    if (Object.keys(responses).length > 0) {
-      queryHistoryEntries(50).then(setHistoryEntries).catch(() => {});
-    }
-  }, [responses]);
 
   useEffect(() => {
     if (editingId && editInputRef.current) {
@@ -418,7 +417,11 @@ const deleteRequest = useCollectionStore((s) => s.deleteRequest);
   };
 
 const commitEdit = () => {
-  if (editingId && editingName.trim()) {
+    if (escapeCancelled.current) {
+      escapeCancelled.current = false;
+      return;
+    }
+    if (editingId && editingName.trim()) {
     const trimmed = editingName.trim();
     const col = collections.find((c) => c.id === editingId);
     if (col) {
@@ -609,6 +612,7 @@ const commitEdit = () => {
                       onKeyDown={(e) => {
                         if (e.key === "Enter") commitEdit();
                         if (e.key === "Escape") {
+                          escapeCancelled.current = true;
                           setEditingId(null);
                           setEditingName("");
                         }
@@ -678,6 +682,7 @@ const commitEdit = () => {
                   expandedIds={expandedIds}
                   toggleExpand={toggleExpand}
                   onLoadRequestData={handleLoadRequestData}
+                  escapeCancelled={escapeCancelled}
                 />
   </div>
 )}

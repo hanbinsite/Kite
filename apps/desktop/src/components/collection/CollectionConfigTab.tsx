@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useCollectionStore, type CollectionTreeNode } from "../../stores/collection-store";
 import { ConfigOverviewTab } from "./ConfigOverviewTab";
 import { ConfigVariablesTab } from "./ConfigVariablesTab";
@@ -8,28 +9,29 @@ import { ConfigScriptsTab } from "./ConfigScriptsTab";
 
 type SubTab = "overview" | "variables" | "headers" | "auth" | "scripts";
 
-const SUB_TABS: { key: SubTab; label: string }[] = [
-  { key: "overview", label: "Overview" },
-  { key: "variables", label: "Variables" },
-  { key: "headers", label: "Headers" },
-  { key: "auth", label: "Auth" },
-  { key: "scripts", label: "Scripts" },
-];
-
 interface CollectionConfigTabProps {
   collectionId: string;
   folderId?: string;
 }
 
 export function CollectionConfigTab({ collectionId, folderId }: CollectionConfigTabProps) {
+  const { t } = useTranslation();
   const [activeSubTab, setActiveSubTab] = useState<SubTab>("overview");
   const collections = useCollectionStore((s) => s.collections);
+
+  const SUB_TABS: { key: SubTab; label: string }[] = [
+    { key: "overview", label: t("collectionConfig.overview") },
+    { key: "variables", label: t("collectionConfig.variables") },
+    { key: "headers", label: t("collectionConfig.headers") },
+    { key: "auth", label: t("collectionConfig.auth") },
+    { key: "scripts", label: t("collectionConfig.scripts") },
+  ];
 
   const collection = collections.find((c) => c.id === collectionId);
   if (!collection) {
     return (
       <div className="flex items-center justify-center h-full text-fg-secondary text-[13px]">
-        Collection not found
+        {t("collectionConfig.notFound")}
       </div>
     );
   }
@@ -41,7 +43,7 @@ export function CollectionConfigTab({ collectionId, folderId }: CollectionConfig
     if (!folder) {
       return (
         <div className="flex items-center justify-center h-full text-fg-secondary text-[13px]">
-          Folder not found
+          {t("collectionConfig.folderNotFound")}
         </div>
       );
     }

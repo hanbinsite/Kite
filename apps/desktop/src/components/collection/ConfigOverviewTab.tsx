@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useCollectionStore } from "../../stores/collection-store";
 import type { CollectionConfig, FolderConfig } from "@api-client/types";
 
@@ -11,6 +12,7 @@ interface ConfigOverviewTabProps {
 }
 
 export function ConfigOverviewTab({ collectionId, folderId, name, description, config }: ConfigOverviewTabProps) {
+  const { t } = useTranslation();
   const [localName, setLocalName] = useState(name);
   const [localDesc, setLocalDesc] = useState(description ?? "");
   const updateCollectionConfig = useCollectionStore((s) => s.updateCollectionConfig);
@@ -48,7 +50,7 @@ export function ConfigOverviewTab({ collectionId, folderId, name, description, c
   return (
     <div className="max-w-[600px] space-y-4">
       <div>
-        <label className="block text-[12px] text-fg-secondary mb-1">Name</label>
+        <label className="block text-[12px] text-fg-secondary mb-1">{t("common.name")}</label>
         <input
           type="text"
           value={localName}
@@ -58,7 +60,7 @@ export function ConfigOverviewTab({ collectionId, folderId, name, description, c
         />
       </div>
       <div>
-        <label className="block text-[12px] text-fg-secondary mb-1">Description</label>
+        <label className="block text-[12px] text-fg-secondary mb-1">{t("common.description")}</label>
         <textarea
           value={localDesc}
           onChange={(e) => setLocalDesc(e.target.value)}
@@ -69,20 +71,20 @@ export function ConfigOverviewTab({ collectionId, folderId, name, description, c
       </div>
       <div className="grid grid-cols-2 gap-3 pt-2">
         <div className="bg-bg-elevated rounded p-3">
-          <div className="text-[11px] text-fg-secondary">Variables</div>
+          <div className="text-[11px] text-fg-secondary">{t("common.variables")}</div>
           <div className="text-[18px] font-semibold text-fg-primary mt-1">{variableCount}</div>
         </div>
         <div className="bg-bg-elevated rounded p-3">
-          <div className="text-[11px] text-fg-secondary">Headers</div>
+          <div className="text-[11px] text-fg-secondary">{t("request.headers")}</div>
           <div className="text-[18px] font-semibold text-fg-primary mt-1">{headerCount}</div>
         </div>
         <div className="bg-bg-elevated rounded p-3">
-          <div className="text-[11px] text-fg-secondary">Pre-request Script</div>
-          <div className="text-[13px] mt-1 text-fg-primary">{hasPreScript ? "Configured" : "None"}</div>
+          <div className="text-[11px] text-fg-secondary">{t("scripts.preRequest")}</div>
+          <div className="text-[13px] mt-1 text-fg-primary">{hasPreScript ? t("collectionConfig.configured") : t("collectionConfig.none")}</div>
         </div>
         <div className="bg-bg-elevated rounded p-3">
-          <div className="text-[11px] text-fg-secondary">Post-response Script</div>
-          <div className="text-[13px] mt-1 text-fg-primary">{hasPostScript ? "Configured" : "None"}</div>
+          <div className="text-[11px] text-fg-secondary">{t("scripts.postResponse")}</div>
+          <div className="text-[13px] mt-1 text-fg-primary">{hasPostScript ? t("collectionConfig.configured") : t("collectionConfig.none")}</div>
         </div>
       </div>
     </div>

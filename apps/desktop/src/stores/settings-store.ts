@@ -44,6 +44,11 @@ function applyFontSize(size: string) {
   document.documentElement.style.fontSize = `${size}px`;
 }
 
+function applyCodeFont(font: string, size: string) {
+  document.documentElement.style.setProperty("--code-font", font);
+  document.documentElement.style.setProperty("--code-font-size", `${size}px`);
+}
+
 export const useSettingsStore = create<AppSettings & { updateSetting: (key: keyof AppSettings, value: string | boolean) => void }>()((set) => ({
   ...loadSettings(),
   updateSetting: (key, value) => {
@@ -53,9 +58,16 @@ export const useSettingsStore = create<AppSettings & { updateSetting: (key: keyo
       if (key === "fontSize" || key === "uiFontSize") {
         applyFontSize(typeof value === "string" ? value : state.fontSize);
       }
+      if (key === "codeFont" || key === "codeFontSize") {
+        const font = key === "codeFont" ? (value as string) : state.codeFont;
+        const fontsize = key === "codeFontSize" ? (value as string) : state.codeFontSize;
+        applyCodeFont(font, fontsize);
+      }
       return newState;
     });
   },
 }));
 
-applyFontSize(loadSettings().fontSize);
+const initialSettings = loadSettings();
+applyFontSize(initialSettings.fontSize);
+applyCodeFont(initialSettings.codeFont, initialSettings.codeFontSize);

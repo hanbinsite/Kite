@@ -2,15 +2,16 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useWsStore, type WsConnectionStatus } from "../../stores/websocket-store";
 import { Trash2, Send, Link, Unlink, ArrowUp, ArrowDown, AlertCircle } from "lucide-react";
 import { KeyValueEditor, type KeyValue } from "../request/KeyValueEditor";
+import { useTranslation } from "react-i18next";
 
 interface WebSocketPanelProps {
   connectionId: string;
 }
 
 const WS_TABS = [
-  { id: "messages", label: "Messages" },
-  { id: "headers", label: "Headers" },
-  { id: "protocols", label: "Protocols" },
+  { id: "messages", labelKey: "ws.messages" },
+  { id: "headers", labelKey: "ws.headers" },
+  { id: "protocols", labelKey: "ws.protocols" },
 ] as const;
 
 type WsTabId = (typeof WS_TABS)[number]["id"];
@@ -26,6 +27,7 @@ function StatusDot({ status }: { status: WsConnectionStatus }) {
 }
 
 export function WebSocketPanel({ connectionId }: WebSocketPanelProps) {
+  const { t } = useTranslation();
   const [url, setUrl] = useState("ws://localhost:8080");
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState<WsTabId>("messages");
@@ -123,7 +125,7 @@ export function WebSocketPanel({ connectionId }: WebSocketPanelProps) {
               activeTab === tab.id ? "text-brand border-b-2 border-brand" : "text-fg-secondary hover:text-fg-primary"
             }`}
           >
-            {tab.label}
+            {t(tab.labelKey)}
           </button>
         ))}
       </div>
@@ -133,7 +135,7 @@ export function WebSocketPanel({ connectionId }: WebSocketPanelProps) {
           <div className="flex-1 overflow-y-auto min-h-0">
             {messages.length === 0 ? (
               <div className="flex items-center justify-center h-full text-fg-tertiary text-[12px]">
-                {status === "connected" ? "Send a message to get started" : "Connect to a WebSocket server"}
+                {status === "connected" ? t("ws.emptyConnected") : t("ws.emptyDisconnected")}
               </div>
             ) : (
               <div className="flex flex-col">
@@ -174,7 +176,7 @@ export function WebSocketPanel({ connectionId }: WebSocketPanelProps) {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Type a message..."
+                placeholder={t("ws.messagePlaceholder")}
                 className="flex-1 h-[28px] px-2 bg-bg-input border border-border-muted rounded text-[12px] text-fg-primary placeholder:text-fg-tertiary outline-none focus:border-border-focus font-mono"
               />
               <button
@@ -183,7 +185,7 @@ export function WebSocketPanel({ connectionId }: WebSocketPanelProps) {
                 className="flex items-center gap-1 h-[28px] px-3 rounded bg-brand text-white text-[11px] font-semibold cursor-pointer hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send size={12} />
-                Send
+{t("common.send")}
               </button>
               <button
                 onClick={() => clearMessages(connectionId)}
@@ -202,7 +204,7 @@ export function WebSocketPanel({ connectionId }: WebSocketPanelProps) {
           <KeyValueEditor
             items={headers}
             onChange={setHeaders}
-            placeholder={{ key: "Header name", value: "Value" }}
+            placeholder={{ key: t("request.header"), value: t("common.value") }}
             showDescription={false}
           />
         </div>
@@ -212,17 +214,17 @@ export function WebSocketPanel({ connectionId }: WebSocketPanelProps) {
         <div className="flex flex-col gap-3 p-3">
           <div className="flex flex-col gap-1.5">
             <label className="font-sans text-[11px] font-semibold text-fg-secondary">
-              Sec-WebSocket-Protocol
+{t("ws.secProtocol")}
             </label>
             <input
               type="text"
               value={protocols}
               onChange={(e) => setProtocols(e.target.value)}
-              placeholder="e.g. graphql-ws, soap"
+              placeholder={t("ws.protocolsPlaceholder")}
               className="h-[28px] px-2 bg-bg-input border border-border-muted rounded text-[12px] text-fg-primary placeholder:text-fg-tertiary outline-none focus:border-border-focus font-mono"
             />
             <span className="font-sans text-[10px] text-fg-tertiary">
-              Comma-separated list of sub-protocols. Applied on next connection.
+              {t("ws.protocolsHint")}
             </span>
           </div>
         </div>

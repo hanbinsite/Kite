@@ -39,7 +39,7 @@ function AddCookieForm({ onAdd, onCancel }: { onAdd: (c: Omit<CookieEntry, "id">
   return (
     <div className="flex flex-col gap-2 p-3 border border-border-muted rounded-md bg-bg-elevated">
       <div className="flex items-center justify-between">
-        <span className="font-sans text-[11px] font-semibold text-fg-primary">Add Cookie</span>
+        <span className="font-sans text-[11px] font-semibold text-fg-primary">{t("cookies.addCookie")}</span>
         <button onClick={onCancel} className="p-1 rounded hover:bg-bg-hover text-fg-tertiary cursor-pointer">
           <X size={12} />
         </button>
@@ -77,6 +77,7 @@ function AddCookieForm({ onAdd, onCancel }: { onAdd: (c: Omit<CookieEntry, "id">
 }
 
 export function CookieManager() {
+  const { t } = useTranslation();
   const cookies = useCookieStore((s) => s.cookies);
   const loadCookies = useCookieStore((s) => s.loadCookies);
   const addCookie = useCookieStore((s) => s.addCookie);
@@ -109,7 +110,7 @@ export function CookieManager() {
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 h-[44px] px-3 border-b border-border-muted shrink-0">
         <CookieIcon size={14} className="text-brand shrink-0" />
-        <span className="font-sans text-[13px] font-semibold text-fg-primary">Cookie Jar</span>
+        <span className="font-sans text-[13px] font-semibold text-fg-primary">{t("cookies.cookieJar")}</span>
         <span className="font-sans text-[10px] text-fg-tertiary">({cookies.length})</span>
         <div className="flex-1" />
         <button
@@ -150,7 +151,7 @@ export function CookieManager() {
       <div className="flex-1 overflow-y-auto min-h-0">
         {cookies.length === 0 ? (
           <div className="flex items-center justify-center h-full text-fg-tertiary text-[12px]">
-            No cookies stored
+            {t("cookies.noCookies")}
           </div>
         ) : (
           <div className="flex flex-col">

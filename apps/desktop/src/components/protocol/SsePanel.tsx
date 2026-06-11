@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useSseStore, type SseConnectionStatus } from "../../stores/sse-store";
 import { Trash2, Link, Unlink, AlertCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface SsePanelProps {
   connectionId: string;
@@ -17,6 +18,7 @@ function StatusDot({ status }: { status: SseConnectionStatus }) {
 }
 
 export function SsePanel({ connectionId }: SsePanelProps) {
+  const { t } = useTranslation();
   const [url, setUrl] = useState("https://example.com/events");
   const eventsEndRef = useRef<HTMLDivElement>(null);
 
@@ -94,7 +96,7 @@ export function SsePanel({ connectionId }: SsePanelProps) {
       <div className="flex-1 overflow-y-auto min-h-0">
         {events.length === 0 ? (
           <div className="flex items-center justify-center h-full text-fg-tertiary text-[12px]">
-            {status === "connected" ? "Waiting for events..." : "Connect to an SSE endpoint"}
+            {status === "connected" ? t("sse.emptyConnected") : t("sse.emptyDisconnected")}
           </div>
         ) : (
           <div className="flex flex-col">

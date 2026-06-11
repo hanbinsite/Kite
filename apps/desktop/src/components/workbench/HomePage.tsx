@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Zap, Clock, FolderOpen } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useTabStore, useUIStore } from "@api-client/core";
 import { queryHistoryEntries, type HistoryEntry } from "@api-client/core/http";
 
@@ -25,6 +26,7 @@ function formatTimeAgo(dateStr: string): string {
 }
 
 export function HomePage() {
+  const { t } = useTranslation();
   const openTab = useTabStore((s) => s.openTab);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -40,9 +42,9 @@ export function HomePage() {
           <div className="w-16 h-16 rounded-2xl bg-brand/20 flex items-center justify-center mb-4">
             <Zap className="w-8 h-8 text-brand" />
           </div>
-          <h1 className="text-2xl font-semibold text-fg-primary mb-2">Welcome Back</h1>
+          <h1 className="text-2xl font-semibold text-fg-primary mb-2">{t("home.welcomeBack")}</h1>
           <p className="text-fg-secondary">
-            Start by creating a new request or selecting an existing collection
+            {t("home.startPrompt")}
           </p>
         </div>
 
@@ -55,7 +57,7 @@ export function HomePage() {
               <Zap className="w-5 h-5 text-brand" />
             </div>
             <div>
-              <div className="font-medium text-fg-primary">New Request</div>
+              <div className="font-medium text-fg-primary">{t("home.newRequest")}</div>
               <div className="text-xs text-fg-secondary">Cmd + N</div>
             </div>
           </button>
@@ -68,8 +70,8 @@ export function HomePage() {
               <FolderOpen className="w-5 h-5 text-accent-info" />
             </div>
             <div>
-              <div className="font-medium text-fg-primary">Open Collection</div>
-              <div className="text-xs text-fg-secondary">Browse your collections</div>
+              <div className="font-medium text-fg-primary">{t("home.openCollection")}</div>
+              <div className="text-xs text-fg-secondary">{t("home.browseCollections")}</div>
             </div>
           </button>
         </div>
@@ -77,11 +79,11 @@ export function HomePage() {
         <div className="border-t border-border-muted pt-8">
           <div className="flex items-center gap-2 mb-4">
             <Clock className="w-4 h-4 text-fg-tertiary" />
-            <h2 className="text-sm font-medium text-fg-secondary">Recent Requests</h2>
+            <h2 className="text-sm font-medium text-fg-secondary">{t("home.recentRequests")}</h2>
           </div>
         <div className="space-y-2">
         {history.length === 0 && (
-          <div className="text-xs text-fg-tertiary py-4 text-center">No recent requests yet</div>
+          <div className="text-xs text-fg-tertiary py-4 text-center">{t("home.noRecentRequests")}</div>
         )}
         {history.map((item) => (
           <button

@@ -2,12 +2,14 @@ import { useState, useCallback } from "react";
 import { useGrpcStore } from "../../stores/grpc-store";
 import type { GrpcMethodInfo } from "@api-client/core/grpc";
 import { Send, FileCode, AlertCircle, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface GrpcPanelProps {
   connectionId: string;
 }
 
 export function GrpcPanel({ connectionId }: GrpcPanelProps) {
+  const { t } = useTranslation();
   const [url, setUrl] = useState("http://localhost:50051");
   const [protoPath, setProtoPath] = useState("");
   const [serviceName, setServiceName] = useState("");
@@ -64,7 +66,7 @@ export function GrpcPanel({ connectionId }: GrpcPanelProps) {
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 h-[44px] px-3 border-b border-border-muted shrink-0">
         <span className="shrink-0 font-mono text-[10px] font-semibold px-1.5 py-0.5 rounded bg-method-grpc/15 text-method-grpc">
-          gRPC
+          {t("grpc.label")}
         </span>
         <input
           type="text"
@@ -79,7 +81,7 @@ export function GrpcPanel({ connectionId }: GrpcPanelProps) {
           className="flex items-center gap-1 h-[28px] px-3 rounded bg-brand text-white text-[11px] font-semibold cursor-pointer hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-          {loading ? "Sending..." : "Invoke"}
+          {loading ? t("grpc.sending") : t("grpc.invoke")}
         </button>
       </div>
 
@@ -88,7 +90,7 @@ export function GrpcPanel({ connectionId }: GrpcPanelProps) {
           type="text"
           value={protoPath}
           onChange={(e) => setProtoPath(e.target.value)}
-          placeholder="Path to .proto file"
+          placeholder={t("grpc.protoPath")}
           className="flex-1 h-[28px] px-2 bg-bg-input border border-border-muted rounded text-[12px] text-fg-primary placeholder:text-fg-tertiary outline-none focus:border-border-focus font-mono"
         />
         <button
@@ -97,7 +99,7 @@ export function GrpcPanel({ connectionId }: GrpcPanelProps) {
           className="flex items-center gap-1 h-[28px] px-3 rounded bg-method-grpc/15 text-method-grpc text-[11px] font-semibold cursor-pointer hover:bg-method-grpc/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <FileCode size={12} />
-          Parse Proto
+          {t("grpc.parseProto")}
         </button>
       </div>
 
@@ -108,7 +110,7 @@ export function GrpcPanel({ connectionId }: GrpcPanelProps) {
             onChange={(e) => handleServiceChange(e.target.value)}
             className="flex-1 h-[28px] px-2 bg-bg-input border border-border-muted rounded text-[12px] text-fg-primary outline-none cursor-pointer"
           >
-            <option value="">Select service...</option>
+            <option value="">{t("grpc.selectService")}</option>
             {uniqueServices.map((s) => (
               <option key={s} value={s}>{s}</option>
             ))}
@@ -118,7 +120,7 @@ export function GrpcPanel({ connectionId }: GrpcPanelProps) {
             onChange={(e) => handleMethodChange(e.target.value)}
             className="flex-1 h-[28px] px-2 bg-bg-input border border-border-muted rounded text-[12px] text-fg-primary outline-none cursor-pointer"
           >
-            <option value="">Select method...</option>
+            <option value="">{t("grpc.selectMethod")}</option>
             {serviceMethods.map((m) => (
               <option key={m.methodName} value={m.methodName}>
                 {m.methodName} ({m.serverStreaming ? "server streaming" : "unary"})
@@ -147,7 +149,7 @@ export function GrpcPanel({ connectionId }: GrpcPanelProps) {
       <div className="flex-1 flex flex-col min-h-0">
         <div className="flex items-center h-[28px] px-3 border-b border-border-muted shrink-0">
           <span className="font-sans text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em]">
-            Request JSON
+            {t("grpc.requestJson")}
           </span>
         </div>
         <textarea
@@ -162,7 +164,7 @@ export function GrpcPanel({ connectionId }: GrpcPanelProps) {
           <div className="flex flex-col border-t border-border-muted min-h-0">
             <div className="flex items-center h-[28px] px-3 border-b border-border-muted shrink-0">
               <span className="font-sans text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em]">
-                Response {response?.timeMs ? `(${response.timeMs}ms)` : ""}
+                {t("grpc.response")} {response?.timeMs ? `(${response.timeMs}ms)` : ""}
               </span>
               {response?.status && (
                 <span className={`ml-2 font-mono text-[10px] font-semibold px-1.5 py-0.5 rounded ${

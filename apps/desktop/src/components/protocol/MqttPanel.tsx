@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useMqttStore, type MqttConnectionStatus } from "../../stores/mqtt-store";
 import type { MqttConnectConfig } from "@api-client/core/mqtt";
 import { Trash2, Link, Unlink, AlertCircle, ArrowUp, ArrowDown, Send } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface MqttPanelProps {
   connectionId: string;
@@ -32,6 +33,7 @@ const DEFAULT_CONFIG: MqttConnectConfig = {
 };
 
 export function MqttPanel({ connectionId }: MqttPanelProps) {
+  const { t } = useTranslation();
   const [config, setConfig] = useState<MqttConnectConfig>(DEFAULT_CONFIG);
   const [subTopic, setSubTopic] = useState("");
   const [subQos, setSubQos] = useState(0);
@@ -119,7 +121,7 @@ export function MqttPanel({ connectionId }: MqttPanelProps) {
       {status === "connected" && (
         <div className="flex flex-col gap-1 px-3 py-2 border-b border-border-muted shrink-0">
           <div className="flex items-center gap-2">
-            <span className="font-sans text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em] w-[60px] shrink-0">Subscribe</span>
+            <span className="font-sans text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em] w-[60px] shrink-0">{t("mqtt.subscribe")}</span>
             <input
               type="text"
               value={subTopic}
@@ -137,7 +139,7 @@ export function MqttPanel({ connectionId }: MqttPanelProps) {
             </select>
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-sans text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em] w-[60px] shrink-0">Publish</span>
+            <span className="font-sans text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em] w-[60px] shrink-0">{t("mqtt.publish")}</span>
             <input
               type="text"
               value={pubTopic}
@@ -166,7 +168,7 @@ export function MqttPanel({ connectionId }: MqttPanelProps) {
               className="flex items-center gap-1 h-[24px] px-2 rounded bg-brand text-white text-[10px] font-semibold cursor-pointer hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Send size={10} />
-              Send
+{t("common.send")}
             </button>
           </div>
           {subscriptions.length > 0 && (
@@ -198,7 +200,7 @@ export function MqttPanel({ connectionId }: MqttPanelProps) {
       <div className="flex-1 overflow-y-auto min-h-0">
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full text-fg-tertiary text-[12px]">
-            {status === "connected" ? "Subscribe to a topic to receive messages" : "Connect to an MQTT broker"}
+            {status === "connected" ? t("mqtt.emptyConnected") : t("mqtt.emptyDisconnected")}
           </div>
         ) : (
           <div className="flex flex-col">

@@ -220,13 +220,27 @@ checked={!(requestDataMap[activeTabId ?? ""]?.settings.verifySsl)}
                         {response.status >= 400 ? <Wrench size={12} /> : <Brain size={12} />}
                 {response.status >= 400 ? t("response.fix") : t("response.explain")}
                     </button>
-                    <button className="response-bar-btn w-6 h-6 rounded-[4px] flex items-center justify-center text-fg-tertiary cursor-pointer hover:bg-bg-hover hover:text-fg-secondary transition-all duration-50">
+                    <button
+                      onClick={() => useUIStore.getState().setSplitRatio(useUIStore.getState().splitRatio > 0.7 ? 0.5 : 0.85)}
+                      className="response-bar-btn w-6 h-6 rounded-[4px] flex items-center justify-center text-fg-tertiary cursor-pointer hover:bg-bg-hover hover:text-fg-secondary transition-all duration-50"
+                      title={t("response.toggleLayout")}
+                    >
                         <Columns2 size={14} />
                     </button>
-                    <button className="response-bar-btn w-6 h-6 rounded-[4px] flex items-center justify-center text-fg-tertiary cursor-pointer hover:bg-bg-hover hover:text-fg-secondary transition-all duration-50">
+                    <button
+                      onClick={async () => {
+                        try { await navigator.clipboard.writeText(response.body); } catch {}
+                      }}
+                      className="response-bar-btn w-6 h-6 rounded-[4px] flex items-center justify-center text-fg-tertiary cursor-pointer hover:bg-bg-hover hover:text-fg-secondary transition-all duration-50"
+                      title={t("response.copyBody")}
+                    >
                         <ArrowDownToLine size={14} />
                     </button>
-                    <button className="response-bar-btn w-6 h-6 rounded-[4px] flex items-center justify-center text-fg-tertiary cursor-pointer hover:bg-bg-hover hover:text-fg-secondary transition-all duration-50">
+                    <button
+                      onClick={() => useUIStore.getState().setSplitRatio(1)}
+                      className="response-bar-btn w-6 h-6 rounded-[4px] flex items-center justify-center text-fg-tertiary cursor-pointer hover:bg-bg-hover hover:text-fg-secondary transition-all duration-50"
+                      title={t("response.fullscreen")}
+                    >
                         <Maximize2 size={14} />
                     </button>
                 </div>
