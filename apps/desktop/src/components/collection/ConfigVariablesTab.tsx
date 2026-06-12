@@ -75,7 +75,7 @@ export function ConfigVariablesTab({ collectionId, folderId, variables }: Config
   return (
     <div className="max-w-[700px]">
       <div className="flex items-center justify-between mb-3">
-        <div className="text-[12px] text-fg-secondary">{items.length} variable{items.length !== 1 ? "s" : ""}</div>
+        <div className="text-[12px] text-fg-secondary">{t("collectionConfig.variableCount", { count: items.length })}</div>
         <div className="flex gap-2">
           <button
             onClick={() => {
@@ -90,7 +90,7 @@ export function ConfigVariablesTab({ collectionId, folderId, variables }: Config
             onClick={handleAdd}
             className="text-[12px] px-2.5 py-1 rounded bg-brand text-white hover:bg-brand/80 transition-colors"
           >
-            + Add Variable
+{t("collectionConfig.addVariable")}
           </button>
         </div>
       </div>
@@ -108,14 +108,14 @@ export function ConfigVariablesTab({ collectionId, folderId, variables }: Config
               type="text"
               value={item.key}
               onChange={(e) => handleChange(index, "key", e.target.value)}
-              placeholder="Key"
+              placeholder={t("common.keyPlaceholder")}
               className="flex-1 bg-bg-elevated text-fg-primary text-[13px] px-2 py-1.5 rounded border border-transparent focus:border-brand focus:outline-none"
             />
             <input
               type="text"
               value={item.value}
               onChange={(e) => handleChange(index, "value", e.target.value)}
-              placeholder="Value"
+              placeholder={t("common.valuePlaceholder")}
               className="flex-1 bg-bg-elevated text-fg-primary text-[13px] px-2 py-1.5 rounded border border-transparent focus:border-brand focus:outline-none"
             />
             <button
@@ -128,7 +128,7 @@ export function ConfigVariablesTab({ collectionId, folderId, variables }: Config
         ))}
         {items.length === 0 && (
           <div className="text-[12px] text-fg-secondary text-center py-8">
-            No variables configured. Click "+ Add Variable" to get started.
+            {t("collectionConfig.noVariables")}
           </div>
         )}
       </div>

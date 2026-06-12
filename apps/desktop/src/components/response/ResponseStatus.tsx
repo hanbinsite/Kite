@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useRequestStore } from "../../stores/request-store";
 import { useTabStore } from "@api-client/core";
 import { Clock, HardDrive, ArrowDownToLine, Maximize2 } from "lucide-react";
@@ -16,6 +17,7 @@ function getStatusClass(status: number): string {
 }
 
 export function ResponseStatus() {
+  const { t } = useTranslation();
   const activeTabId = useTabStore((s) => s.activeTabId);
   const isLoading = useRequestStore((s) => activeTabId ? !!s.loadingTabs[activeTabId] : false);
   const response = useRequestStore(
@@ -30,7 +32,7 @@ export function ResponseStatus() {
       {isLoading && (
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 border-2 border-border-default border-t-brand rounded-full animate-spin" />
-          <span className="text-xs text-fg-tertiary font-mono">Sending...</span>
+          <span className="text-xs text-fg-tertiary font-mono">{t("response.sending")}</span>
         </div>
       )}
       {response && !isLoading && (
@@ -54,13 +56,13 @@ export function ResponseStatus() {
           <div className="flex items-center gap-1">
             <button
               className="response-bar-btn w-6 h-6 rounded flex items-center justify-center text-fg-tertiary hover:text-fg-secondary hover:bg-bg-hover"
-              title="Download"
+              title={t("response.download")}
             >
               <ArrowDownToLine size={14} />
             </button>
             <button
               className="response-bar-btn w-6 h-6 rounded flex items-center justify-center text-fg-tertiary hover:text-fg-secondary hover:bg-bg-hover"
-              title="Fullscreen"
+              title={t("response.fullscreen")}
             >
               <Maximize2 size={14} />
             </button>

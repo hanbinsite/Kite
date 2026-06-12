@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 interface ScriptErrorCardProps {
   phase: string;
   source: string;
@@ -6,6 +8,7 @@ interface ScriptErrorCardProps {
 }
 
 export function ScriptErrorCard({ phase, source, error, onEditScript }: ScriptErrorCardProps) {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center justify-center h-full p-6">
       <div className="max-w-[480px] w-full bg-bg-elevated rounded-lg border border-accent-danger/30 p-6">
@@ -14,7 +17,7 @@ export function ScriptErrorCard({ phase, source, error, onEditScript }: ScriptEr
             !
           </div>
           <div>
-            <div className="text-[14px] font-semibold text-fg-primary">Script Error</div>
+            <div className="text-[14px] font-semibold text-fg-primary">{t("response.scriptError")}</div>
             <div className="text-[11px] text-fg-secondary">
               [{phase}][{source}]
             </div>
@@ -30,7 +33,7 @@ export function ScriptErrorCard({ phase, source, error, onEditScript }: ScriptEr
             onClick={onEditScript}
             className="text-[12px] px-3 py-1.5 rounded bg-brand text-white hover:bg-brand/80 transition-colors"
           >
-            Edit Script
+            {t("response.editScript")}
           </button>
         )}
       </div>

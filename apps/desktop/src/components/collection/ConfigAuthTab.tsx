@@ -1,19 +1,20 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useCollectionStore } from "../../stores/collection-store";
 import type { AuthConfig, CollectionConfig, FolderConfig } from "@api-client/types";
 import { findFolderConfig } from "./findFolderConfig";
 
 const AUTH_TYPES = [
-  { value: "none", label: "No Auth" },
-  { value: "inherit", label: "Inherit from parent" },
-  { value: "bearer", label: "Bearer Token" },
-  { value: "basic", label: "Basic Auth" },
-  { value: "apikey", label: "API Key" },
-  { value: "jwt", label: "JWT" },
-  { value: "oauth1", label: "OAuth 1.0" },
-  { value: "oauth2", label: "OAuth 2.0" },
-  { value: "awsv4", label: "AWS v4" },
-];
+  "none",
+  "inherit",
+  "bearer",
+  "basic",
+  "apikey",
+  "jwt",
+  "oauth1",
+  "oauth2",
+  "awsv4",
+] as const;
 
 interface ConfigAuthTabProps {
   collectionId: string;
@@ -22,6 +23,7 @@ interface ConfigAuthTabProps {
 }
 
 export function ConfigAuthTab({ collectionId, folderId, auth }: ConfigAuthTabProps) {
+  const { t } = useTranslation();
   const effectiveAuth = auth ?? { type: "none" as const, config: {} };
   const [authType, setAuthType] = useState<string>(effectiveAuth.type);
   const updateCollectionConfig = useCollectionStore((s) => s.updateCollectionConfig);
@@ -59,15 +61,15 @@ export function ConfigAuthTab({ collectionId, folderId, auth }: ConfigAuthTabPro
   return (
     <div className="max-w-[500px]">
       <div className="mb-4">
-        <label className="block text-[12px] text-fg-secondary mb-1">Authentication Type</label>
+        <label className="block text-[12px] text-fg-secondary mb-1">{t("auth.authType")}</label>
         <select
           value={authType}
           onChange={(e) => handleTypeChange(e.target.value)}
           className="w-full bg-bg-elevated text-fg-primary text-[13px] px-3 py-2 rounded border border-bg-elevated focus:border-brand focus:outline-none"
         >
-          {AUTH_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
+          {AUTH_TYPES.map((value) => (
+            <option key={value} value={value}>
+              {t(`auth.${value}`)}
             </option>
           ))}
         </select>
@@ -75,7 +77,7 @@ export function ConfigAuthTab({ collectionId, folderId, auth }: ConfigAuthTabPro
 
       {folderId && authType === "inherit" && (
         <div className="bg-bg-elevated rounded p-3 text-[12px] text-fg-secondary">
-          This folder will inherit authentication from its parent collection or folder.
+          {t("auth.inheritHint")}
         </div>
       )}
 
@@ -88,7 +90,7 @@ export function ConfigAuthTab({ collectionId, folderId, auth }: ConfigAuthTabPro
 
       {authType === "none" && (
         <div className="bg-bg-elevated rounded p-3 text-[12px] text-fg-secondary">
-          No authentication will be used. Requests with &quot;Inherit from parent&quot; will skip this level.
+          {t("auth.collectionNoAuthHint")}
         </div>
       )}
     </div>
@@ -96,21 +98,22 @@ export function ConfigAuthTab({ collectionId, folderId, auth }: ConfigAuthTabPro
 }
 
 function BearerFields({ auth, persist }: { auth: AuthConfig; persist: (a: AuthConfig) => void }) {
+  const { t } = useTranslation();
   const config = auth.type === "bearer" ? auth.config : { token: "", prefix: "Bearer" };
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[12px] text-fg-secondary mb-1">Token</label>
+        <label className="block text-[12px] text-fg-secondary mb-1">{t("auth.token")}</label>
         <input
           type="text"
           value={config.token ?? ""}
           onChange={(e) => persist({ type: "bearer", config: { ...config, token: e.target.value } })}
-          placeholder="Enter token"
+          placeholder={t("auth.enterTokenPlaceholder")}
           className="w-full bg-bg-elevated text-fg-primary text-[13px] px-3 py-2 rounded border border-bg-elevated focus:border-brand focus:outline-none"
         />
       </div>
       <div>
-        <label className="block text-[12px] text-fg-secondary mb-1">Prefix</label>
+        <label className="block text-[12px] text-fg-secondary mb-1">{t("auth.prefix")}</label>
         <input
           type="text"
           value={config.prefix ?? "Bearer"}
@@ -123,11 +126,12 @@ function BearerFields({ auth, persist }: { auth: AuthConfig; persist: (a: AuthCo
 }
 
 function BasicFields({ auth, persist }: { auth: AuthConfig; persist: (a: AuthConfig) => void }) {
+  const { t } = useTranslation();
   const config = auth.type === "basic" ? auth.config : { username: "", password: "" };
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[12px] text-fg-secondary mb-1">Username</label>
+        <label className="block text-[12px] text-fg-secondary mb-1">{t("auth.username")}</label>
         <input
           type="text"
           value={config.username ?? ""}
@@ -136,7 +140,7 @@ function BasicFields({ auth, persist }: { auth: AuthConfig; persist: (a: AuthCon
         />
       </div>
       <div>
-        <label className="block text-[12px] text-fg-secondary mb-1">Password</label>
+        <label className="block text-[12px] text-fg-secondary mb-1">{t("auth.password")}</label>
         <input
           type="password"
           value={config.password ?? ""}
@@ -149,11 +153,12 @@ function BasicFields({ auth, persist }: { auth: AuthConfig; persist: (a: AuthCon
 }
 
 function ApiKeyFields({ auth, persist }: { auth: AuthConfig; persist: (a: AuthConfig) => void }) {
+  const { t } = useTranslation();
   const config = auth.type === "apikey" ? auth.config : { key: "", value: "", addTo: "header" as const };
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[12px] text-fg-secondary mb-1">Key</label>
+        <label className="block text-[12px] text-fg-secondary mb-1">{t("auth.key")}</label>
         <input
           type="text"
           value={config.key ?? ""}
@@ -162,7 +167,7 @@ function ApiKeyFields({ auth, persist }: { auth: AuthConfig; persist: (a: AuthCo
         />
       </div>
       <div>
-        <label className="block text-[12px] text-fg-secondary mb-1">Value</label>
+        <label className="block text-[12px] text-fg-secondary mb-1">{t("common.value")}</label>
         <input
           type="text"
           value={config.value ?? ""}
@@ -171,14 +176,14 @@ function ApiKeyFields({ auth, persist }: { auth: AuthConfig; persist: (a: AuthCo
         />
       </div>
       <div>
-        <label className="block text-[12px] text-fg-secondary mb-1">Add to</label>
+        <label className="block text-[12px] text-fg-secondary mb-1">{t("auth.addTo")}</label>
         <select
           value={config.addTo ?? "header"}
           onChange={(e) => persist({ type: "apikey", config: { ...config, addTo: e.target.value as "header" | "query" } })}
           className="w-full bg-bg-elevated text-fg-primary text-[13px] px-3 py-2 rounded border border-bg-elevated focus:border-brand focus:outline-none"
         >
-          <option value="header">Header</option>
-          <option value="query">Query</option>
+          <option value="header">{t("auth.header")}</option>
+          <option value="query">{t("auth.query")}</option>
         </select>
       </div>
     </div>
@@ -186,10 +191,11 @@ function ApiKeyFields({ auth, persist }: { auth: AuthConfig; persist: (a: AuthCo
 }
 
 function JwtFields({ auth, persist }: { auth: AuthConfig; persist: (a: AuthConfig) => void }) {
+  const { t } = useTranslation();
   const config = auth.type === "jwt" ? auth.config : { token: "" };
   return (
     <div>
-      <label className="block text-[12px] text-fg-secondary mb-1">Token</label>
+      <label className="block text-[12px] text-fg-secondary mb-1">{t("auth.token")}</label>
       <input
         type="text"
         value={config.token ?? ""}
@@ -201,11 +207,12 @@ function JwtFields({ auth, persist }: { auth: AuthConfig; persist: (a: AuthConfi
 }
 
 function OAuth2Fields({ auth, persist }: { auth: AuthConfig; persist: (a: AuthConfig) => void }) {
+  const { t } = useTranslation();
   const config = auth.type === "oauth2" ? auth.config : { accessToken: "" };
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[12px] text-fg-secondary mb-1">Access Token</label>
+        <label className="block text-[12px] text-fg-secondary mb-1">{t("auth.accessToken")}</label>
         <input
           type="text"
           value={config.accessToken ?? ""}
@@ -214,12 +221,12 @@ function OAuth2Fields({ auth, persist }: { auth: AuthConfig; persist: (a: AuthCo
         />
       </div>
       <div>
-        <label className="block text-[12px] text-fg-secondary mb-1">Token Type</label>
+        <label className="block text-[12px] text-fg-secondary mb-1">{t("auth.tokenType")}</label>
         <input
           type="text"
           value={config.tokenType ?? ""}
           onChange={(e) => persist({ type: "oauth2", config: { ...config, tokenType: e.target.value } })}
-          placeholder="Bearer"
+          placeholder={t("auth.prefixPlaceholder")}
           className="w-full bg-bg-elevated text-fg-primary text-[13px] px-3 py-2 rounded border border-bg-elevated focus:border-brand focus:outline-none"
         />
       </div>
@@ -228,11 +235,12 @@ function OAuth2Fields({ auth, persist }: { auth: AuthConfig; persist: (a: AuthCo
 }
 
 function AwsV4Fields({ auth, persist }: { auth: AuthConfig; persist: (a: AuthConfig) => void }) {
+  const { t } = useTranslation();
   const config = auth.type === "awsv4" ? auth.config : { accessKeyId: "", secretAccessKey: "", service: "", region: "" };
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[12px] text-fg-secondary mb-1">Access Key ID</label>
+        <label className="block text-[12px] text-fg-secondary mb-1">{t("auth.accessKeyId")}</label>
         <input
           type="text"
           value={config.accessKeyId ?? ""}
@@ -241,7 +249,7 @@ function AwsV4Fields({ auth, persist }: { auth: AuthConfig; persist: (a: AuthCon
         />
       </div>
       <div>
-        <label className="block text-[12px] text-fg-secondary mb-1">Secret Access Key</label>
+        <label className="block text-[12px] text-fg-secondary mb-1">{t("auth.secretAccessKey")}</label>
         <input
           type="password"
           value={config.secretAccessKey ?? ""}
@@ -250,7 +258,7 @@ function AwsV4Fields({ auth, persist }: { auth: AuthConfig; persist: (a: AuthCon
         />
       </div>
       <div>
-        <label className="block text-[12px] text-fg-secondary mb-1">Service</label>
+        <label className="block text-[12px] text-fg-secondary mb-1">{t("auth.service")}</label>
         <input
           type="text"
           value={config.service ?? ""}
@@ -260,7 +268,7 @@ function AwsV4Fields({ auth, persist }: { auth: AuthConfig; persist: (a: AuthCon
         />
       </div>
       <div>
-        <label className="block text-[12px] text-fg-secondary mb-1">Region</label>
+        <label className="block text-[12px] text-fg-secondary mb-1">{t("auth.region")}</label>
         <input
           type="text"
           value={config.region ?? ""}

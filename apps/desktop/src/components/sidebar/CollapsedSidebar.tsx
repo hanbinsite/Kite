@@ -1,7 +1,9 @@
 import { Settings, Search, FolderOpen, Plus, History } from "lucide-react";
 import { useUIStore, useTabStore } from "@api-client/core";
+import { useTranslation } from "react-i18next";
 
 export function CollapsedSidebar() {
+  const { t } = useTranslation();
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const openSettings = useUIStore((s) => s.openSettings);
   const openTab = useTabStore((s) => s.openTab);
@@ -11,28 +13,28 @@ export function CollapsedSidebar() {
       <button
         onClick={toggleSidebar}
         className="p-2 hover:bg-bg-hover rounded transition-colors"
-        title="Expand Sidebar (Cmd+B)"
+        title={t("sidebar.expandSidebar")}
       >
         <Search className="w-4 h-4 text-fg-secondary" />
       </button>
       <button
         onClick={() => openTab({ name: "New Request", method: "GET", url: "" })}
         className="p-2 hover:bg-bg-hover rounded transition-colors"
-        title="New Request"
+        title={t("sidebar.newRequest")}
       >
         <Plus className="w-4 h-4 text-fg-secondary" />
       </button>
       <button
         onClick={toggleSidebar}
         className="p-2 hover:bg-bg-hover rounded transition-colors"
-        title="Collections"
+        title={t("sidebar.collections")}
       >
         <FolderOpen className="w-4 h-4 text-fg-secondary" />
       </button>
       <button
         onClick={toggleSidebar}
         className="p-2 hover:bg-bg-hover rounded transition-colors"
-        title="History"
+        title={t("sidebar.history")}
       >
         <History className="w-4 h-4 text-fg-secondary" />
       </button>
@@ -40,7 +42,7 @@ export function CollapsedSidebar() {
       <button
         onClick={() => openSettings()}
         className="p-2 hover:bg-bg-hover rounded transition-colors"
-        title="Settings"
+        title={t("settings.title")}
       >
         <Settings className="w-4 h-4 text-fg-tertiary" />
       </button>

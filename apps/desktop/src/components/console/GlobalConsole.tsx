@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useConsoleStore } from "../../stores";
 import { Trash2, AlertCircle, AlertTriangle, Info, Terminal, Search, X } from "lucide-react";
 
@@ -13,13 +14,7 @@ type LogLevel = keyof typeof LEVEL_STYLES;
 
 type FilterMode = "all" | "request" | "response" | "script" | "error";
 
-const FILTER_OPTIONS: { id: FilterMode; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "request", label: "Request" },
-  { id: "response", label: "Response" },
-  { id: "script", label: "Script" },
-  { id: "error", label: "Error" },
-];
+const FILTER_OPTIONS: FilterMode[] = ["all", "request", "response", "script", "error"];
 
 const MAX_ENTRIES = 1000;
 const MIN_HEIGHT = 100;
@@ -37,6 +32,7 @@ function sourceToFilter(source?: string): FilterMode {
 }
 
 export function GlobalConsole() {
+  const { t } = useTranslation();
   const [height, setHeight] = useState(DEFAULT_HEIGHT);
   const [filter, setFilter] = useState<FilterMode>("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -126,17 +122,17 @@ export function GlobalConsole() {
 
       <div className="global-console-toolbar flex items-center gap-2 h-[28px] px-3 border-b border-border-muted shrink-0">
         <div className="flex items-center gap-0">
-          {FILTER_OPTIONS.map((opt) => (
+          {FILTER_OPTIONS.map((id) => (
             <button
-              key={opt.id}
-              onClick={() => setFilter(opt.id)}
+              key={id}
+              onClick={() => setFilter(id)}
               className={`h-[22px] px-2 rounded-[3px] font-sans text-[10px] font-medium cursor-pointer transition-colors whitespace-nowrap ${
-                filter === opt.id
+                filter === id
                   ? "text-brand bg-brand-muted"
                   : "text-fg-tertiary hover:text-fg-secondary hover:bg-bg-hover"
               }`}
             >
-              {opt.label}
+              {t(`console.filter.${id}`)}
             </button>
           ))}
         </div>
@@ -149,7 +145,7 @@ export function GlobalConsole() {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Filter..."
+            placeholder={t("console.filterPlaceholder")}
             className="h-[20px] w-[120px] pl-[22px] pr-2 bg-bg-input border border-border-muted rounded-[3px] font-sans text-[10px] text-fg-primary placeholder:text-fg-tertiary outline-none focus:border-border-focus"
           />
           {searchTerm && (
@@ -169,7 +165,7 @@ export function GlobalConsole() {
         <button
           onClick={clearAll}
           className="p-1 rounded hover:bg-bg-hover text-fg-tertiary hover:text-fg-secondary cursor-pointer transition-colors"
-          title="Clear all console"
+          title={t("console.clearAllConsole")}
         >
           <Trash2 size={12} />
         </button>
@@ -178,7 +174,7 @@ export function GlobalConsole() {
       <div className="flex-1 overflow-y-auto font-mono text-[12px]">
         {filtered.length === 0 ? (
           <div className="flex items-center justify-center h-full text-fg-tertiary text-[12px] font-sans">
-            No console output
+            {t("console.noOutput")}
           </div>
         ) : (
           filtered.map((entry) => {

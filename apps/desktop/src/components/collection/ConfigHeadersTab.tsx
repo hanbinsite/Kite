@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useCollectionStore } from "../../stores/collection-store";
 import type { Header, CollectionConfig, FolderConfig } from "@api-client/types";
 import { findFolderConfig } from "./findFolderConfig";
@@ -10,6 +11,7 @@ interface ConfigHeadersTabProps {
 }
 
 export function ConfigHeadersTab({ collectionId, folderId, headers }: ConfigHeadersTabProps) {
+  const { t } = useTranslation();
   const [items, setItems] = useState<Header[]>(headers ?? []);
   const updateCollectionConfig = useCollectionStore((s) => s.updateCollectionConfig);
   const updateFolderConfig = useCollectionStore((s) => s.updateFolderConfig);
@@ -53,12 +55,12 @@ export function ConfigHeadersTab({ collectionId, folderId, headers }: ConfigHead
   return (
     <div className="max-w-[700px]">
       <div className="flex items-center justify-between mb-3">
-        <div className="text-[12px] text-fg-secondary">{items.length} header{items.length !== 1 ? "s" : ""}</div>
+        <div className="text-[12px] text-fg-secondary">{t("collectionConfig.headerCount", { count: items.length })}</div>
         <button
           onClick={handleAdd}
           className="text-[12px] px-2.5 py-1 rounded bg-brand text-white hover:bg-brand/80 transition-colors"
         >
-          + Add Header
+          {t("collectionConfig.addHeader")}
         </button>
       </div>
 
@@ -75,21 +77,21 @@ export function ConfigHeadersTab({ collectionId, folderId, headers }: ConfigHead
               type="text"
               value={item.key}
               onChange={(e) => handleChange(index, "key", e.target.value)}
-              placeholder="Header name"
+              placeholder={t("common.keyPlaceholder")}
               className="flex-1 bg-bg-elevated text-fg-primary text-[13px] px-2 py-1.5 rounded border border-transparent focus:border-brand focus:outline-none"
             />
             <input
               type="text"
               value={item.value}
               onChange={(e) => handleChange(index, "value", e.target.value)}
-              placeholder="Value"
+              placeholder={t("common.valuePlaceholder")}
               className="flex-1 bg-bg-elevated text-fg-primary text-[13px] px-2 py-1.5 rounded border border-transparent focus:border-brand focus:outline-none"
             />
             <input
               type="text"
               value={item.description ?? ""}
               onChange={(e) => handleChange(index, "description", e.target.value)}
-              placeholder="Description"
+              placeholder={t("common.description")}
               className="w-[140px] bg-bg-elevated text-fg-secondary text-[13px] px-2 py-1.5 rounded border border-transparent focus:border-brand focus:outline-none"
             />
             <button
@@ -102,7 +104,7 @@ export function ConfigHeadersTab({ collectionId, folderId, headers }: ConfigHead
         ))}
         {items.length === 0 && (
           <div className="text-[12px] text-fg-secondary text-center py-8">
-            No headers configured. These headers will be inherited by all requests in this {folderId ? "folder" : "collection"}.
+            {t("collectionConfig.noHeaders", { context: folderId ? "folder" : "collection" })}
           </div>
         )}
       </div>

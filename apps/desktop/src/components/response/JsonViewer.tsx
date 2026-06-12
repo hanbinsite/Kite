@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
 interface JsonNodeProps {
   keyName: string | null;
@@ -110,6 +111,7 @@ interface JsonViewerProps {
 }
 
 export function JsonViewer({ data, defaultCollapsed = 4 }: JsonViewerProps) {
+    const { t } = useTranslation();
     const [searchTerm, setSearchTerm] = useState("");
     const [copied, setCopied] = useState(false);
     const [jsonPath, setJsonPath] = useState("");
@@ -147,7 +149,7 @@ export function JsonViewer({ data, defaultCollapsed = 4 }: JsonViewerProps) {
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search JSON..."
+                    placeholder={t("response.searchJson")}
                     className="flex-1 h-[24px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary placeholder:text-fg-tertiary outline-none focus:border-border-focus"
                 />
                 <input
@@ -161,7 +163,7 @@ export function JsonViewer({ data, defaultCollapsed = 4 }: JsonViewerProps) {
                     onClick={handleCopy}
                     className="h-[24px] px-2 text-[11px] font-medium text-fg-secondary hover:text-fg-primary bg-bg-hover rounded cursor-pointer transition-colors"
                 >
-                    {copied ? "Copied!" : "Copy"}
+                    {copied ? t("common.copied") : t("common.copy")}
                 </button>
             </div>
             <div className="flex-1 overflow-auto p-3">
