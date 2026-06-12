@@ -81,9 +81,30 @@ pub async fn unlock_vault(app: tauri::AppHandle, master_password: String) -> Res
         *vault_key = Some(key);
     }
 
-    if let Ok(kr) = keyring::Entry::new("api-client", "vault-master-key") {
-        let key_b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, key);
-        let _ = kr.set_password(&format!("argon2id:{}", key_b64));
+    let verify_file = vault_dir.join("verify.bin");
+    let cipher = Aes256Gcm::new_from_slice(&key)
+        .map_err(|e| AppError::vault_unlock_failed(format!("Cipher init failed: {}", e)))?;
+    let verify_plaintext = b"VAULT_VERIFIED";
+    if verify_file.exists() {
+        let encrypted = std::fs::read(&verify_file)
+            .map_err(|e| AppError::storage_read_failed(format!("Failed to read verification file: {}", e)))?;
+        if encrypted.len() < 12 {
+            return Err(AppError::vault_unlock_failed("Invalid vault password".into()));
+        }
+        let nonce = Nonce::from_slice(&encrypted[..12]);
+        let tag_and_ct = &encrypted[12..];
+        cipher.decrypt(nonce, tag_and_ct)
+            .map_err(|_| AppError::vault_unlock_failed("Invalid vault password".into()))?;
+    } else {
+        let mut nonce_bytes = [0u8; 12];
+        OsRng.fill_bytes(&mut nonce_bytes);
+        let nonce = Nonce::from_slice(&nonce_bytes);
+        let ciphertext = cipher.encrypt(nonce, verify_plaintext.as_ref())
+            .map_err(|e| AppError::vault_unlock_failed(format!("Failed to create verification file: {}", e)))?;
+        let mut combined = nonce_bytes.to_vec();
+        combined.extend_from_slice(&ciphertext);
+        std::fs::write(&verify_file, combined)
+            .map_err(|e| AppError::storage_write_failed(format!("Failed to write verification file: {}", e)))?;
     }
 
     Ok(())
@@ -91,15 +112,8 @@ pub async fn unlock_vault(app: tauri::AppHandle, master_password: String) -> Res
 
 #[tauri::command]
 pub async fn lock_vault() -> Result<(), AppError> {
-    {
-        let mut vault_key = VAULT_KEY.lock().map_err(|e| AppError::internal(format!("Lock error: {}", e)))?;
-        *vault_key = None;
-    }
-
-    if let Ok(kr) = keyring::Entry::new("api-client", "vault-master-key") {
-        let _ = kr.delete_credential();
-    }
-
+    let mut vault_key = VAULT_KEY.lock().map_err(|e| AppError::internal(format!("Lock error: {}", e)))?;
+    *vault_key = None;
     Ok(())
 }
 
@@ -123,6 +137,9 @@ pub async fn is_vault_unlocked(app: tauri::AppHandle) -> Result<VaultStatus, App
 
 #[tauri::command]
 pub async fn encrypt_vault_secret(app: tauri::AppHandle, name: String, plaintext: String) -> Result<(), AppError> {
+    if name.contains('/') || name.contains('\\') || name.contains("..") {
+        return Err(AppError::storage_path_traversal(format!("Invalid secret name: {}", name)));
+    }
     let key_bytes = get_key()?;
 
     let cipher = Aes256Gcm::new_from_slice(&key_bytes)
@@ -145,7 +162,7 @@ pub async fn encrypt_vault_secret(app: tauri::AppHandle, name: String, plaintext
         "createdAt": chrono::Utc::now().to_rfc3339(),
     });
 
-    std::fs::write(&enc_file, serde_json::to_string_pretty(&entry).unwrap())
+    std::fs::write(&enc_file, serde_json::to_string_pretty(&entry).map_err(|e| AppError::internal(format!("Vault serialization failed: {}", e)))?)
         .map_err(|e| AppError::storage_write_failed(format!("Failed to write secret file: {}", e)))?;
 
     Ok(())
@@ -153,6 +170,9 @@ pub async fn encrypt_vault_secret(app: tauri::AppHandle, name: String, plaintext
 
 #[tauri::command]
 pub async fn decrypt_vault_secret(app: tauri::AppHandle, name: String) -> Result<String, AppError> {
+    if name.contains('/') || name.contains('\\') || name.contains("..") {
+        return Err(AppError::storage_path_traversal(format!("Invalid secret name: {}", name)));
+    }
     let key_bytes = get_key()?;
 
     let vault_dir = vault_dir(&app)?;

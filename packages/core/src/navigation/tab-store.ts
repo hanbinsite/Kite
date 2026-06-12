@@ -61,7 +61,7 @@ export const useTabStore = create<TabStoreImpl>()((set) => ({
         existing = state.tabs.find(
           (t) => t.method === tabData.method && t.url === tabData.url && !t.requestId
         );
-      } else if (tabData.name && tabData.name !== "New Request") {
+      } else if (tabData.name) {
         existing = state.tabs.find(
           (t) => t.method === tabData.method && t.name === tabData.name && !t.url && !t.requestId
         );

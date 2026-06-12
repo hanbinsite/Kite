@@ -1,5 +1,9 @@
 import type { AppError } from "@api-client/types";
 
+// These are fallback descriptions for backend error codes (AppError.code).
+// They are NOT user-facing translatable strings — translations happen at the UI layer
+// via i18n using code-based lookups. This map only provides defaults when i18n is unavailable.
+
 export type ErrorCategory = "network" | "storage" | "script" | "vault" | "validation" | "proxy" | "general";
 
 export interface ErrorMapping {

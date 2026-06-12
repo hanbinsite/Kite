@@ -27,14 +27,14 @@ export function CollapsedSidebar() {
       <button
         onClick={toggleSidebar}
         className="p-2 hover:bg-bg-hover rounded transition-colors"
-        title={t("sidebar.collections")}
+        title={t("sidebar.expandSidebar")}
       >
         <FolderOpen className="w-4 h-4 text-fg-secondary" />
       </button>
       <button
         onClick={toggleSidebar}
         className="p-2 hover:bg-bg-hover rounded transition-colors"
-        title={t("sidebar.history")}
+        title={t("sidebar.expandSidebar")}
       >
         <History className="w-4 h-4 text-fg-secondary" />
       </button>

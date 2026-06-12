@@ -47,7 +47,8 @@ export function ResponsePanel() {
   const responses = useRequestStore((s) => s.responses);
   const testResults = useRequestStore((s) => s.testResults);
   const loadingTabs = useRequestStore((s) => s.loadingTabs);
-  const error = useRequestStore((s) => s.error);
+  const errors = useRequestStore((s) => s.errors);
+  const error = activeTabId ? errors[activeTabId] : undefined;
   const requestDataMap = useRequestStore((s) => s.requestDataMap);
 
   const response = activeTabId ? responses[activeTabId] : undefined;

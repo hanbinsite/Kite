@@ -432,23 +432,29 @@ pub async fn send_http_request(
                             form = form.text(param.key.clone(), param.value.clone());
                         }
 "file" => {
-    if let Ok(data) = std::fs::read(&param.value) {
-        let file_name = std::path::Path::new(&param.value)
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| "file".into());
-        let part = reqwest::multipart::Part::bytes(data)
-            .file_name(file_name);
-        let part = match part.mime_str(
-            param.content_type.as_deref().unwrap_or("application/octet-stream"),
-        ) {
-            Ok(p) => p,
-            Err(_) => reqwest::multipart::Part::bytes(Vec::<u8>::new())
-                .file_name("file"),
-        };
-        form = form.part(param.key.clone(), part);
-    }
-}
+     let file_path = std::path::Path::new(&param.value);
+     let app_data = app_handle.path().app_data_dir();
+     if let Ok(app_data_dir) = app_data {
+         if crate::commands::file_ops::validate_path_within_app_data(&app_data_dir, file_path).is_ok() {
+             if let Ok(data) = std::fs::read(file_path) {
+                 let file_name = file_path
+                     .file_name()
+                     .map(|n| n.to_string_lossy().to_string())
+                     .unwrap_or_else(|| "file".into());
+                 let part = reqwest::multipart::Part::bytes(data)
+                     .file_name(file_name);
+                 let part = match part.mime_str(
+                     param.content_type.as_deref().unwrap_or("application/octet-stream"),
+                 ) {
+                     Ok(p) => p,
+                     Err(_) => reqwest::multipart::Part::bytes(Vec::<u8>::new())
+                         .file_name("file"),
+                 };
+                 form = form.part(param.key.clone(), part);
+             }
+         }
+     }
+ }
                         _ => {
                             form = form.text(param.key.clone(), param.value.clone());
                         }

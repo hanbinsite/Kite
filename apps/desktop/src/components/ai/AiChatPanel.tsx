@@ -6,8 +6,18 @@ import { useTabStore, useUIStore } from "@api-client/core";
 import { useCollectionStore, useEnvironmentStore, useRequestStore } from "../../stores";
 import { Send, Bot, User, Loader2, X, PanelRightClose, FileText, Globe, FolderOpen, Zap, ChevronRight, Key } from "lucide-react";
 
-function renderMarkdown(text: string): string {
+function escapeHtml(text: string): string {
   return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function renderMarkdown(text: string): string {
+  const escaped = escapeHtml(text);
+  return escaped
     .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-bg-input rounded-md p-3 text-xs font-mono overflow-x-auto my-2"><code>$2</code></pre>')
     .replace(/`([^`]+)`/g, '<code class="bg-bg-input text-brand px-1 rounded text-xs">$1</code>')
     .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold">$1</strong>')
@@ -234,7 +244,7 @@ export function AiChatPanel() {
                   : "bg-bg-elevated text-fg-primary border border-border-default"
               }`}
               dangerouslySetInnerHTML={{
-                __html: msg.role === "assistant" ? renderMarkdown(msg.content) : msg.content,
+                __html: msg.role === "assistant" ? renderMarkdown(msg.content) : escapeHtml(msg.content),
               }}
             />
             {msg.role === "user" && (

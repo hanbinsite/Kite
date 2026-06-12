@@ -64,7 +64,7 @@ async function executePreRequestScripts(
       source: "pre-request",
     });
     set((state) => {
-      state.error = `Script Error [${source}]: ${scriptErr}`;
+      state.errors[tabId] = `Script Error [${source}]: ${scriptErr}`;
       delete state.loadingTabs[tabId];
     });
     return false;
@@ -109,7 +109,7 @@ export interface RequestState {
   loadingTabs: Record<string, boolean>;
   responses: Record<string, HttpResponse>;
   testResults: Record<string, TestResult[]>;
-  error: string | null;
+  errors: Record<string, string>;
   requestDataMap: Record<string, RequestData>;
   currentTabId: string | null;
   dirtyTabs: Record<string, boolean>;
@@ -118,7 +118,8 @@ export interface RequestState {
 export interface RequestActions {
   setTabLoading: (tabId: string, loading: boolean) => void;
   setResponse: (tabId: string, response: HttpResponse) => void;
-  setError: (error: string | null) => void;
+  setError: (tabId: string, error: string) => void;
+  clearError: (tabId: string) => void;
   clearResponse: (tabId: string) => void;
   switchTab: (tabId: string | null) => void;
   removeTabData: (tabId: string) => void;
@@ -256,7 +257,7 @@ export const useRequestStore = create<RequestStore>()(
   loadingTabs: {},
   responses: {},
   testResults: {},
-  error: null,
+  errors: {},
   requestDataMap: {},
   currentTabId: null,
   dirtyTabs: {},
@@ -275,7 +276,15 @@ export const useRequestStore = create<RequestStore>()(
         state.responses[tabId] = response;
       }),
 
-    setError: (error) => set({ error }),
+    setError: (tabId, error) =>
+    set((state) => {
+      state.errors[tabId] = error;
+    }),
+
+  clearError: (tabId) =>
+    set((state) => {
+      delete state.errors[tabId];
+    }),
 
     clearResponse: (tabId) =>
       set((state) => {
@@ -296,6 +305,7 @@ export const useRequestStore = create<RequestStore>()(
         delete state.responses[tabId];
         delete state.testResults[tabId];
         delete state.dirtyTabs[tabId];
+        delete state.errors[tabId];
       }),
 
     setRequestHeaders: (headers) =>
@@ -357,7 +367,7 @@ export const useRequestStore = create<RequestStore>()(
 
       set((state) => {
         state.loadingTabs[tabId] = true;
-        state.error = null;
+        delete state.errors[tabId];
       });
 
       const requestData = state.requestDataMap[tabId] || DEFAULT_REQUEST_DATA;
@@ -499,7 +509,7 @@ export const useRequestStore = create<RequestStore>()(
       } catch (err: unknown) {
         const handled = handleError(err);
         set((state) => {
-          state.error = handled.description;
+          state.errors[tabId] = handled.description;
           delete state.loadingTabs[tabId];
         });
         useConsoleStore.getState().addEntry(tabId, {
@@ -528,7 +538,7 @@ export const useRequestStore = create<RequestStore>()(
       }
       set((state) => {
         delete state.loadingTabs[tabId];
-        state.error = "Request cancelled";
+        state.errors[tabId] = "Request cancelled";
       });
     },
 

@@ -1,6 +1,6 @@
 import { useRef, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Menu, ChevronLeft, ChevronRight, Save, Check } from "lucide-react";
+import { Menu, Save, Check } from "lucide-react";
 import { useUIStore, useTabStore } from "@api-client/core";
 import { useEnvironmentStore } from "../../stores/environment-store";
 import { useCollectionStore } from "../../stores/collection-store";
@@ -191,21 +191,6 @@ const handleSave = useCallback(() => {
           title={`${t("sidebar.toggleSidebar")} (Cmd+B)`}
         >
           <Menu className="w-4 h-4 text-fg-secondary" />
-        </button>
-
-        <button
-          className="p-1.5 hover:bg-bg-hover rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          disabled
-          title={t("common.back")}
-        >
-          <ChevronLeft className="w-4 h-4 text-fg-secondary" />
-        </button>
-        <button
-          className="p-1.5 hover:bg-bg-hover rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          disabled
-          title={t("common.forward")}
-        >
-          <ChevronRight className="w-4 h-4 text-fg-secondary" />
         </button>
 
         <MethodSelector method={method} onChange={setMethod} />

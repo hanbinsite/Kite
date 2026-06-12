@@ -10,10 +10,10 @@ build
 # Rust build
 apps/desktop/src-tauri/target
 apps/desktop/src-tauri/gen
-Cargo.lock
 
 # Tauri generated icons (keep source icon, ignore gen)
 apps/desktop/src-tauri/icons/
+!apps/desktop/src-tauri/icons/icon.png
 
 # Turbo cache
 .turbo

@@ -336,7 +336,9 @@ const deleteRequest = useCollectionStore((s) => s.deleteRequest);
   }, [contextMenu]);
 
   useEffect(() => {
-    loadCollections();
+    loadCollections().catch(() => {
+      console.error("Failed to load collections");
+    });
     queryHistoryEntries(50).then(setHistoryEntries).catch(() => {});
   }, []);
 

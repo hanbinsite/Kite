@@ -54,6 +54,9 @@ impl Storage {
             "
         ).map_err(|e| e.to_string())?;
 
+        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")
+            .map_err(|e| e.to_string())?;
+
         Ok(Self { conn: Mutex::new(conn) })
     }
 

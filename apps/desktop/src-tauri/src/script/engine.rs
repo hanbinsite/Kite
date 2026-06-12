@@ -116,12 +116,18 @@ impl ScriptEngine {
         let pm_js = Self::build_pm_js(&params.context);
 
         ctx.with(|ctx| {
-            let send_req_fn = rquickjs::Function::new(
+            let send_req_fn = match rquickjs::Function::new(
                 ctx.clone(),
                 |config: Object| -> String {
                     Self::handle_send_request_json(config)
                 },
-            ).unwrap();
+            ) {
+                Ok(f) => f,
+                Err(e) => {
+                    tracing::warn!("Failed to create sendRequest function: {}", e);
+                    return;
+                }
+            };
             let _ = ctx.globals().set("__sendRequest", send_req_fn);
         });
 

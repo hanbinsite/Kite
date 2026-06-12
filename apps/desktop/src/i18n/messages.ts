@@ -622,6 +622,7 @@ export const messages = {
       addCookie: "添加 Cookie",
     },
     commandPalette: {
+      placeholder: "输入命令或搜索...",
       categories: {
         action: "操作",
         collection: "集合",

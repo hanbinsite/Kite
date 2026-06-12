@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { X, Plus } from "lucide-react";
 import { useTabStore } from "@api-client/core";
-import { useRequestStore } from "../../stores";
+import { useRequestStore, useWsStore, useSseStore, useMqttStore } from "../../stores";
 import { EnvSelector } from "../url-bar/EnvSelector";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
 import { saveCurrentRequest } from "../../hooks/useAutoSave";
@@ -28,6 +28,9 @@ export function TabBar() {
   }, [contextMenu]);
 
   const forceCloseTab = (tabId: string) => {
+    useWsStore.getState().disconnect(tabId);
+    useSseStore.getState().disconnect(tabId);
+    useMqttStore.getState().disconnect(tabId);
     closeTab(tabId);
     removeTabData(tabId);
   };

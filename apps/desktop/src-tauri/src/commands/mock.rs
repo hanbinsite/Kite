@@ -168,7 +168,7 @@ pub async fn start_mock_server(
     let routes = state.routes.clone();
     let app_handle = app.clone();
 
-    let listener = tokio::net::TcpListener::bind(std::net::SocketAddr::from(([0, 0, 0, 0], port)))
+    let listener = tokio::net::TcpListener::bind(std::net::SocketAddr::from(([127, 0, 0, 1], port)))
         .await
         .map_err(|e| crate::error::AppError::proxy_start_failed(format!("Failed to bind port {}: {}", port, e)))?;
 

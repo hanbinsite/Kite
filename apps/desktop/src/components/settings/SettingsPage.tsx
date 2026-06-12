@@ -721,9 +721,9 @@ function AboutSection() {
         {t("settings.about.description")}
       </div>
       <div className="flex gap-4 mt-3">
-        <a className="font-sans text-[12px] font-medium text-brand cursor-pointer transition-[color] duration-[100ms] hover:text-brand-hover">{t("settings.about.github")}</a>
-        <a className="font-sans text-[12px] font-medium text-brand cursor-pointer transition-[color] duration-[100ms] hover:text-brand-hover">{t("settings.about.documentation")}</a>
-        <a className="font-sans text-[12px] font-medium text-brand cursor-pointer transition-[color] duration-[100ms] hover:text-brand-hover">{t("settings.about.changelog")}</a>
+        <a href="https://github.com/hanbin/api-client" target="_blank" rel="noopener noreferrer" className="font-sans text-[12px] font-medium text-brand cursor-pointer transition-[color] duration-[100ms] hover:text-brand-hover">{t("settings.about.github")}</a>
+        <a href="https://github.com/hanbin/api-client/docs" target="_blank" rel="noopener noreferrer" className="font-sans text-[12px] font-medium text-brand cursor-pointer transition-[color] duration-[100ms] hover:text-brand-hover">{t("settings.about.documentation")}</a>
+        <a href="https://github.com/hanbin/api-client/releases" target="_blank" rel="noopener noreferrer" className="font-sans text-[12px] font-medium text-brand cursor-pointer transition-[color] duration-[100ms] hover:text-brand-hover">{t("settings.about.changelog")}</a>
       </div>
     </div>
   );

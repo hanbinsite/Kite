@@ -23,7 +23,7 @@ export function ResponseStatus() {
   const response = useRequestStore(
     (s) => (activeTabId ? s.responses[activeTabId] : undefined)
   );
-  const error = useRequestStore((s) => s.error);
+  const error = useRequestStore((s) => activeTabId ? s.errors[activeTabId] : undefined);
 
   if (!response && !isLoading && !error) return null;
 

@@ -8,9 +8,12 @@ import { CommandPalette, type CommandItem } from "./components/command-palette";
 import { SettingsPage } from "./components/settings";
 import { CodeSnippetDrawer, CollectionRunnerDialog, ImportDialog, ExportDialog, VariableInspector } from "./components/drawers";
 import { useUIStore, useTabStore } from "@api-client/core";
-import { Plus, Settings, FolderOpen, History, Code2, Terminal, Play, Upload, Download, Variable, Bot } from "lucide-react";
+import { Plus, Settings, FolderOpen, Code2, Terminal, Play, Upload, Download, Variable, Bot } from "lucide-react";
 import { useTheme, useKeyboardShortcuts, useAutoSave, useSaveShortcut } from "./hooks";
-import { useRequestStore, initWsEventListener, initSseEventListener, initMqttEventListener, initGrpcEventListener, initMockEventListener, useCollectionStore, useEnvironmentStore } from "./stores";
+import { useRequestStore, initWsEventListener, initSseEventListener, initMqttEventListener, initGrpcEventListener, initMockEventListener, useCollectionStore } from "./stores";
+import { useWsStore } from "./stores/websocket-store";
+import { useSseStore } from "./stores/sse-store";
+import { useMqttStore } from "./stores/mqtt-store";
 import { useProviderStore } from "@api-client/core/ai";
 import { i18n } from "./i18n";
 
@@ -52,7 +55,18 @@ export function App() {
   const activeTab = useTabStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
 
   useKeyboardShortcuts([
-    { shortcut: "cmd+w", handler: () => { if (activeTabId) { closeTab(activeTabId); removeTabData(activeTabId); } } },
+    { shortcut: "cmd+w", handler: () => {
+      if (activeTabId) {
+        const tab = useTabStore.getState().tabs.find(t => t.id === activeTabId);
+        const isDirty = useRequestStore.getState().dirtyTabs[activeTabId];
+        if (tab?.isModified || isDirty) return;
+        useWsStore.getState().disconnect(activeTabId);
+        useSseStore.getState().disconnect(activeTabId);
+        useMqttStore.getState().disconnect(activeTabId);
+        closeTab(activeTabId);
+        removeTabData(activeTabId);
+      }
+    } },
     { shortcut: "cmd+enter", handler: () => { if (activeTabId && activeTab?.url) { sendRequest(activeTabId, (activeTab.method ?? "GET") as "GET", activeTab.url); } } },
   ]);
 
@@ -89,7 +103,6 @@ export function App() {
   }, [toggleSidebar, openTab]);
 
   const collections = useCollectionStore((s) => s.collections);
-  const environments = useEnvironmentStore((s) => s.environments);
 
   const collectionItems: CommandItem[] = useMemo(() => {
     const items: CommandItem[] = [];
@@ -110,24 +123,6 @@ export function App() {
     return items;
   }, [collections, openTab]);
 
-  const variableItems: CommandItem[] = useMemo(() => {
-    const items: CommandItem[] = [];
-    for (const env of environments) {
-      for (const v of env.variables) {
-        if (v.key && v.enabled) {
-          items.push({
-            id: `var-${env.id}-${v.key}`,
-            label: v.key,
-            category: "variable",
-            detail: `${env.name} = ${v.value}`,
-            action: () => {},
-          });
-        }
-      }
-    }
-    return items;
-  }, [environments]);
-
   const commands: CommandItem[] = [
     {
       id: "new-request",
@@ -144,20 +139,6 @@ export function App() {
       icon: <Settings className="w-4 h-4" />,
       action: toggleSidebar,
       shortcut: "Cmd+B",
-    },
-    {
-      id: "open-collection",
-      label: t("commandPalette.actions.openCollection"),
-      category: "action",
-      icon: <FolderOpen className="w-4 h-4" />,
-      action: () => {},
-    },
-    {
-      id: "view-history",
-      label: t("commandPalette.actions.viewHistory"),
-      category: "recent",
-      icon: <History className="w-4 h-4" />,
-      action: () => {},
     },
     {
       id: "generate-code",
@@ -212,7 +193,6 @@ export function App() {
       shortcut: "Cmd+Shift+L",
     },
     ...collectionItems,
-    ...variableItems,
   ];
 
   return (
