@@ -6,7 +6,9 @@ interface AuthFormProps {
   onChange: (auth: AuthConfig) => void;
 }
 
-const AUTH_TYPES = [
+interface AuthType { id: string; labelKey: string; }
+
+export const AUTH_TYPES: AuthType[] = [
   { id: "none", labelKey: "auth.noAuth" },
   { id: "apikey", labelKey: "auth.apikey" },
   { id: "bearer", labelKey: "auth.bearer" },

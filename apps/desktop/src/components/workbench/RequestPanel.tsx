@@ -5,7 +5,7 @@ import { KeyValueEditor, type KeyValue } from "../request/KeyValueEditor";
 import { FormDataEditor } from "../request/FormDataEditor";
 import { InlineEditor } from "../editor/InlineEditor";
 import { ScriptEditor } from "../editor/ScriptEditor";
-import { AuthForm, AUTH_TYPES } from "./AuthForm";
+import { AUTH_TYPES } from "./AuthForm";
 import { useRequestStore } from "../../stores";
 import type { BodyConfig, AuthConfig, BodyMode, RawLanguage, Header, QueryParam, FormDataParam } from "@api-client/types";
 
