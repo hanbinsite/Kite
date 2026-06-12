@@ -621,10 +621,28 @@ function applyScriptVariables(scriptResult: ScriptResult, envScopes: VariableSco
     import("./environment-store").then(({ useEnvironmentStore }) => {
       const envStore = useEnvironmentStore.getState();
       for (const v of scriptResult.variables) {
-        if (v.scope === "global" || v.scope === "environment") {
+        if (v.scope === "global") {
           envStore.setGlobalVariable(v.key, v.value);
+        } else if (v.scope === "environment") {
+          const activeId = envStore.activeEnvironmentId;
+          if (activeId) {
+            const env = envStore.environments.find((e) => e.id === activeId);
+            if (env) {
+              const existingIdx = env.variables.findIndex((ev) => ev.key === v.key);
+              if (existingIdx >= 0) {
+                const updatedVars = env.variables.map((ev, i) =>
+                  i === existingIdx ? { ...ev, value: v.value } : ev
+                );
+                envStore.updateEnvironment(activeId, { variables: updatedVars });
+              } else {
+                envStore.updateEnvironment(activeId, {
+                  variables: [...env.variables, { key: v.key, value: v.value, enabled: true }],
+                });
+              }
+            }
+          }
         }
       }
-    }).catch(() => {});
+    }).catch((e) => console.error("Failed to import environment store for script variables:", e));
   }
 }

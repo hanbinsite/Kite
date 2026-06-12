@@ -125,9 +125,9 @@ export function ResponsePanel() {
   }
 
   if (error && !response) {
-    const isScriptError = error.startsWith("Script Error");
+    const isScriptError = /script/i.test(error);
     if (isScriptError) {
-      const match = error.match(/^Script Error \[([^\]]+)\]: (.+)$/s);
+      const match = error.match(/Script Error?\s*\[([^\]]+)\]:\s*(.+)/is);
       const source = match?.[1] ?? t("response.unknownSource");
       const message = match?.[2] ?? error;
       return (
@@ -136,7 +136,7 @@ export function ResponsePanel() {
         </div>
       );
     }
-    const isSslError = error.toLowerCase().includes("ssl") || error.toLowerCase().includes("tls") || error.toLowerCase().includes("certificate");
+    const isSslError = /ssl|tls|certificate/i.test(error);
     return (
       <div className="h-full flex flex-col overflow-hidden bg-bg-surface">
         <div className="response-error flex flex-col items-center justify-center h-full gap-4 text-center px-8">

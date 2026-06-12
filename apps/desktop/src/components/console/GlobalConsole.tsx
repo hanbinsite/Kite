@@ -16,7 +16,7 @@ type FilterMode = "all" | "request" | "response" | "script" | "error";
 
 const FILTER_OPTIONS: FilterMode[] = ["all", "request", "response", "script", "error"];
 
-const MAX_ENTRIES = 1000;
+const MAX_ENTRIES = 5000;
 const MIN_HEIGHT = 100;
 const MAX_HEIGHT = 400;
 const DEFAULT_HEIGHT = 200;

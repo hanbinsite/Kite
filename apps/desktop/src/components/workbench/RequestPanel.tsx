@@ -5,6 +5,7 @@ import { KeyValueEditor, type KeyValue } from "../request/KeyValueEditor";
 import { FormDataEditor } from "../request/FormDataEditor";
 import { InlineEditor } from "../editor/InlineEditor";
 import { ScriptEditor } from "../editor/ScriptEditor";
+import { AuthForm, AUTH_TYPES } from "./AuthForm";
 import { useRequestStore } from "../../stores";
 import type { BodyConfig, AuthConfig, BodyMode, RawLanguage, Header, QueryParam, FormDataParam } from "@api-client/types";
 
@@ -26,17 +27,6 @@ const BODY_TYPES: { id: BodyMode; labelKey: string }[] = [
     { id: "raw", labelKey: "body.raw" },
     { id: "binary", labelKey: "body.binary" },
     { id: "graphql", labelKey: "body.graphql" },
-];
-
-const AUTH_TYPES = [
-    { id: "none", labelKey: "auth.noAuth" },
-    { id: "apikey", labelKey: "auth.apikey" },
-    { id: "bearer", labelKey: "auth.bearer" },
-    { id: "basic", labelKey: "auth.basic" },
-    { id: "jwt", labelKey: "auth.jwt" },
-    { id: "oauth1", labelKey: "auth.oauth1" },
-    { id: "oauth2", labelKey: "auth.oauth2" },
-    { id: "awsv4", labelKey: "auth.awsv4" },
 ];
 
 const RAW_LANGUAGES: { id: RawLanguage; label: string }[] = [

@@ -107,6 +107,8 @@ export function EnvSelector() {
       <button
         ref={triggerRef}
         onClick={() => setIsOpen(!isOpen)}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
         className={`flex items-center gap-1.5 h-[22px] px-2.5 rounded-full text-2xs font-medium border ${style.text} ${style.bg} ${style.border}`}
       >
         <span className="w-1.5 h-1.5 rounded-full bg-current" />

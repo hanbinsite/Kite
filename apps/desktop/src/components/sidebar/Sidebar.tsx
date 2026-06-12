@@ -148,7 +148,11 @@ function CollectionTreeItems({
         if (item.type === "folder") {
           const isFolderExpanded = expandedIds.has(item.id);
           return (
-            <div key={item.id}>
+            <div
+            key={item.id}
+            role="treeitem"
+            aria-expanded={isFolderExpanded}
+          >
               <div
                 className="group flex items-center gap-1 px-3 py-0.5 text-[13px] hover:bg-bg-hover cursor-pointer"
                 onClick={() => toggleExpand(item.id)}
@@ -202,7 +206,7 @@ function CollectionTreeItems({
                 </div>
               </div>
               {isFolderExpanded && item.items.length > 0 && (
-                <div className="ml-4">
+                <div className="ml-4" role="group">
                 <CollectionTreeItems
                   items={item.items}
                   collectionId={collectionId}
@@ -231,6 +235,7 @@ function CollectionTreeItems({
         return (
           <div
             key={item.id}
+            role="treeitem"
             className="group flex items-center gap-2 px-3 py-0.5 text-[13px] hover:bg-bg-hover cursor-pointer font-mono"
       onClick={() => {
         openTab({
@@ -336,10 +341,10 @@ const deleteRequest = useCollectionStore((s) => s.deleteRequest);
   }, [contextMenu]);
 
   useEffect(() => {
-    loadCollections().catch(() => {
-      console.error("Failed to load collections");
+    loadCollections().catch((e) => {
+      console.error("Failed to load collections:", e);
     });
-    queryHistoryEntries(50).then(setHistoryEntries).catch(() => {});
+    queryHistoryEntries(50).then(setHistoryEntries).catch((e) => console.error('Failed to query history entries:', e));
   }, []);
 
   useEffect(() => {
@@ -404,7 +409,7 @@ const deleteRequest = useCollectionStore((s) => s.deleteRequest);
       if (tabId) {
         initTabData(tabId, { headers, params, body, auth, settings, scripts });
       }
-    }).catch(() => {});
+    }).catch((e) => console.error('Failed to load request data:', e));
   };
 
   const handleAddCollection = () => {
@@ -591,7 +596,7 @@ const commitEdit = () => {
           const showCollection = !searchQuery || filteredItems.length > 0 || col.name.toLowerCase().includes(searchQuery.toLowerCase());
           if (!showCollection) return null;
             return (
-              <div key={col.id}>
+              <div key={col.id} role="treeitem" aria-expanded={isExpanded}>
                 <div
                   className="group flex items-center gap-1 px-3 py-1 text-sm hover:bg-bg-hover cursor-pointer"
                   onClick={() => toggleExpand(col.id)}
@@ -668,7 +673,7 @@ const commitEdit = () => {
                   </div>
                 </div>
         {isExpanded && col.items.length > 0 && (
-          <div className="ml-5">
+          <div className="ml-5" role="group">
             <CollectionTreeItems
               items={searchQuery ? filteredItems : col.items}
               collectionId={col.id}

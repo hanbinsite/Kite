@@ -15,6 +15,7 @@ export function SendButton({ state, disabled, onClick }: SendButtonProps) {
     <button
       onClick={onClick}
       disabled={disabled}
+      aria-label={t("request.send")}
       className={`
         flex items-center gap-1.5 h-8 px-4 rounded-md font-medium text-sm transition-all
         ${state === "loading" ? "animate-pulse-glow bg-brand text-white pointer-events-none" : ""}

@@ -111,7 +111,7 @@ export function TabBar() {
 
   return (
     <div className="h-tab-bar flex items-center px-2 border-b border-border-muted bg-bg-base">
-      <div className="flex items-center gap-0.5 flex-1 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+      <div className="flex items-center gap-0.5 flex-1 overflow-x-auto" style={{ scrollbarWidth: "none" }} role="tablist">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
           return (
@@ -119,6 +119,8 @@ export function TabBar() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               onContextMenu={(e) => handleContextMenu(e, tab.id)}
+              role="tab"
+              aria-selected={isActive}
               className={`group flex items-center gap-1.5 h-9 px-3 rounded-t-md text-sm font-medium transition-colors flex-shrink-0 ${
                 isActive
                   ? "bg-bg-surface text-fg-primary border-b-2 border-brand"

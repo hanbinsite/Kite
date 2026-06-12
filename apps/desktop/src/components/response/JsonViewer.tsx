@@ -1,3 +1,6 @@
+// TODO: Implement virtualization for large JSON using @tanstack/react-virtual
+const MAX_RENDER_DEPTH = 8;
+
 import { useState, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -12,7 +15,7 @@ interface JsonNodeProps {
 }
 
 function JsonNode({ keyName, value, depth, defaultCollapsed, path, onPathClick, searchTerm }: JsonNodeProps) {
-  const [collapsed, setCollapsed] = useState(depth >= defaultCollapsed);
+  const [collapsed, setCollapsed] = useState(depth >= Math.min(defaultCollapsed, MAX_RENDER_DEPTH));
   const isObject = value !== null && typeof value === "object";
   const isArray = Array.isArray(value);
 

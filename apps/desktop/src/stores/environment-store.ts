@@ -47,30 +47,21 @@ const DEFAULT_ENVS: Environment[] = [
   {
     id: "env-dev",
     name: "Development",
-    variables: [
-      { key: "base_url", value: "http://localhost:3000", enabled: true },
-      { key: "api_key", value: "dev-key-123", enabled: true },
-    ],
+    variables: [],
     isActive: false,
     envType: "dev",
   },
   {
     id: "env-staging",
     name: "Staging",
-    variables: [
-      { key: "base_url", value: "https://staging.api.example.com", enabled: true },
-      { key: "api_key", value: "staging-key-456", enabled: true },
-    ],
+    variables: [],
     isActive: false,
     envType: "staging",
   },
   {
     id: "env-prod",
     name: "Production",
-    variables: [
-      { key: "base_url", value: "https://api.example.com", enabled: true },
-      { key: "api_key", value: "", enabled: false },
-    ],
+    variables: [],
     isActive: false,
     envType: "production",
   },
@@ -169,7 +160,7 @@ export const useEnvironmentStore = create<EnvironmentStore>()(
         if (summaries.length === 0) {
           set({ environments: DEFAULT_ENVS, isLoaded: true });
           for (const env of DEFAULT_ENVS) {
-            saveEnvironment(toIpcEnv(env)).catch(() => {});
+            saveEnvironment(toIpcEnv(env)).catch((e) => console.error('Failed to save default environment:', e));
           }
           return;
         }
@@ -192,7 +183,7 @@ export const useEnvironmentStore = create<EnvironmentStore>()(
       } catch {
         set({ environments: DEFAULT_ENVS, isLoaded: true });
         for (const env of DEFAULT_ENVS) {
-          saveEnvironment(toIpcEnv(env)).catch(() => {});
+          saveEnvironment(toIpcEnv(env)).catch((e) => console.error('Failed to save default environment:', e));
         }
       }
     },

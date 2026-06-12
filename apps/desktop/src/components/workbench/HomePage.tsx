@@ -19,7 +19,10 @@ export function HomePage() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
   useEffect(() => {
-    queryHistoryEntries(10).then(setHistory).catch(() => setHistory([]));
+    queryHistoryEntries(10).then(setHistory).catch((e) => {
+      console.error("Failed to load recent requests for home page:", e);
+      setHistory([]);
+    });
   }, []);
 
   const formatTimeAgo = useCallback((dateStr: string): string => {

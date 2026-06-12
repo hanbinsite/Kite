@@ -179,14 +179,39 @@ impl Storage {
     pub fn query_cookies(&self, domain: Option<&str>) -> Result<Vec<CookieEntry>, String> {
         let conn = self.conn.lock().map_err(|e| e.to_string())?;
         if let Some(d) = domain {
-            let exact = d.to_string();
-            let dot_prefix = if d.starts_with('.') { format!("{}%", d) } else { format!(".{}%", d) };
-            let host_match = if !d.starts_with('.') { format!("{}%", d) } else { String::new() };
-            let mut stmt = conn
-                .prepare("SELECT id, domain, name, value, path, expires, secure, http_only, same_site FROM cookie_jar WHERE domain = ?1 OR domain LIKE ?2 OR (?3 != '' AND domain LIKE ?3) ORDER BY domain, name")
-                .map_err(|e| e.to_string())?;
+            let d = d.to_string();
+            let mut conditions: Vec<String> = Vec::new();
+
+            conditions.push("domain = ?1".to_string());
+
+            let mut parts: Vec<&str> = d.split('.').collect();
+            while parts.len() >= 2 {
+                let idx = conditions.len() + 1;
+                conditions.push(format!("domain = ?{}", idx));
+                parts.remove(0);
+            }
+
+            let sql = format!(
+                "SELECT id, domain, name, value, path, expires, secure, http_only, same_site FROM cookie_jar WHERE {} ORDER BY domain, name",
+                conditions.join(" OR ")
+            );
+
+            let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
+
+            let mut param_values: Vec<String> = vec![d.clone()];
+            let mut parts: Vec<&str> = d.split('.').collect();
+            while parts.len() >= 2 {
+                param_values.push(format!(".{}", parts.join(".")));
+                parts.remove(0);
+            }
+
+            let param_refs: Vec<&dyn rusqlite::types::ToSql> = param_values
+                .iter()
+                .map(|s| s as &dyn rusqlite::types::ToSql)
+                .collect();
+
             let rows: Vec<CookieEntry> = stmt
-                .query_map(params![exact, dot_prefix, host_match], |row| {
+                .query_map(param_refs.as_slice(), |row| {
                     Ok(CookieEntry {
                         id: row.get(0)?,
                         domain: row.get(1)?,

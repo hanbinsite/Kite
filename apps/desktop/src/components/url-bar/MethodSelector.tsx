@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { HttpMethod } from "@api-client/types";
 
 const HTTP_METHODS: HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
@@ -21,6 +22,7 @@ interface MethodSelectorProps {
 }
 
 export function MethodSelector({ method, onChange }: MethodSelectorProps) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const style = METHOD_STYLES[method];
@@ -53,6 +55,9 @@ export function MethodSelector({ method, onChange }: MethodSelectorProps) {
       <button
         ref={triggerRef}
         onClick={() => setIsOpen(!isOpen)}
+        aria-label={t("request.method")}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
         className={`flex items-center gap-1 px-2 h-8 rounded-md font-mono text-xs font-bold ${style.color} ${style.bg} hover:brightness-125 transition-all`}
       >
         {method}

@@ -290,7 +290,7 @@ export const useRunnerStore = create<RunnerStore>()(
               requestResult.response = response;
               requestResult.status = response.status >= 400 ? "failure" : "success";
 
-              insertHistoryEntry({ method: req.method, url: resolvedUrl, status: response.status, duration: response.time }).catch(() => {});
+              insertHistoryEntry({ method: req.method, url: resolvedUrl, status: response.status, duration: response.time }).catch((e) => console.error('Failed to insert history entry:', e));
 
               if (hierarchy) {
                 const postChain = collectPostResponseChain(hierarchy, {

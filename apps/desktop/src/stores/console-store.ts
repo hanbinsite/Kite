@@ -22,6 +22,8 @@ export interface ConsoleActions {
 
 export type ConsoleStore = ConsoleState & ConsoleActions;
 
+const MAX_ENTRIES = 5000;
+
 export const useConsoleStore = create<ConsoleStore>()(
   immer((set, get) => ({
     entries: {},
@@ -35,6 +37,9 @@ export const useConsoleStore = create<ConsoleStore>()(
           tabId,
           timestamp: Date.now(),
         });
+        if (state.entries[tabId].length > MAX_ENTRIES) {
+          state.entries[tabId] = state.entries[tabId].slice(-MAX_ENTRIES);
+        }
       }),
 
     clearEntries: (tabId) =>

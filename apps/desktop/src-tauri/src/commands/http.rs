@@ -239,6 +239,7 @@ pub struct HttpResponse {
   pub status_text: String,
   pub headers: Vec<ResponseHeader>,
   pub body: String,
+  pub body_base64: Option<String>,
   pub body_size: u64,
   pub time: u64,
   pub content_type: String,
@@ -251,8 +252,9 @@ pub struct ResponseHeader {
 }
 
 fn build_client(settings: &RequestSettings) -> Result<Client, AppError> {
+    // TODO: Cache clients per settings hash for connection reuse
     let mut builder = Client::builder()
-        .cookie_store(true)
+        .cookie_store(false)
         .timeout(std::time::Duration::from_millis(settings.timeout_ms));
 
     if !settings.follow_redirects {
@@ -535,13 +537,20 @@ pub async fn send_http_request(
 
     save_cookies_from_response(&app_handle, &url, response.headers()).await;
 
-    let body = {
+    let (body, body_base64) = {
         let body_bytes = response.bytes().await.map_err(|e| AppError::internal(e.to_string()))?;
         const MAX_BODY_SIZE: usize = 10 * 1024 * 1024;
         if body_bytes.len() > MAX_BODY_SIZE {
             return Err(AppError::net_body_too_large(body_bytes.len() as u64, MAX_BODY_SIZE as u64));
         }
-        String::from_utf8_lossy(&body_bytes).into_owned()
+        match String::from_utf8(body_bytes.to_vec()) {
+            Ok(utf8_body) => (utf8_body, None),
+            Err(_) => {
+                let binary_info = format!("[Binary Response - {} bytes]", body_bytes.len());
+                let encoded = BASE64_ENGINE.encode(&body_bytes);
+                (binary_info, Some(encoded))
+            }
+        }
     };
     let body_size = body.len() as u64;
 
@@ -552,6 +561,7 @@ pub async fn send_http_request(
         status_text,
         headers,
         body,
+        body_base64,
         body_size,
         time: elapsed,
         content_type,
@@ -574,13 +584,17 @@ async fn load_cookie_header(
     app_handle: &tauri::AppHandle,
     url: &str,
 ) -> String {
-    let host = match reqwest::Url::parse(url) {
-        Ok(u) => u.host_str().unwrap_or("").to_string(),
+    let parsed_url = match reqwest::Url::parse(url) {
+        Ok(u) => u,
         Err(_) => return String::new(),
     };
+    let host = parsed_url.host_str().unwrap_or("").to_string();
+    let is_https = parsed_url.scheme() == "https";
     if host.is_empty() {
         return String::new();
     }
+
+    let now = chrono::Utc::now().to_rfc3339();
 
     let storage = app_handle.state::<crate::AppState>().storage.clone();
     let cookies = match tokio::task::spawn_blocking(move || {
@@ -600,6 +614,17 @@ async fn load_cookie_header(
 
     cookies
         .iter()
+        .filter(|c| {
+            if let Some(ref expiry) = c.expires {
+                if expiry < &now {
+                    return false;
+                }
+            }
+            if c.secure && !is_https {
+                return false;
+            }
+            true
+        })
         .map(|c| format!("{}={}", c.name, c.value))
         .collect::<Vec<_>>()
         .join("; ")

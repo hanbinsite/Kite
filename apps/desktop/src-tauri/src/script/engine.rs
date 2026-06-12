@@ -279,10 +279,12 @@ impl ScriptEngine {
     }
 
     fn build_pm_js(context: &ScriptContext) -> String {
-        let req_method = context.request.as_ref()
-            .and_then(|r| r.get("method")).and_then(|v| v.as_str()).unwrap_or("GET");
-        let req_url = context.request.as_ref()
-            .and_then(|r| r.get("url")).and_then(|v| v.as_str()).unwrap_or("");
+        let req_method = serde_json::to_string(context.request.as_ref()
+            .and_then(|r| r.get("method")).and_then(|v| v.as_str()).unwrap_or("GET"))
+            .unwrap_or_else(|_| "\"GET\"".into());
+        let req_url = serde_json::to_string(context.request.as_ref()
+            .and_then(|r| r.get("url")).and_then(|v| v.as_str()).unwrap_or(""))
+            .unwrap_or_else(|_| "\"\"".into());
         let req_headers = context.request.as_ref()
             .and_then(|r| r.get("headers"))
             .map(|h| serde_json::to_string(h).unwrap_or_else(|_| "[]".into()))
@@ -295,14 +297,16 @@ impl ScriptEngine {
 
         let resp_status = context.response.as_ref()
             .and_then(|r| r.get("status")).and_then(|v| v.as_i64()).unwrap_or(0);
-        let resp_status_text = context.response.as_ref()
-            .and_then(|r| r.get("statusText")).and_then(|v| v.as_str()).unwrap_or("");
+        let resp_status_text = serde_json::to_string(context.response.as_ref()
+            .and_then(|r| r.get("statusText")).and_then(|v| v.as_str()).unwrap_or(""))
+            .unwrap_or_else(|_| "\"\"".into());
         let resp_headers = context.response.as_ref()
             .and_then(|r| r.get("headers"))
             .map(|h| serde_json::to_string(h).unwrap_or_else(|_| "{}".into()))
             .unwrap_or_else(|| "{}".into());
-        let resp_body = context.response.as_ref()
-            .and_then(|r| r.get("body")).and_then(|v| v.as_str()).unwrap_or("");
+        let resp_body = serde_json::to_string(context.response.as_ref()
+            .and_then(|r| r.get("body")).and_then(|v| v.as_str()).unwrap_or(""))
+            .unwrap_or_else(|_| "\"\"".into());
         let resp_time = context.response.as_ref()
             .and_then(|r| r.get("time")).and_then(|v| v.as_u64()).unwrap_or(0);
 
@@ -315,8 +319,6 @@ impl ScriptEngine {
         let coll_obj = context.collection_variables.as_ref()
             .map(|c| serde_json::to_string(c).unwrap_or_else(|_| "{}".into()))
             .unwrap_or_else(|| "{}".into());
-
-        let resp_body_json = serde_json::to_string(resp_body).unwrap_or_else(|_| "''".into());
 
         format!(r#"
 var __logs = [];
@@ -333,8 +335,8 @@ var console = {{
 var pm = {{}};
 
 pm.request = {{
-    method: '{req_method}',
-    url: '{req_url}',
+    method: {req_method},
+    url: {req_url},
     headers: {req_headers},
     body: {req_body},
     getHeaders: function() {{ return this.headers; }},
@@ -354,9 +356,9 @@ pm.request = {{
 
 pm.response = {{
     status: {resp_status},
-    statusText: '{resp_status_text}',
+    statusText: {resp_status_text},
     headers: {resp_headers},
-    _body: {resp_body_json},
+    _body: {resp_body},
     time: {resp_time},
     json: function() {{ try {{ return JSON.parse(this._body); }} catch(e) {{ throw new Error('Response body is not valid JSON: ' + e.message); }} }},
     text: function() {{ return this._body; }},
