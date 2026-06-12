@@ -12,19 +12,19 @@ interface ConfigScriptsTabProps {
 }
 
 const PRE_SNIPPETS = [
-  { label: "Set variable", code: 'pm.variables.set("key", "value");' },
-  { label: "Get variable", code: 'const val = pm.variables.get("key");' },
-  { label: "Clear variable", code: 'pm.variables.unset("key");' },
-  { label: "Log message", code: 'console.log("Pre-request executed");' },
-  { label: "Set header", code: 'pm.request.headers.add({ key: "X-Custom", value: "value" });' },
+  { labelKey: "scripts.snippetSetVariable", code: 'pm.variables.set("key", "value");' },
+  { labelKey: "scripts.snippetGetVariable", code: 'const val = pm.variables.get("key");' },
+  { labelKey: "scripts.snippetClearVariable", code: 'pm.variables.unset("key");' },
+  { labelKey: "scripts.snippetLogMessage", code: 'console.log("Pre-request executed");' },
+  { labelKey: "scripts.snippetSetHeader", code: 'pm.request.headers.add({ key: "X-Custom", value: "value" });' },
 ];
 
 const POST_SNIPPETS = [
-  { label: "Status check", code: 'pm.test("Status is 200", () => {\n  pm.expect(pm.response.status).to.equal(200);\n});' },
-  { label: "JSON body check", code: 'pm.test("Body has data", () => {\n  const json = JSON.parse(pm.response.body);\n  pm.expect(json.id).to.exist;\n});' },
-  { label: "Response time", code: 'pm.test("Response time < 500ms", () => {\n  pm.expect(pm.response.time).to.be.below(500);\n});' },
-  { label: "Save variable", code: 'const json = JSON.parse(pm.response.body);\npm.variables.set("token", json.token);' },
-  { label: "Log response", code: 'console.log("Response:", pm.response.body);' },
+  { labelKey: "scripts.snippetStatusCheck", code: 'pm.test("Status is 200", () => {\n  pm.expect(pm.response.status).to.equal(200);\n});' },
+  { labelKey: "scripts.snippetJsonCheck", code: 'pm.test("Body has data", () => {\n  const json = JSON.parse(pm.response.body);\n  pm.expect(json.id).to.exist;\n});' },
+  { labelKey: "scripts.snippetTimeCheck", code: 'pm.test("Response time < 500ms", () => {\n  pm.expect(pm.response.time).to.be.below(500);\n});' },
+  { labelKey: "scripts.snippetSaveVariable", code: 'const json = JSON.parse(pm.response.body);\npm.variables.set("token", json.token);' },
+  { labelKey: "scripts.snippetLogResponse", code: 'console.log("Response:", pm.response.body);' },
 ];
 
 export function ConfigScriptsTab({ collectionId, folderId, scripts, isFolder }: ConfigScriptsTabProps) {
@@ -106,7 +106,7 @@ export function ConfigScriptsTab({ collectionId, folderId, scripts, isFolder }: 
       <div className="flex gap-2 mb-2">
         {snippets.map((snippet) => (
           <button
-            key={snippet.label}
+            key={snippet.labelKey}
             onClick={() => {
               if (activeScript === "pre") {
                 handlePreChange(preRequest ? preRequest + "\n" + snippet.code : snippet.code);
@@ -116,7 +116,7 @@ export function ConfigScriptsTab({ collectionId, folderId, scripts, isFolder }: 
             }}
             className="text-[11px] px-2 py-1 rounded bg-bg-elevated text-fg-secondary hover:text-fg-primary transition-colors"
           >
-            {snippet.label}
+            {t(snippet.labelKey)}
           </button>
         ))}
       </div>

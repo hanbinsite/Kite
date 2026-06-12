@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { UrlBar } from "../url-bar";
 import { TabBar } from "../tab";
 import { HomePage } from "./HomePage";
@@ -12,8 +13,9 @@ import { WebSocketPanel, SsePanel, MqttPanel, GrpcPanel, MockPanel } from "../pr
 import { CollectionConfigTab } from "../collection/CollectionConfigTab";
 
 export function Workbench() {
+  const { t } = useTranslation();
   const activeTabId = useTabStore((s) => s.activeTabId);
-  const activeTab = useTabStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
+  const activeTab = useTabStore((s) => s.tabs.find((tab) => tab.id === s.activeTabId));
   const splitRatio = useUIStore((s) => s.splitRatio);
   const setSplitRatio = useUIStore((s) => s.setSplitRatio);
   const switchTab = useRequestStore((s) => s.switchTab);
@@ -48,11 +50,11 @@ export function Workbench() {
         <TabBar />
         <ErrorBoundary fallback={({ error: err, resetError }) => (
           <div className="flex items-center justify-center h-full text-accent-danger text-[13px]">
-            <span>Protocol panel crashed: {err.message}</span>
-            <button onClick={resetError} className="ml-2 text-brand underline">Retry</button>
+            <span>{t("errors.protocolPanelCrashed", { message: err.message })}</span>
+            <button onClick={resetError} className="ml-2 text-brand underline">{t("common.retry")}</button>
           </div>
         )}>
-          <ProtocolWorkbench protocol={protocol} tabId={activeTabId} />
+          <ProtocolWorkbench protocol={protocol} tabId={activeTabId} t={t} />
         </ErrorBoundary>
       </div>
     );
@@ -76,7 +78,7 @@ export function Workbench() {
   );
 }
 
-function ProtocolWorkbench({ protocol, tabId }: { protocol: string; tabId: string }) {
+function ProtocolWorkbench({ protocol, tabId, t }: { protocol: string; tabId: string; t: (key: string, options?: Record<string, unknown>) => string }) {
   switch (protocol) {
     case "websocket":
       return <WebSocketPanel connectionId={tabId} />;
@@ -91,7 +93,7 @@ function ProtocolWorkbench({ protocol, tabId }: { protocol: string; tabId: strin
     default:
       return (
         <div className="flex items-center justify-center h-full text-fg-tertiary text-[13px]">
-          Unknown protocol: {protocol}
+          {t("errors.unknownProtocol", { protocol })}
         </div>
       );
   }

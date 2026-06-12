@@ -127,7 +127,7 @@ export function ResponsePanel() {
     const isScriptError = error.startsWith("Script Error");
     if (isScriptError) {
       const match = error.match(/^Script Error \[([^\]]+)\]: (.+)$/s);
-      const source = match?.[1] ?? "Unknown";
+      const source = match?.[1] ?? t("response.unknownSource");
       const message = match?.[2] ?? error;
       return (
         <div className="h-full flex flex-col overflow-hidden bg-bg-surface">

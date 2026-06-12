@@ -1,4 +1,5 @@
 import { Pencil, Plus, FolderPlus, Copy, Trash2, Settings } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface ContextMenuTarget {
   type: "collection" | "request" | "folder";
@@ -13,30 +14,37 @@ interface ContextMenuProps {
   onAction: (action: string, target: ContextMenuTarget) => void;
 }
 
-const COLLECTION_ITEMS = [
-  { action: "settings", label: "Settings", icon: Settings },
-  { action: "rename", label: "Rename", icon: Pencil },
-  { action: "add-request", label: "Add Request", icon: Plus },
-  { action: "add-folder", label: "Add Folder", icon: FolderPlus },
-  { action: "duplicate", label: "Duplicate", icon: Copy },
-  { action: "delete", label: "Delete", icon: Trash2 },
+interface MenuItemDef {
+  action: string;
+  labelKey: string;
+  icon: typeof Settings;
+}
+
+const COLLECTION_ITEMS: MenuItemDef[] = [
+  { action: "settings", labelKey: "contextMenu.settings", icon: Settings },
+  { action: "rename", labelKey: "contextMenu.rename", icon: Pencil },
+  { action: "add-request", labelKey: "contextMenu.addRequest", icon: Plus },
+  { action: "add-folder", labelKey: "contextMenu.addFolder", icon: FolderPlus },
+  { action: "duplicate", labelKey: "contextMenu.duplicate", icon: Copy },
+  { action: "delete", labelKey: "contextMenu.delete", icon: Trash2 },
 ];
 
-const REQUEST_ITEMS = [
-  { action: "rename", label: "Rename", icon: Pencil },
-  { action: "duplicate", label: "Duplicate", icon: Copy },
-  { action: "delete", label: "Delete", icon: Trash2 },
+const REQUEST_ITEMS: MenuItemDef[] = [
+  { action: "rename", labelKey: "contextMenu.rename", icon: Pencil },
+  { action: "duplicate", labelKey: "contextMenu.duplicate", icon: Copy },
+  { action: "delete", labelKey: "contextMenu.delete", icon: Trash2 },
 ];
 
-const FOLDER_ITEMS = [
-  { action: "settings", label: "Settings", icon: Settings },
-  { action: "rename", label: "Rename", icon: Pencil },
-  { action: "add-request", label: "Add Request", icon: Plus },
-  { action: "add-folder", label: "Add Folder", icon: FolderPlus },
-  { action: "delete", label: "Delete", icon: Trash2 },
+const FOLDER_ITEMS: MenuItemDef[] = [
+  { action: "settings", labelKey: "contextMenu.settings", icon: Settings },
+  { action: "rename", labelKey: "contextMenu.rename", icon: Pencil },
+  { action: "add-request", labelKey: "contextMenu.addRequest", icon: Plus },
+  { action: "add-folder", labelKey: "contextMenu.addFolder", icon: FolderPlus },
+  { action: "delete", labelKey: "contextMenu.delete", icon: Trash2 },
 ];
 
 export function ContextMenu({ x, y, target, onAction }: ContextMenuProps) {
+  const { t } = useTranslation();
   const items =
     target.type === "collection"
       ? COLLECTION_ITEMS
@@ -66,7 +74,7 @@ export function ContextMenu({ x, y, target, onAction }: ContextMenuProps) {
           }`}
         >
           <item.icon className="w-3.5 h-3.5" />
-          {item.label}
+          {t(item.labelKey)}
         </button>
       ))}
     </div>

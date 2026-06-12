@@ -1,4 +1,5 @@
 import { Send, Loader2, Check, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export type SendButtonState = "idle" | "loading" | "success" | "error";
 
@@ -9,6 +10,7 @@ interface SendButtonProps {
 }
 
 export function SendButton({ state, disabled, onClick }: SendButtonProps) {
+  const { t } = useTranslation();
   return (
     <button
       onClick={onClick}
@@ -26,7 +28,7 @@ export function SendButton({ state, disabled, onClick }: SendButtonProps) {
       {state === "success" && <Check className="w-4 h-4" />}
       {state === "error" && <X className="w-4 h-4" />}
       {state === "idle" && <Send className="w-4 h-4" />}
-      <span>{state === "loading" ? "Cancel" : "Send"}</span>
+      <span>{state === "loading" ? t("request.cancel") : t("common.send")}</span>
     </button>
   );
 }

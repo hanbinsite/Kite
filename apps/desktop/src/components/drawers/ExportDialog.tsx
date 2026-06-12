@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X, Copy, Check, Download } from "lucide-react";
 import { exportCollection, type ExportFormat, type ExportOptions, type ExportCollection } from "@api-client/core";
@@ -17,6 +18,7 @@ const FORMAT_OPTIONS: { value: ExportFormat; label: string; description: string 
 ];
 
 export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
+  const { t } = useTranslation();
   const collections = useCollectionStore((s) => s.collections);
   const [selectedCollectionId, setSelectedCollectionId] = useState<string>("");
   const [format, setFormat] = useState<ExportFormat>("postman");
@@ -88,7 +90,7 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
         <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[560px] max-h-[520px] bg-bg-elevated/85 backdrop-blur-[20px] border border-white/[0.06] rounded-xl shadow-xl z-modal flex flex-col overflow-hidden">
           <div className="h-12 flex items-center justify-between px-4 border-b border-border-default">
             <Dialog.Title className="font-sans text-sm font-semibold text-fg-primary">
-              Export Collection
+              {t("common.export")}
             </Dialog.Title>
             <Dialog.Close asChild>
               <button className="p-1 rounded hover:bg-bg-hover text-fg-tertiary hover:text-fg-primary cursor-pointer transition-colors">
@@ -99,13 +101,13 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
 
           <div className="p-4 flex flex-col gap-3 flex-1 overflow-auto">
             <label className="flex items-center gap-2 text-xs text-fg-secondary">
-              Collection:
+              {t("export.collection")}:
               <select
                 value={selectedCollectionId}
                 onChange={(e) => { setSelectedCollectionId(e.target.value); setOutput(""); }}
                 className="h-7 px-2 bg-bg-input border border-border-default rounded-md text-fg-primary text-xs focus:border-border-focus outline-none"
               >
-                <option value="">Select...</option>
+                <option value="">{t("export.selectCollection")}</option>
                 {collections.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -113,7 +115,7 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
             </label>
 
             <div className="flex items-center gap-2 text-xs text-fg-secondary">
-              Format:
+              {t("export.format")}:
               {FORMAT_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
@@ -128,11 +130,11 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
             <div className="flex items-center gap-4 text-xs text-fg-secondary">
               <label className="flex items-center gap-1.5 cursor-pointer select-none">
                 <input type="checkbox" checked={includeScripts} onChange={(e) => { setIncludeScripts(e.target.checked); setOutput(""); }} className="accent-brand" />
-                Include scripts
+                {t("export.includeScripts")}
               </label>
               <label className="flex items-center gap-1.5 cursor-pointer select-none">
                 <input type="checkbox" checked={includeVariables} onChange={(e) => { setIncludeVariables(e.target.checked); setOutput(""); }} className="accent-brand" />
-                Include variables
+                {t("export.includeVariables")}
               </label>
             </div>
 
@@ -141,7 +143,7 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
               disabled={!selectedCollectionId}
               className="h-8 px-4 bg-brand hover:bg-brand-hover text-white text-xs font-medium rounded-md cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Generate Export
+              {t("export.generateExport")}
             </button>
 
             {output && (
@@ -161,13 +163,13 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
                   className="h-7 px-3 text-[11px] text-fg-secondary border border-border-default rounded-md hover:text-brand hover:border-brand hover:bg-brand/10 transition-colors cursor-pointer flex items-center gap-1.5"
                 >
                   {copied ? <Check className="w-3 h-3 text-accent-success" /> : <Copy className="w-3 h-3" />}
-                  {copied ? "Copied!" : "Copy"}
+                  {copied ? t("common.copied") : t("common.copy")}
                 </button>
                 <button
                   onClick={handleDownload}
                   className="h-7 px-3 text-[11px] text-fg-secondary border border-border-default rounded-md hover:text-brand hover:border-brand hover:bg-brand/10 transition-colors cursor-pointer flex items-center gap-1.5"
                 >
-                  <Download className="w-3 h-3" /> Download
+                  <Download className="w-3 h-3" /> {t("response.download")}
                 </button>
               </>
             )}
@@ -175,7 +177,7 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
               onClick={() => handleOpenChange(false)}
               className="h-7 px-3 text-[11px] text-fg-secondary hover:text-fg-primary transition-colors cursor-pointer"
             >
-              Close
+{t("common.close")}
             </button>
           </div>
         </Dialog.Content>

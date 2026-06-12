@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CheckCircle2, XCircle, ChevronDown } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { TestResult } from "@api-client/core/script";
 
 interface TestsTabProps {
@@ -7,12 +8,13 @@ interface TestsTabProps {
 }
 
 export function TestsTab({ results }: TestsTabProps) {
+  const { t } = useTranslation();
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
   if (results.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-2 text-fg-tertiary">
-        <span className="font-sans text-[12px]">No tests found</span>
+        <span className="font-sans text-[12px]">{t("response.noTestsFound")}</span>
       </div>
     );
   }

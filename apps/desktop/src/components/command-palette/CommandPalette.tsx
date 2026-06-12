@@ -18,14 +18,6 @@ interface CommandPaletteProps {
   items: CommandItem[];
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  recent: "Recent",
-  collection: "Collections",
-  variable: "Variables",
-  action: "Actions",
-  ai: "AI",
-} as const;
-
 const CATEGORY_ORDER = ["recent", "collection", "variable", "action", "ai"] as const;
 
 export function CommandPalette({ isOpen, onClose, items }: CommandPaletteProps) {
@@ -172,7 +164,7 @@ export function CommandPalette({ isOpen, onClose, items }: CommandPaletteProps) 
           ) : (
             <>
               {CATEGORY_ORDER.map((cat) =>
-                renderGroup(groupedItems[cat] ?? [], CATEGORY_LABELS[cat] ?? cat),
+                renderGroup(groupedItems[cat] ?? [], t(`commandPalette.categories.${cat}`)),
               )}
             </>
           )}

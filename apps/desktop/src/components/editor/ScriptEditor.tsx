@@ -1,4 +1,5 @@
 import { useState, lazy, Suspense, useCallback, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Sparkles } from "lucide-react";
 
 const MonacoEditor = lazy(() =>
@@ -7,39 +8,39 @@ const MonacoEditor = lazy(() =>
 
 const SCRIPT_SNIPPETS = [
   {
-    label: "Set timestamp variable",
+    labelKey: "scripts.snippetSetTimestamp",
     code: `pm.variables.set('timestamp', new Date().toISOString());`,
   },
   {
-    label: "Extract token from response",
+    labelKey: "scripts.snippetExtractToken",
     code: `const jsonData = pm.response.json();
 pm.variables.set('token', jsonData.access_token);`,
   },
   {
-    label: "Add custom header",
+    labelKey: "scripts.snippetAddHeader",
     code: `pm.request.addHeader('X-Request-ID', crypto.randomUUID());`,
   },
   {
-    label: "Status code assertion",
+    labelKey: "scripts.snippetStatusAssertion",
     code: `pm.test('Status code is 200', () => {
   pm.expect(pm.response.status).to.eql(200);
 });`,
   },
   {
-    label: "Response body assertion",
+    labelKey: "scripts.snippetBodyAssertion",
     code: `pm.test('Has expected property', () => {
   const jsonData = pm.response.json();
   pm.expect(jsonData).to.have.property('id');
 });`,
   },
   {
-    label: "Response time assertion",
+    labelKey: "scripts.snippetTimeAssertion",
     code: `pm.test('Response time is less than 500ms', () => {
   pm.expect(pm.response.time).to.be.below(500);
 });`,
   },
   {
-    label: "Send additional request",
+    labelKey: "scripts.snippetSendRequest",
     code: `pm.sendRequest('https://api.example.com/health', function(err, res) {
   if (err) { console.error(err); return; }
   pm.test('Health check passes', () => {
@@ -48,11 +49,11 @@ pm.variables.set('token', jsonData.access_token);`,
 });`,
   },
   {
-    label: "Clear environment variable",
+    labelKey: "scripts.snippetClearVariable",
     code: `pm.environment.unset('tempVar');`,
   },
   {
-    label: "Set multiple variables",
+    labelKey: "scripts.snippetSetVariables",
     code: `pm.environment.set('baseUrl', 'https://api.example.com');
 pm.environment.set('apiKey', 'your-key-here');`,
   },
@@ -79,6 +80,7 @@ function SnippetMenu({
   onSelect: (code: string) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -97,7 +99,7 @@ function SnippetMenu({
       className="absolute right-3 top-[44px] z-50 w-[260px] bg-bg-elevated border border-border-muted rounded-lg shadow-xl py-1 max-h-[320px] overflow-y-auto"
     >
       <div className="px-3 py-1.5 font-sans text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em]">
-        Snippets
+        {t("scripts.snippets")}
       </div>
       {SCRIPT_SNIPPETS.map((snippet, i) => (
         <button
@@ -108,7 +110,7 @@ function SnippetMenu({
           }}
           className="w-full text-left px-3 py-2 hover:bg-bg-hover cursor-pointer transition-colors"
         >
-          <span className="font-sans text-[12px] text-fg-primary">{snippet.label}</span>
+          <span className="font-sans text-[12px] text-fg-primary">{t(snippet.labelKey)}</span>
         </button>
       ))}
     </div>
@@ -116,6 +118,7 @@ function SnippetMenu({
 }
 
 export function ScriptEditor({ value, onChange, placeholder }: ScriptEditorProps) {
+  const { t } = useTranslation();
   const [showSnippets, setShowSnippets] = useState(false);
   const editorRef = useRef<unknown>(null);
 
@@ -134,14 +137,14 @@ export function ScriptEditor({ value, onChange, placeholder }: ScriptEditorProps
   return (
     <div className="script-editor relative flex flex-col h-full">
       <div className="script-editor-toolbar flex items-center justify-between h-[32px] px-3 border-b border-border-muted shrink-0">
-        <span className="font-sans text-[11px] text-fg-tertiary">JavaScript</span>
+        <span className="font-sans text-[11px] text-fg-tertiary">{t("scripts.language")}</span>
         <div className="relative">
           <button
             onClick={() => setShowSnippets(!showSnippets)}
             className="flex items-center gap-1 h-[24px] px-2 rounded-[4px] font-sans text-[11px] font-medium text-fg-secondary hover:text-fg-primary hover:bg-bg-hover cursor-pointer transition-colors"
           >
             <Sparkles size={12} />
-            Snippets
+            {t("scripts.snippets")}
           </button>
           {showSnippets && (
             <SnippetMenu

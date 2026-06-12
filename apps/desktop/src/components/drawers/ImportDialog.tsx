@@ -58,14 +58,6 @@ function importRequestToIpcItem(req: ImportResult["requests"][0]): IpcCollection
   };
 }
 
-const FORMAT_LABELS: Record<string, string> = {
-  curl: "cURL",
-  postman: "Postman Collection",
-  har: "HAR 1.2",
-  openapi: "OpenAPI",
-  unknown: "Unknown",
-};
-
 export function ImportDialog({ isOpen, onClose }: ImportDialogProps) {
   const { t } = useTranslation();
   const [input, setInput] = useState("");
@@ -179,7 +171,7 @@ export function ImportDialog({ isOpen, onClose }: ImportDialogProps) {
               {detectedFormat && detectedFormat !== "unknown" && (
                 <span className="text-[11px] text-brand ml-auto flex items-center gap-1">
                   <FileText className="w-3 h-3" />
-                  {FORMAT_LABELS[detectedFormat] ?? detectedFormat}
+                  {t(`import.format.${detectedFormat}`)}
                 </span>
               )}
             </div>

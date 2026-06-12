@@ -1,12 +1,8 @@
 import { Moon, Sun, Monitor } from "lucide-react";
 import { useUIStore, type Theme } from "@api-client/core";
+import { useTranslation } from "react-i18next";
 
 const THEME_CYCLE: Theme[] = ["dark", "light", "system"];
-const THEME_LABELS: Record<Theme, string> = {
-  dark: "Dark",
-  light: "Light",
-  system: "System",
-};
 
 function ThemeIcon({ theme }: { theme: Theme }) {
   if (theme === "dark") return <Moon className="w-4 h-4" />;
@@ -15,6 +11,7 @@ function ThemeIcon({ theme }: { theme: Theme }) {
 }
 
 export function ThemeToggle() {
+  const { t } = useTranslation();
   const theme = useUIStore((s) => s.theme);
 
   const cycleTheme = () => {
@@ -27,10 +24,10 @@ export function ThemeToggle() {
     <button
       onClick={cycleTheme}
       className="flex items-center gap-1 px-2 py-1.5 hover:bg-bg-hover rounded transition-colors text-fg-tertiary hover:text-fg-secondary"
-      title={`Theme: ${THEME_LABELS[theme]}. Click to switch.`}
+      title={t("settings.general.themeSwitch", { theme: t(`settings.general.${theme}`) })}
     >
       <ThemeIcon theme={theme} />
-      <span className="text-xs font-medium">{THEME_LABELS[theme]}</span>
+      <span className="text-xs font-medium">{t(`settings.general.${theme}`)}</span>
     </button>
   );
 }
