@@ -120,10 +120,17 @@ function SnippetMenu({
 export function ScriptEditor({ value, onChange, placeholder }: ScriptEditorProps) {
   const { t } = useTranslation();
   const [showSnippets, setShowSnippets] = useState(false);
-  const editorRef = useRef<unknown>(null);
+  const editorRef = useRef<{ dispose?: () => void } | null>(null);
 
-  const handleEditorMount = useCallback((editor: unknown) => {
+  const handleEditorMount = useCallback((editor: { dispose?: () => void }) => {
     editorRef.current = editor;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      editorRef.current?.dispose?.();
+      editorRef.current = null;
+    };
   }, []);
 
   const handleSnippetSelect = useCallback(
