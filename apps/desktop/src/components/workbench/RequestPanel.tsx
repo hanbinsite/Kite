@@ -57,8 +57,8 @@ function kvToParams(kvs: KeyValue[]): QueryParam[] {
 }
 
 function headersToKv(headers: Header[]): KeyValue[] {
-    return headers.map((h) => ({
-        id: crypto.randomUUID(),
+    return headers.map((h, i) => ({
+        id: `hdr-${i}`,
         key: h.key,
         value: h.value,
         enabled: !h.disabled,
@@ -67,8 +67,8 @@ function headersToKv(headers: Header[]): KeyValue[] {
 }
 
 function paramsToKv(params: QueryParam[]): KeyValue[] {
-    return params.map((p) => ({
-        id: crypto.randomUUID(),
+    return params.map((p, i) => ({
+        id: `prm-${i}`,
         key: p.key,
         value: p.value,
         enabled: !p.disabled,
@@ -77,8 +77,8 @@ function paramsToKv(params: QueryParam[]): KeyValue[] {
 }
 
 function formdataToKv(items: FormDataParam[]): KeyValue[] {
-    return items.map((item) => ({
-        id: crypto.randomUUID(),
+    return items.map((item, i) => ({
+        id: `fd-${i}`,
         key: item.key,
         value: item.value,
         enabled: !item.disabled,

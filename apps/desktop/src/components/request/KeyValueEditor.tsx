@@ -43,16 +43,17 @@ export function KeyValueEditor({
     (id: string, updates: Partial<KeyValue>) => {
       const idx = rowsWithEmpty.findIndex((item) => item.id === id);
       if (idx === -1) return;
-      const updated = rowsWithEmpty.map((item) => (item.id === id ? { ...item, ...updates } : item));
+      let updated = [...rowsWithEmpty];
+      updated[idx] = { ...updated[idx]!, ...updates };
       if (id === emptyRowIdRef.current) {
         const changedItem = updated[idx];
         if (changedItem?.key || changedItem?.value) {
           emptyRowIdRef.current = crypto.randomUUID();
         }
       }
-      onChange(updated.filter((item) => item.key || item.value || updated.indexOf(item) === updated.length - 1));
+      onChange(updated.filter((item, i) => item.key || item.value || i === updated.length - 1));
     },
-    [items, onChange],
+    [rowsWithEmpty, onChange],
   );
 
   const deleteItem = useCallback(
@@ -62,7 +63,7 @@ export function KeyValueEditor({
       }
       onChange(rowsWithEmpty.filter((item) => item.id !== id));
     },
-    [items, onChange],
+    [rowsWithEmpty, onChange],
   );
 
   const addItem = useCallback(() => {

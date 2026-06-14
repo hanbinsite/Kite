@@ -37,6 +37,34 @@ function applyScriptHeaders(ipcConfig: IpcHttpRequestConfig, mod: { headers?: un
   }
 }
 
+const MAX_REQUEST_DATA_ENTRIES = 50;
+const requestDataAccessOrder: string[] = [];
+
+function getOrCreateTabData(map: Record<string, RequestData>, tabId: string): RequestData {
+  if (!map[tabId]) {
+    if (Object.keys(map).length >= MAX_REQUEST_DATA_ENTRIES) {
+      let oldest = requestDataAccessOrder.shift();
+      while (oldest && !map[oldest]) {
+        oldest = requestDataAccessOrder.shift();
+      }
+      if (oldest) {
+        delete map[oldest];
+      }
+    }
+    map[tabId] = {
+      headers: [],
+      params: [],
+      body: null,
+      auth: { ...DEFAULT_AUTH },
+      settings: { timeoutMs: 30000, followRedirects: true, maxRedirects: 10, verifySsl: true },
+      scripts: { preRequest: undefined, postResponse: undefined },
+    };
+  }
+  const idx = requestDataAccessOrder.indexOf(tabId);
+  if (idx >= 0) requestDataAccessOrder.splice(idx, 1);
+  requestDataAccessOrder.push(tabId);
+  return map[tabId];
+}
 async function executePreRequestScripts(
   tabId: string,
   code: string,
@@ -155,20 +183,6 @@ export const DEFAULT_REQUEST_DATA: RequestData = {
   },
   scripts: { preRequest: undefined, postResponse: undefined },
 };
-
-function getOrCreateTabData(map: Record<string, RequestData>, tabId: string): RequestData {
-  if (!map[tabId]) {
-    map[tabId] = {
-      headers: [],
-      params: [],
-      body: null,
-      auth: { ...DEFAULT_AUTH },
-      settings: { timeoutMs: 30000, followRedirects: true, maxRedirects: 10, verifySsl: true },
-      scripts: { preRequest: undefined, postResponse: undefined },
-    };
-  }
-  return map[tabId];
-}
 
 export function buildIpcBodyConfig(body: BodyConfig | null, resolver?: VariableResolver): IpcBodyConfig | null {
   if (!body || body.mode === "none") return null;
