@@ -43,6 +43,16 @@ function buildCodeGenRequest(tabId: string): CodeGenRequest | null {
   };
 }
 
+import type { RawLanguage } from "@api-client/types";
+
+const LANGUAGE_TO_HIGHLIGHT: Record<string, RawLanguage> = {
+  javascript: "javascript",
+  json: "json",
+  xml: "xml",
+  html: "html",
+  yaml: "yaml",
+};
+
 export function CodeSnippetDrawer({ isOpen, onClose }: CodeSnippetDrawerProps) {
   const [language, setLanguage] = useState<CodeLanguage>("curl");
   const [code, setCode] = useState("");
@@ -151,7 +161,7 @@ export function CodeSnippetDrawer({ isOpen, onClose }: CodeSnippetDrawerProps) {
           ) : (
             <InlineEditor
               value={code}
-              language="javascript"
+              language={LANGUAGE_TO_HIGHLIGHT[language] ?? "text"}
               onChange={() => {}}
               readOnly
               placeholder="// No code generated"

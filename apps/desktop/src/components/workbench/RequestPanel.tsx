@@ -6,6 +6,7 @@ import { FormDataEditor } from "../request/FormDataEditor";
 import { InlineEditor } from "../editor/InlineEditor";
 import { ScriptEditor } from "../editor/ScriptEditor";
 import { AUTH_TYPES } from "./AuthForm";
+import { createAuthConfig } from "../../utils/auth";
 import { useRequestStore } from "../../stores";
 import type { BodyConfig, AuthConfig, BodyMode, RawLanguage, Header, QueryParam, FormDataParam } from "@api-client/types";
 
@@ -760,17 +761,7 @@ placeholder={t("auth.tokenTypePlaceholder")}
                             value={storeAuth.type}
                             onChange={(e) => {
                                 const type = e.target.value as AuthConfig["type"];
-                                const defaultConfigs: Record<string, Record<string, unknown>> = {
-                                    none: {},
-                                    bearer: { token: "", prefix: "Bearer" },
-                                    basic: { username: "", password: "" },
-                                    apikey: { key: "", value: "", addTo: "header" },
-                                    jwt: { token: "" },
-                                    oauth1: { consumerKey: "", consumerSecret: "", token: "", tokenSecret: "", signatureMethod: "HMAC-SHA1" },
-                                    oauth2: { accessToken: "", tokenType: "Bearer" },
-                                    awsv4: { accessKeyId: "", secretAccessKey: "", service: "", region: "" },
-                                };
-                                handleAuthChange({ type, config: (defaultConfigs[type] ?? {}) as never } as AuthConfig);
+                                handleAuthChange(createAuthConfig(type));
                             }}
                             className="auth-type-select w-[220px] h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-sans text-[13px] text-fg-primary cursor-pointer outline-none focus:border-border-focus focus:shadow-[0_0_0_3px_var(--color-brand-muted)]"
                         >

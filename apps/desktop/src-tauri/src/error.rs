@@ -57,18 +57,26 @@ impl From<reqwest::Error> for AppError {
     fn from(e: reqwest::Error) -> Self {
         if e.is_timeout() {
             Self::net_timeout(30000)
-        } else if e.is_connect() { Self::net_connect_failed(e.to_string()) }
-        else if e.is_redirect() { Self::net_redirect_limit(10) }
-        else { Self::internal(e.to_string()) }
+        } else if e.is_connect() {
+            let url = e.url().map(|u| u.to_string()).unwrap_or_default();
+            Self::net_connect_failed(format!("Failed to connect to {}", url))
+        } else if e.is_redirect() {
+            Self::net_redirect_limit(10)
+        } else {
+            let kind = if e.is_body() { "response body error" }
+                else if e.is_decode() { "response decode error" }
+                else { "request error" };
+            Self::internal(kind.to_string())
+        }
     }
 }
 
 impl From<std::io::Error> for AppError {
     fn from(e: std::io::Error) -> Self {
         if e.kind() == std::io::ErrorKind::NotFound {
-            Self::storage_not_found(e.to_string())
+            Self::storage_not_found(format!("File not found: {}", e))
         } else {
-            Self::storage_read_failed(e.to_string())
+            Self::storage_read_failed(format!("I/O error: {}", e.kind()))
         }
     }
 }

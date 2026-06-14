@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useCollectionStore } from "../../stores/collection-store";
 import type { AuthConfig, CollectionConfig, FolderConfig } from "@api-client/types";
 import { findFolderConfig } from "./findFolderConfig";
+import { createAuthConfig } from "../../utils/auth";
 
 const AUTH_TYPES = [
   "none",
@@ -55,7 +56,7 @@ export function ConfigAuthTab({ collectionId, folderId, auth }: ConfigAuthTabPro
       persist(newType === "none" ? { type: "none", config: {} } : undefined);
       return;
     }
-    persist({ type: newType as AuthConfig["type"], config: {} as never });
+    persist(createAuthConfig(newType));
   };
 
   return (

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
-use tauri::{Emitter, State};
+use tauri::{Emitter, Manager, State};
 use serde::{Deserialize, Serialize};
 
 use hyper::StatusCode;
@@ -176,6 +176,10 @@ pub async fn start_mock_server(
         .map_err(|e| crate::error::AppError::proxy_start_failed(format!("Failed to get local addr: {}", e)))?
         .port();
 
+    if let Ok(data_dir) = app.path().app_data_dir() {
+        let _ = std::fs::write(data_dir.join("mock-port"), actual_port.to_string());
+    }
+
     tokio::spawn(async move {
         let listener = listener;
         let mut shutdown_rx = std::pin::pin!(shutdown_rx);
@@ -242,12 +246,18 @@ pub async fn stop_mock_server(
 
 #[tauri::command]
 pub async fn get_mock_server_status(
+    app: tauri::AppHandle,
     state: State<'_, MockState>,
 ) -> Result<MockServerStatus, crate::error::AppError> {
     let server = state.server.read().await;
+    let port = server.as_ref().map(|s| s.port).or_else(|| {
+        app.path().app_data_dir().ok().and_then(|dir| {
+            std::fs::read_to_string(dir.join("mock-port")).ok().and_then(|s| s.trim().parse().ok())
+        })
+    });
     Ok(MockServerStatus {
         running: server.is_some(),
-        port: server.as_ref().map(|s| s.port),
+        port,
     })
 }
 

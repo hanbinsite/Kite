@@ -6,6 +6,7 @@ import { importCollection, detectFormat, type ImportResult } from "@api-client/c
 import { useCollectionStore } from "../../stores/collection-store";
 import { saveCollection, type IpcCollectionItem } from "@api-client/core/http";
 import type { BodyConfig, AuthConfig } from "@api-client/types";
+import { createAuthConfig } from "../../utils/auth";
 
 interface ImportDialogProps {
   isOpen: boolean;
@@ -33,7 +34,7 @@ function parseKeyValueString(raw: string): { key: string; value: string; disable
 
 function importAuthToAuthConfig(auth: ImportResult["requests"][0]["auth"]): AuthConfig {
   if (!auth) return { type: "none", config: {} };
-  return { type: auth.type as AuthConfig["type"], config: auth.config as never } as AuthConfig;
+  return createAuthConfig(auth.type, auth.config as Record<string, unknown>);
 }
 
 function importRequestToIpcItem(req: ImportResult["requests"][0]): IpcCollectionItem {

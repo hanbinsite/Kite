@@ -12,6 +12,7 @@ import {
 } from "@api-client/core/http";
 import type { BodyConfig, AuthConfig, Header, QueryParam, ScriptConfig, CollectionConfig, FolderConfig } from "@api-client/types";
 import type { ResolvedHierarchy, ResolvedHierarchyFolder } from "@api-client/core";
+import { createAuthConfig } from "../utils/auth";
 
 export interface CollectionRequest {
   id: string;
@@ -148,7 +149,7 @@ function toIpcCollection(col: CollectionItem): IpcCollectionFile {
 
 function ipcAuthToAuth(ipcAuth: IpcAuthConfig | undefined): AuthConfig | undefined {
   if (!ipcAuth || ipcAuth.type === "none") return undefined;
-  return { type: ipcAuth.type as AuthConfig["type"], config: (ipcAuth.config ?? {}) as never } as AuthConfig;
+  return createAuthConfig(ipcAuth.type, (ipcAuth.config ?? {}) as Record<string, unknown>);
 }
 
 function ipcBodyToBody(ipcBody: IpcCollectionItem["body"]): BodyConfig | undefined {

@@ -8,6 +8,7 @@ import { getCollection, type IpcCollectionItem } from "@api-client/core/http";
 import type { RunnerRequestConfig } from "../../stores/runner-store";
 import type { BodyConfig, AuthConfig } from "@api-client/types";
 import { useTranslation } from "react-i18next";
+import { createAuthConfig } from "../../utils/auth";
 
 interface CollectionRunnerDialogProps {
   isOpen: boolean;
@@ -27,7 +28,7 @@ function ipcBodyToBodyConfig(ipcBody: IpcCollectionItem["body"]): BodyConfig | n
 
 function ipcAuthToAuthConfig(ipcAuth: IpcCollectionItem["auth"]): AuthConfig {
   if (!ipcAuth || ipcAuth.type === "none") return { type: "none", config: {} };
-  return { type: ipcAuth.type as AuthConfig["type"], config: (ipcAuth.config ?? {}) as never } as AuthConfig;
+  return createAuthConfig(ipcAuth.type, (ipcAuth.config ?? {}) as Record<string, unknown>);
 }
 
 function flattenIpcItems(items: IpcCollectionItem[]): IpcCollectionItem[] {

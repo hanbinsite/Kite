@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { AuthConfig } from "@api-client/types";
+import { createAuthConfig } from "../../utils/auth";
 
 interface AuthFormProps {
   authConfig: AuthConfig;
@@ -18,17 +19,6 @@ export const AUTH_TYPES: AuthType[] = [
   { id: "oauth2", labelKey: "auth.oauth2" },
   { id: "awsv4", labelKey: "auth.awsv4" },
 ];
-
-const DEFAULT_CONFIGS: Record<string, Record<string, unknown>> = {
-  none: {},
-  bearer: { token: "", prefix: "Bearer" },
-  basic: { username: "", password: "" },
-  apikey: { key: "", value: "", addTo: "header" },
-  jwt: { token: "" },
-  oauth1: { consumerKey: "", consumerSecret: "", token: "", tokenSecret: "", signatureMethod: "HMAC-SHA1" },
-  oauth2: { accessToken: "", tokenType: "Bearer" },
-  awsv4: { accessKeyId: "", secretAccessKey: "", service: "", region: "" },
-};
 
 function renderAuthFields(auth: AuthConfig, onChange: (auth: AuthConfig) => void, t: (key: string) => string) {
   switch (auth.type) {
@@ -309,7 +299,7 @@ export function AuthForm({ authConfig, onChange }: AuthFormProps) {
         value={authConfig.type}
         onChange={(e) => {
           const type = e.target.value as AuthConfig["type"];
-          onChange({ type, config: (DEFAULT_CONFIGS[type] ?? {}) as never } as AuthConfig);
+          onChange(createAuthConfig(type));
         }}
         className="auth-type-select w-[220px] h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-sans text-[13px] text-fg-primary cursor-pointer outline-none focus:border-border-focus focus:shadow-[0_0_0_3px_var(--color-brand-muted)]"
       >
