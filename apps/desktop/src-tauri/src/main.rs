@@ -1,8 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use api_client_lib::{AppState, commands, storage, ai};
-use tokio::sync::RwLock;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tauri::Manager;
 
 #[tokio::main]
@@ -16,7 +15,7 @@ async fn main() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        .manage(AppState { storage: Arc::new(RwLock::new(None)) })
+        .manage(AppState { storage: Arc::new(Mutex::new(None)) })
         .manage(commands::http::HttpClientState::new())
         .manage(commands::websocket::WsState::new())
         .manage(commands::sse::SseState::new())
@@ -104,7 +103,7 @@ commands::crypto::delete_vault_secret,
 
                     if let Ok(s) = storage::Storage::new(&data_dir) {
                         let state = app_handle.state::<AppState>();
-                        let mut storage_lock = state.storage.write().await;
+                        let mut storage_lock = state.storage.lock().unwrap();
                         *storage_lock = Some(s);
                         tracing::info!("Storage initialized at {:?}", data_dir);
                     }

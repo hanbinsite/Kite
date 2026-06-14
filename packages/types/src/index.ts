@@ -78,6 +78,7 @@ export interface HttpResponse {
   statusText: string;
   headers: ResponseHeader[];
   body: string;
+  bodyBase64?: string;
   bodySize: number;
   time: number;
   contentType: string;

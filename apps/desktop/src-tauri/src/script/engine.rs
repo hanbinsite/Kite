@@ -42,6 +42,7 @@ pub struct ScriptResult {
     pub variables: Vec<ScriptVariableChange>,
     pub modified_request: Option<serde_json::Value>,
     pub error: Option<String>,
+    pub timed_out: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -83,6 +84,7 @@ impl ScriptEngine {
                 variables: vec![],
                 modified_request: None,
                 error: Some(format!("Script timed out after {}ms", timeout_ms)),
+                timed_out: true,
             },
         }
     }
@@ -94,6 +96,7 @@ impl ScriptEngine {
                 return ScriptResult {
                     success: false, logs: vec![], test_results: vec![],
                     variables: vec![], modified_request: None,
+                    timed_out: false,
                     error: Some(format!("Failed to create runtime: {}", e)),
                 };
             }
@@ -108,6 +111,7 @@ impl ScriptEngine {
                 return ScriptResult {
                     success: false, logs: vec![], test_results: vec![],
                     variables: vec![], modified_request: None,
+                    timed_out: false,
                     error: Some(format!("Failed to create context: {}", e)),
                 };
             }
@@ -152,6 +156,7 @@ impl ScriptEngine {
                 variables,
                 modified_request: None,
                 error: None,
+                timed_out: false,
             },
             Err(e) => ScriptResult {
                 success: false,
@@ -160,6 +165,7 @@ impl ScriptEngine {
                 variables,
                 modified_request: None,
                 error: Some(format!("{}", e)),
+                timed_out: false,
             },
         }
     }

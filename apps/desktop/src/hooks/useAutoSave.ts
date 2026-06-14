@@ -51,15 +51,18 @@ function updateRequestInDraft(
   requestId: string,
   updates: { method?: string; url?: string; headers?: Header[]; params?: QueryParam[]; body?: BodyConfig; auth?: AuthConfig; scripts?: ScriptConfig },
 ): boolean {
-  for (const item of items) {
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]!;
     if (item.type === "request" && item.id === requestId) {
-      if (updates.method !== undefined) item.method = updates.method;
-      if (updates.url !== undefined) item.url = updates.url;
-      if (updates.headers !== undefined) item.headers = updates.headers;
-      if (updates.params !== undefined) item.params = updates.params;
-      if (updates.body !== undefined) item.body = updates.body;
-      if (updates.auth !== undefined) item.auth = updates.auth;
-      if (updates.scripts !== undefined) item.scripts = updates.scripts;
+      const updated = { ...item };
+      if (updates.method !== undefined) updated.method = updates.method;
+      if (updates.url !== undefined) updated.url = updates.url;
+      if (updates.headers !== undefined) updated.headers = updates.headers;
+      if (updates.params !== undefined) updated.params = updates.params;
+      if (updates.body !== undefined) updated.body = updates.body;
+      if (updates.auth !== undefined) updated.auth = updates.auth;
+      if (updates.scripts !== undefined) updated.scripts = updates.scripts;
+      items[i] = updated as CollectionTreeNode;
       return true;
     }
     if (item.type === "folder") {

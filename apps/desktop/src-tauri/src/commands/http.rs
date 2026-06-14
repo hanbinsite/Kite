@@ -482,6 +482,16 @@ pub async fn send_http_request(
                             request_builder = request_builder.header("Content-Type", ct);
                         }
                         let data = if std::path::Path::new(content).exists() {
+                            let file_path = std::path::Path::new(content);
+                            let app_data = app_handle.path().app_data_dir();
+                            if let Ok(app_data_dir) = app_data {
+                                if crate::commands::file_ops::validate_path_within_app_data(&app_data_dir, file_path).is_err() {
+                                    return Err(AppError::storage_path_traversal(format!(
+                                        "Binary file path is outside app data directory: {}",
+                                        content
+                                    )));
+                                }
+                            }
                             std::fs::read(content).map_err(|e| AppError::storage_read_failed(format!("Failed to read binary file: {}", e)))?
                         } else {
                             content.as_bytes().to_vec()
@@ -598,7 +608,7 @@ async fn load_cookie_header(
 
     let storage = app_handle.state::<crate::AppState>().storage.clone();
     let cookies = match tokio::task::spawn_blocking(move || {
-        let storage_lock = storage.blocking_read();
+        let storage_lock = storage.lock().unwrap();
         let storage = storage_lock.as_ref().ok_or("Storage not initialized".to_string())?;
         storage.query_cookies(Some(&host))
     })
@@ -652,13 +662,7 @@ async fn save_cookies_from_response(
 
     let storage = app_handle.state::<crate::AppState>().storage.clone();
     let _ = tokio::task::spawn_blocking(move || {
-        let storage_lock = match storage.try_write() {
-            Ok(guard) => guard,
-            Err(_) => {
-                let storage_lock = storage.blocking_write();
-                storage_lock
-            }
-        };
+        let storage_lock = storage.lock().unwrap();
         let storage = match storage_lock.as_ref() {
             Some(s) => s,
             None => return,

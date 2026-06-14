@@ -1,10 +1,13 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 use tauri::{Emitter, State};
 use tokio::sync::RwLock;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
+
+const WS_CONNECT_TIMEOUT_SECS: u64 = 10;
 
 pub struct WsState {
     pub connections: Arc<RwLock<HashMap<String, WsConnection>>>,
@@ -18,6 +21,8 @@ impl Default for WsState {
 
 pub struct WsConnection {
     pub sender: tokio::sync::mpsc::UnboundedSender<String>,
+    pub write_handle: tokio::task::JoinHandle<()>,
+    pub read_handle: tokio::task::JoinHandle<()>,
 }
 
 impl WsState {
@@ -63,15 +68,18 @@ pub async fn ws_connect(
         .body(())
         .map_err(|e| crate::error::AppError::net_connect_failed(format!("Invalid WS request: {}", e)))?;
 
-    let (ws_stream, _response) = connect_async(request)
-        .await
+    let (ws_stream, _response) = tokio::time::timeout(
+        Duration::from_secs(WS_CONNECT_TIMEOUT_SECS),
+        connect_async(request),
+    ).await
+        .map_err(|_| crate::error::AppError::net_timeout(WS_CONNECT_TIMEOUT_SECS * 1000))?
         .map_err(|e| crate::error::AppError::net_connect_failed(format!("WS connect failed: {}", e)))?;
 
     let (mut write, mut read) = ws_stream.split();
 
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<String>();
 
-    tokio::spawn(async move {
+    let write_handle = tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
             if msg == "__CLOSE__" {
                 let _ = write.send(Message::Close(None)).await;
@@ -86,7 +94,7 @@ pub async fn ws_connect(
     let conn_id_read = connection_id.clone();
     let app_handle_read = app.clone();
 
-    tokio::spawn(async move {
+    let read_handle = tokio::spawn(async move {
         while let Some(msg) = read.next().await {
             match msg {
                 Ok(Message::Text(text)) => {
@@ -132,7 +140,11 @@ pub async fn ws_connect(
         }
     });
 
-    state.connections.write().await.insert(connection_id.clone(), WsConnection { sender: tx });
+    state.connections.write().await.insert(connection_id.clone(), WsConnection {
+        sender: tx,
+        write_handle,
+        read_handle,
+    });
 
     let ws_msg = WsMessage {
         connection_id: connection_id.clone(),
@@ -172,6 +184,12 @@ pub async fn ws_close(
     let mut connections = state.connections.write().await;
     if let Some(ws_conn) = connections.remove(&connection_id) {
         let _ = ws_conn.sender.send("__CLOSE__".to_string());
+        let _ = tokio::time::timeout(
+            Duration::from_secs(3),
+            async {
+                let _ = tokio::join!(ws_conn.read_handle, ws_conn.write_handle);
+            },
+        ).await;
         Ok(())
     } else {
         Err(crate::error::AppError::net_connect_failed("Connection not found".to_string()))

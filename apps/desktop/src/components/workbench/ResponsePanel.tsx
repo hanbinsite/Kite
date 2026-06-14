@@ -290,6 +290,37 @@ checked={!(requestDataMap[activeTabId ?? ""]?.settings.verifySsl)}
                         </div>
 
                         <div className="flex-1 overflow-auto">
+                            {response.bodyBase64 && !response.body && (
+                                <div className="flex items-center justify-center h-full flex-col gap-3">
+                                    <ArrowDownToLine className="w-8 h-8 text-accent-info" />
+                                    <p className="font-sans text-[13px] text-fg-secondary">
+                                        {t("response.binaryResponse")} ({formatBodySize(response.bodySize)})
+                                    </p>
+                                    <button
+                                        onClick={() => {
+                                            const byteChars = atob(response.bodyBase64!);
+                                            const byteNums = new Array(byteChars.length);
+                                            for (let i = 0; i < byteChars.length; i++) {
+                                                byteNums[i] = byteChars.charCodeAt(i);
+                                            }
+                                            const byteArr = new Uint8Array(byteNums);
+                                            const blob = new Blob([byteArr]);
+                                            const url = URL.createObjectURL(blob);
+                                            const a = document.createElement("a");
+                                            a.href = url;
+                                            a.download = "response.bin";
+                                            a.click();
+                                            URL.revokeObjectURL(url);
+                                        }}
+                                        className="h-[28px] px-4 rounded-md font-sans text-[12px] font-medium text-brand bg-brand-muted hover:bg-brand/20 cursor-pointer transition-colors flex items-center gap-1"
+                                    >
+                                        <ArrowDownToLine size={14} />
+                                        {t("response.downloadBinary")}
+                                    </button>
+                                </div>
+                            )}
+                            {(!response.bodyBase64 || response.body) && (
+                                <>
                             {response.bodySize > LARGE_BODY_THRESHOLD && !showTruncated && (
                                 <div className="flex items-center justify-center h-full flex-col gap-3">
                                     <AlertTriangle className="w-8 h-8 text-accent-warning" />
@@ -328,6 +359,8 @@ checked={!(requestDataMap[activeTabId ?? ""]?.settings.verifySsl)}
                                             />
                                         </div>
                                     )}
+                                </>
+                            )}
                                 </>
                             )}
                         </div>

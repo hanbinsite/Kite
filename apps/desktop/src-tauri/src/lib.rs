@@ -4,9 +4,8 @@ pub mod storage;
 pub mod script;
 pub mod ai;
 
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::sync::{Arc, Mutex};
 
 pub struct AppState {
-    pub storage: Arc<RwLock<Option<storage::Storage>>>,
+    pub storage: Arc<Mutex<Option<storage::Storage>>>,
 }

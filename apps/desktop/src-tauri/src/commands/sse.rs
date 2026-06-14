@@ -6,6 +6,9 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use futures_util::StreamExt;
 
+const MAX_SSE_LINE_LENGTH: usize = 1_048_576;
+const MAX_SSE_EVENT_SIZE: usize = 10_485_760;
+
 pub struct SseState {
     pub active: Arc<RwLock<HashMap<String, tokio_util::sync::CancellationToken>>>,
 }
@@ -83,8 +86,10 @@ pub async fn sse_connect(
 
     tokio::spawn(async move {
         let mut stream = response.bytes_stream();
+        let mut line_buf = String::new();
         let mut current_data = String::new();
         let mut current_event = String::from("message");
+        let mut current_id: Option<String> = None;
 
         loop {
             tokio::select! {
@@ -105,21 +110,62 @@ pub async fn sse_connect(
                 chunk = stream.next() => {
                     match chunk {
                         Some(Ok(bytes)) => {
-                            let text = String::from_utf8_lossy(&bytes);
-                            for line in text.lines() {
-                                if let Some(stripped) = line.strip_prefix("data:") {
+                            line_buf.push_str(&String::from_utf8_lossy(&bytes));
+
+                            while let Some(newline_pos) = line_buf.find('\n') {
+                                let line = line_buf[..newline_pos].to_string();
+                                line_buf = line_buf[newline_pos + 1..].to_string();
+
+                                let trimmed = line.trim_end_matches('\r');
+
+                                if trimmed.len() > MAX_SSE_LINE_LENGTH {
+                                    let sse_event = SseEvent {
+                                        connection_id: conn_id.clone(),
+                                        event: "error".to_string(),
+                                        data: format!("SSE line exceeds max length {}", MAX_SSE_LINE_LENGTH),
+                                        id: None,
+                                        timestamp: std::time::SystemTime::now()
+                                            .duration_since(std::time::UNIX_EPOCH)
+                                            .unwrap_or_default()
+                                            .as_millis() as u64,
+                                    };
+                                    let _ = app_handle.emit("sse-event", &sse_event);
+                                    current_data.clear();
+                                    current_event = String::from("message");
+                                    current_id = None;
+                                    continue;
+                                }
+
+                                if let Some(stripped) = trimmed.strip_prefix("data:") {
                                     current_data.push_str(stripped);
                                     current_data.push('\n');
-                                } else if let Some(stripped) = line.strip_prefix("event:") {
+
+                                    if current_data.len() > MAX_SSE_EVENT_SIZE {
+                                        let sse_event = SseEvent {
+                                            connection_id: conn_id.clone(),
+                                            event: "error".to_string(),
+                                            data: format!("SSE event exceeds max size {}", MAX_SSE_EVENT_SIZE),
+                                            id: None,
+                                            timestamp: std::time::SystemTime::now()
+                                                .duration_since(std::time::UNIX_EPOCH)
+                                                .unwrap_or_default()
+                                                .as_millis() as u64,
+                                        };
+                                        let _ = app_handle.emit("sse-event", &sse_event);
+                                        current_data.clear();
+                                        current_event = String::from("message");
+                                        current_id = None;
+                                    }
+                                } else if let Some(stripped) = trimmed.strip_prefix("event:") {
                                     current_event = stripped.trim().to_string();
-                                } else if line.starts_with("id:") {
-                                    // track last event id if needed
-                                } else if line.is_empty() && !current_data.is_empty() {
+                                } else if let Some(stripped) = trimmed.strip_prefix("id:") {
+                                    current_id = Some(stripped.trim().to_string());
+                                } else if trimmed.is_empty() && !current_data.is_empty() {
                                     let sse_event = SseEvent {
                                         connection_id: conn_id.clone(),
                                         event: current_event.clone(),
                                         data: current_data.trim_end().to_string(),
-                                        id: None,
+                                        id: current_id.take(),
                                         timestamp: std::time::SystemTime::now()
                                             .duration_since(std::time::UNIX_EPOCH)
                                             .unwrap_or_default()

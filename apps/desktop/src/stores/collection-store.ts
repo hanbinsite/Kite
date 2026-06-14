@@ -209,13 +209,16 @@ function ipcItemsToTree(items: IpcCollectionItem[]): CollectionTreeNode[] {
 }
 
 function findAndRemoveNode(items: CollectionTreeNode[], id: string): CollectionTreeNode[] {
-    return items.filter((item) => {
-        if (item.type === "request" && item.id === id) return false;
-        if (item.type === "folder") {
-            item.items = findAndRemoveNode(item.items, id);
-        }
-        return true;
-    }).map((item) => item);
+  return items.flatMap((item) => {
+    if (item.type === "request" && item.id === id) return [];
+    if (item.type === "folder") {
+      const newItems = findAndRemoveNode(item.items, id);
+      if (newItems !== item.items) {
+        return [{ ...item, items: newItems }];
+      }
+    }
+    return [item];
+  });
 }
 
 function findAndRenameNode(items: CollectionTreeNode[], id: string, name: string): CollectionTreeNode[] {
@@ -282,9 +285,10 @@ function findInTree(
 }
 
 function updateFolderConfigInTree(items: CollectionTreeNode[], folderId: string, config: FolderConfig): boolean {
-  for (const item of items) {
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]!;
     if (item.type === "folder" && item.id === folderId) {
-      item.config = config;
+      items[i] = { ...item, config };
       return true;
     }
     if (item.type === "folder") {

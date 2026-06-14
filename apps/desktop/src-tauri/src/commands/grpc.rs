@@ -205,6 +205,8 @@ pub async fn send_grpc_request(
         let app_handle = app.clone();
         let output_desc = method.output().clone();
 
+        const MAX_GRPC_FRAME_SIZE: usize = 64 * 1024 * 1024;
+
         tokio::spawn(async move {
             use futures_util::StreamExt;
             let mut stream = response.bytes_stream();
@@ -215,10 +217,23 @@ pub async fn send_grpc_request(
                     Some(Ok(chunk)) => {
                         buffer.extend_from_slice(&chunk);
                         while buffer.len() >= 5 {
+                            let compressed = buffer[0] != 0;
                             let len = u32::from_be_bytes([buffer[1], buffer[2], buffer[3], buffer[4]]) as usize;
+                            if len > MAX_GRPC_FRAME_SIZE {
+                                let stream_msg = GrpcStreamMessage {
+                                    request_id: conn_id.clone(),
+                                    body: format!("Frame size {} exceeds maximum {}", len, MAX_GRPC_FRAME_SIZE),
+                                    stream_type: "error".to_string(),
+                                };
+                                let _ = app_handle.emit("grpc-stream-message", &stream_msg);
+                                buffer.clear();
+                                break;
+                            }
                             if buffer.len() < 5 + len { break; }
                             let frame_data = buffer[5..5 + len].to_vec();
                             buffer.drain(..5 + len);
+
+                            let _ = compressed;
 
                             match DynamicMessage::decode(output_desc.clone(), frame_data.as_slice()) {
                                 Ok(msg) => {
