@@ -94,9 +94,15 @@ pub async fn unlock_vault(app: tauri::AppHandle, master_password: String) -> Res
 
     let salt: [u8; 16] = if salt_file.exists() {
         let salt_bytes = std::fs::read(&salt_file).map_err(|e| AppError::storage_read_failed(format!("Failed to read salt: {}", e)))?;
-        let mut s = [0u8; 16];
-        s.copy_from_slice(&salt_bytes[..16]);
-        s
+        if salt_bytes.len() < 16 {
+            let new_salt = generate_salt();
+            std::fs::write(&salt_file, new_salt).map_err(|e| AppError::storage_write_failed(format!("Failed to write salt: {}", e)))?;
+            new_salt
+        } else {
+            let mut s = [0u8; 16];
+            s.copy_from_slice(&salt_bytes[..16]);
+            s
+        }
     } else {
         let new_salt = generate_salt();
         std::fs::write(&salt_file, new_salt).map_err(|e| AppError::storage_write_failed(format!("Failed to write salt: {}", e)))?;

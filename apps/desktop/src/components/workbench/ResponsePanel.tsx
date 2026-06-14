@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useTabStore, useUIStore } from "@api-client/core";
 import { useChatStore, useProviderStore, buildContextMessage } from "@api-client/core/ai";
+import { useShallow } from "zustand/shallow";
 import { useRequestStore } from "../../stores";
 import { JsonViewer } from "../response/JsonViewer";
 import { ConsolePanel } from "../console/ConsolePanel";
@@ -44,16 +45,11 @@ export function ResponsePanel() {
   const [showTruncated, setShowTruncated] = useState(false);
 
   const activeTabId = useTabStore((s) => s.activeTabId);
-  const responses = useRequestStore((s) => s.responses);
-  const testResults = useRequestStore((s) => s.testResults);
-  const loadingTabs = useRequestStore((s) => s.loadingTabs);
-  const errors = useRequestStore((s) => s.errors);
-  const error = activeTabId ? errors[activeTabId] : undefined;
+  const response = useRequestStore(useShallow((s) => activeTabId ? s.responses[activeTabId] : undefined));
+  const currentTestResults = useRequestStore(useShallow((s) => activeTabId ? s.testResults[activeTabId] ?? [] : []));
+  const isLoading = useRequestStore(useShallow((s) => activeTabId ? !!s.loadingTabs[activeTabId] : false));
+  const error = useRequestStore(useShallow((s) => activeTabId ? s.errors[activeTabId] : undefined));
   const requestDataMap = useRequestStore((s) => s.requestDataMap);
-
-  const response = activeTabId ? responses[activeTabId] : undefined;
-  const currentTestResults = activeTabId ? (testResults[activeTabId] ?? []) : [];
-  const isLoading = activeTabId ? !!loadingTabs[activeTabId] : false;
 
   const responseTabs = RESPONSE_TABS(t);
   const tabRefs = useRef<Partial<Record<ResponseTabId, HTMLButtonElement | null>>>({});

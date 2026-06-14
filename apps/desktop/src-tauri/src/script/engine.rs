@@ -1,12 +1,24 @@
 use rquickjs::{Runtime, Context, Ctx, Object};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::OnceLock;
 use std::time::Duration;
 
 const MEMORY_LIMIT_BYTES: usize = 128 * 1024 * 1024;
 const STACK_SIZE_BYTES: usize = 1024 * 1024;
 const DEFAULT_TIMEOUT_MS: u64 = 5000;
 const SEND_REQUEST_TIMEOUT_SECS: u64 = 30;
+
+static SEND_REQUEST_CLIENT: OnceLock<reqwest::blocking::Client> = OnceLock::new();
+
+fn send_request_client() -> &'static reqwest::blocking::Client {
+    SEND_REQUEST_CLIENT.get_or_init(|| {
+        reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(SEND_REQUEST_TIMEOUT_SECS))
+            .build()
+            .expect("Failed to build script HTTP client")
+    })
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -185,13 +197,7 @@ impl ScriptEngine {
 
         let body_str: Option<String> = config.get("body").ok();
 
-        let client = reqwest::blocking::Client::builder()
-            .timeout(Duration::from_secs(SEND_REQUEST_TIMEOUT_SECS))
-            .build();
-
-        let Ok(client) = client else {
-            return serde_json::json!({"status": 0, "error": "Failed to create HTTP client", "body": "", "headers": {}}).to_string();
-        };
+        let client = send_request_client();
 
         let method_req = match method.to_uppercase().as_str() {
             "POST" => reqwest::Method::POST,
