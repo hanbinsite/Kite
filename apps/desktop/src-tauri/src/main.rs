@@ -6,7 +6,17 @@ use tauri::Manager;
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt::init();
+    let file_appender = tracing_appender::rolling::daily(
+        std::env::temp_dir().join("api-client-logs"),
+        "api-client.log",
+    );
+    tracing_subscriber::fmt()
+        .with_writer(file_appender)
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"))
+        )
+        .init();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -30,6 +40,8 @@ async fn main() {
             commands::file_ops::delete_file,
             commands::file_ops::list_directory,
             commands::file_ops::create_directory,
+            commands::file_ops::save_app_settings,
+            commands::file_ops::load_app_settings,
             commands::history::insert_history_entry,
             commands::history::query_history_entries,
             commands::history::search_history_entries,

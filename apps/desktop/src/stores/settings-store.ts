@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { invoke } from "@tauri-apps/api/core";
 
 const SETTINGS_KEY = "api-client-settings";
 
@@ -32,12 +33,21 @@ const defaults: AppSettings = {
   autoSave: true,
 };
 
-function loadSettings(): AppSettings {
+async function loadSettings(): Promise<AppSettings> {
   try {
-    const saved = localStorage.getItem(SETTINGS_KEY);
+    const saved = await invoke<string | null>("load_app_settings");
     if (saved) return { ...defaults, ...JSON.parse(saved) };
   } catch {}
+  try {
+    const fallback = localStorage.getItem(SETTINGS_KEY);
+    if (fallback) return { ...defaults, ...JSON.parse(fallback) };
+  } catch {}
   return defaults;
+}
+
+function persistSettings(settings: AppSettings) {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  invoke("save_app_settings", { settings: JSON.stringify(settings) }).catch(() => {});
 }
 
 function applyFontSize(size: string) {
@@ -50,11 +60,11 @@ function applyCodeFont(font: string, size: string) {
 }
 
 export const useSettingsStore = create<AppSettings & { updateSetting: (key: keyof AppSettings, value: string | boolean) => void }>()((set) => ({
-  ...loadSettings(),
+  ...defaults,
   updateSetting: (key, value) => {
     set((state) => {
       const newState = { ...state, [key]: value };
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(newState));
+      persistSettings(newState);
       if (key === "fontSize" || key === "uiFontSize") {
         applyFontSize(typeof value === "string" ? value : state.fontSize);
       }
@@ -68,6 +78,11 @@ export const useSettingsStore = create<AppSettings & { updateSetting: (key: keyo
   },
 }));
 
-const initialSettings = loadSettings();
-applyFontSize(initialSettings.fontSize);
-applyCodeFont(initialSettings.codeFont, initialSettings.codeFontSize);
+loadSettings().then((loaded) => {
+  useSettingsStore.setState(loaded);
+  applyFontSize(loaded.fontSize);
+  applyCodeFont(loaded.codeFont, loaded.codeFontSize);
+});
+
+applyFontSize(defaults.fontSize);
+applyCodeFont(defaults.codeFont, defaults.codeFontSize);

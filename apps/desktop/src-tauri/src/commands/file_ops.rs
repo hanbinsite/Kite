@@ -3,6 +3,25 @@ use tauri::Manager;
 
 use crate::error::AppError;
 
+#[tauri::command]
+pub async fn save_app_settings(app: tauri::AppHandle, settings: String) -> Result<(), AppError> {
+    let data_dir = app.path().app_data_dir().map_err(|e| AppError::internal(format!("Cannot get app data dir: {}", e)))?;
+    std::fs::write(data_dir.join("settings.json"), &settings)
+        .map_err(|e| AppError::storage_write_failed(format!("Failed to save settings: {}", e)))
+}
+
+#[tauri::command]
+pub async fn load_app_settings(app: tauri::AppHandle) -> Result<Option<String>, AppError> {
+    let data_dir = app.path().app_data_dir().map_err(|e| AppError::internal(format!("Cannot get app data dir: {}", e)))?;
+    let path = data_dir.join("settings.json");
+    if !path.exists() {
+        return Ok(None);
+    }
+    std::fs::read_to_string(&path)
+        .map(Some)
+        .map_err(|e| AppError::storage_read_failed(format!("Failed to load settings: {}", e)))
+}
+
 pub fn validate_path_within_app_data(app_data_dir: &Path, target_path: &Path) -> Result<(), AppError> {
     let canonical_app = app_data_dir.canonicalize().map_err(|e| AppError::internal(format!("Cannot resolve app data dir: {}", e)))?;
     let target_normalized = target_path.to_path_buf();
