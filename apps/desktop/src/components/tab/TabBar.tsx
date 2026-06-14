@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { X, Plus } from "lucide-react";
 import { useTabStore } from "@api-client/core";
 import { useRequestStore, useWsStore, useSseStore, useMqttStore } from "../../stores";
+import { modKeyLabel } from "../../utils/platform";
 import { EnvSelector } from "../url-bar/EnvSelector";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
 import { saveCurrentRequest } from "../../hooks/useAutoSave";
@@ -148,7 +149,7 @@ export function TabBar() {
         <button
           onClick={handleNewTab}
           className="flex items-center justify-center w-7 h-7 rounded hover:bg-bg-hover text-fg-tertiary hover:text-fg-primary transition-colors flex-shrink-0"
-          title={`${t("tabs.newTab")} (Cmd+T)`}
+          title={`${t("tabs.newTab")} (${modKeyLabel}+T)`}
         >
           <Plus className="w-3.5 h-3.5" />
         </button>

@@ -16,6 +16,7 @@ import { useSseStore } from "./stores/sse-store";
 import { useMqttStore } from "./stores/mqtt-store";
 import { useProviderStore } from "@api-client/core/ai";
 import { i18n } from "./i18n";
+import { formatShortcut } from "./utils/platform";
 
 export function App() {
   const { t } = useTranslation();
@@ -130,7 +131,7 @@ export function App() {
       category: "action",
       icon: <Plus className="w-4 h-4" />,
       action: () => openTab({ name: t("tabs.newRequest"), method: "GET", url: "" }),
-      shortcut: "Cmd+N",
+      shortcut: formatShortcut("Cmd+N"),
     },
     {
       id: "toggle-sidebar",
@@ -138,7 +139,7 @@ export function App() {
       category: "action",
       icon: <Settings className="w-4 h-4" />,
       action: toggleSidebar,
-      shortcut: "Cmd+B",
+      shortcut: formatShortcut("Cmd+B"),
     },
     {
       id: "generate-code",
@@ -146,7 +147,7 @@ export function App() {
       category: "action",
       icon: <Code2 className="w-4 h-4" />,
       action: () => setIsCodeDrawerOpen(true),
-      shortcut: "Cmd+Shift+C",
+      shortcut: formatShortcut("Cmd+Shift+C"),
     },
     {
       id: "toggle-console",
@@ -154,7 +155,7 @@ export function App() {
       category: "action",
       icon: <Terminal className="w-4 h-4" />,
       action: toggleConsole,
-      shortcut: "Cmd+J",
+      shortcut: formatShortcut("Cmd+J"),
     },
     {
       id: "collection-runner",
@@ -190,7 +191,7 @@ export function App() {
       category: "ai",
       icon: <Bot className="w-4 h-4" />,
       action: () => { setBottomPanelTab("ai"); toggleAiPanel(); },
-      shortcut: "Cmd+Shift+L",
+      shortcut: formatShortcut("Cmd+Shift+L"),
     },
     ...collectionItems,
   ];

@@ -3,6 +3,7 @@ import { Zap, Clock, FolderOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTabStore, useUIStore } from "@api-client/core";
 import { queryHistoryEntries, type HistoryEntry } from "@api-client/core/http";
+import { modKeyLabel } from "../../utils/platform";
 
 const METHOD_BG: Record<string, string> = {
   get: "bg-method-get",
@@ -61,7 +62,7 @@ export function HomePage() {
             </div>
             <div>
               <div className="font-medium text-fg-primary">{t("home.newRequest")}</div>
-              <div className="text-xs text-fg-secondary">Cmd + N</div>
+              <div className="text-xs text-fg-secondary">{modKeyLabel} + N</div>
             </div>
           </button>
 

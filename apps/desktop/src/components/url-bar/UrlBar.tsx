@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Menu, Save, Check } from "lucide-react";
 import { useUIStore, useTabStore } from "@api-client/core";
 import { useEnvironmentStore } from "../../stores/environment-store";
+import { modKeyLabel } from "../../utils/platform";
 import { useCollectionStore } from "../../stores/collection-store";
 import { useRequestStore } from "../../stores";
 import { saveCurrentRequest } from "../../hooks/useAutoSave";
@@ -188,7 +189,7 @@ const handleSave = useCallback(() => {
         <button
           onClick={toggleSidebar}
           className="p-1.5 hover:bg-bg-hover rounded transition-colors"
-          title={`${t("sidebar.toggleSidebar")} (Cmd+B)`}
+          title={`${t("sidebar.toggleSidebar")} (${modKeyLabel}+B)`}
         >
           <Menu className="w-4 h-4 text-fg-secondary" />
         </button>
