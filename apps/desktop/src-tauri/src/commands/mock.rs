@@ -179,6 +179,7 @@ pub async fn start_mock_server(
     tokio::spawn(async move {
         let listener = listener;
         let mut shutdown_rx = std::pin::pin!(shutdown_rx);
+        let mut connections = tokio::task::JoinSet::new();
         loop {
             tokio::select! {
                 accept_result = listener.accept() => {
@@ -187,7 +188,7 @@ pub async fn start_mock_server(
                             let io = TokioIo::new(stream);
                             let routes = routes.clone();
                             let app_handle = app_handle.clone();
-                            tokio::spawn(async move {
+                            connections.spawn(async move {
                                 let service = service_fn(move |req| {
                                     let routes = routes.clone();
                                     let app_handle = app_handle.clone();
@@ -207,10 +208,15 @@ pub async fn start_mock_server(
                 }
                 _ = &mut shutdown_rx => {
                     tracing::info!("Mock server shutting down");
+                    drop(listener);
                     break;
                 }
             }
         }
+        let _ = tokio::time::timeout(Duration::from_secs(5), async {
+            while (connections.join_next().await).is_some() {}
+        }).await;
+        connections.shutdown().await;
     });
 
     *state.server.write().await = Some(MockServer {

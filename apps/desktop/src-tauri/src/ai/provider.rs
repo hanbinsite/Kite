@@ -2,7 +2,7 @@ use crate::error::AppError;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Mutex, RwLock};
 use tauri::{Manager, Emitter};
 use futures_util::StreamExt;
 
@@ -74,6 +74,7 @@ pub struct AiApiKeyStatus {
 }
 
 static ACTIVE_PROVIDER: Mutex<Option<String>> = Mutex::new(None);
+static PROVIDERS_CACHE: RwLock<Option<Vec<AiProviderConfig>>> = RwLock::new(None);
 
 fn providers_file(app: &tauri::AppHandle) -> Result<PathBuf, AppError> {
     let data_dir = app
@@ -93,6 +94,23 @@ fn load_providers_from_file(path: &PathBuf) -> Result<Vec<AiProviderConfig>, App
         .map_err(|e| AppError::storage_parse_failed(format!("Failed to parse providers file: {}", e)))
 }
 
+fn load_providers_cached(app: &tauri::AppHandle) -> Result<Vec<AiProviderConfig>, AppError> {
+    if let Some(cached) = PROVIDERS_CACHE.read().map_err(|e| AppError::internal(format!("Lock error: {}", e)))?.as_ref() {
+        return Ok(cached.clone());
+    }
+    let path = providers_file(app)?;
+    let providers = load_providers_from_file(&path)?;
+    let mut cache = PROVIDERS_CACHE.write().map_err(|e| AppError::internal(format!("Lock error: {}", e)))?;
+    *cache = Some(providers.clone());
+    Ok(providers)
+}
+
+fn invalidate_providers_cache() {
+    if let Ok(mut cache) = PROVIDERS_CACHE.write() {
+        *cache = None;
+    }
+}
+
 fn save_providers_to_file(path: &PathBuf, providers: &[AiProviderConfig]) -> Result<(), AppError> {
     let content = serde_json::to_string_pretty(providers)
         .map_err(|e| AppError::internal(format!("Failed to serialize providers: {}", e)))?;
@@ -110,14 +128,12 @@ fn get_api_key(provider_id: &str) -> Result<String, AppError> {
 
 #[tauri::command]
 pub async fn ai_list_providers(app: tauri::AppHandle) -> Result<Vec<AiProviderConfig>, AppError> {
-    let path = providers_file(&app)?;
-    load_providers_from_file(&path)
+    load_providers_cached(&app)
 }
 
 #[tauri::command]
 pub async fn ai_set_provider(app: tauri::AppHandle, provider_id: String) -> Result<(), AppError> {
-    let path = providers_file(&app)?;
-    let providers = load_providers_from_file(&path)?;
+    let providers = load_providers_cached(&app)?;
     if !providers.iter().any(|p| p.id == provider_id) {
         return Err(AppError::storage_not_found(format!("Provider '{}' not found", provider_id)));
     }
@@ -135,6 +151,7 @@ pub async fn ai_add_provider(app: tauri::AppHandle, config: AiProviderConfig) ->
     providers.retain(|p| p.id != config.id);
     providers.push(config);
     save_providers_to_file(&path, &providers)?;
+    invalidate_providers_cache();
     Ok(())
 }
 
@@ -144,6 +161,7 @@ pub async fn ai_remove_provider(app: tauri::AppHandle, provider_id: String) -> R
     let mut providers = load_providers_from_file(&path)?;
     providers.retain(|p| p.id != provider_id);
     save_providers_to_file(&path, &providers)?;
+    invalidate_providers_cache();
 
     if let Ok(keyring_entry) = keyring::Entry::new("api-client", &format!("ai-key-{}", provider_id)) {
         let _ = keyring_entry.delete_credential();
@@ -172,10 +190,7 @@ pub async fn ai_get_api_key_status(provider_id: String) -> Result<AiApiKeyStatus
 
 #[tauri::command]
 pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base_url: String, model: String) -> Result<AiUsage, AppError> {
-    let providers = {
-        let path = providers_file(&app)?;
-        load_providers_from_file(&path)?
-    };
+    let providers = load_providers_cached(&app)?;
     let provider = providers.iter().find(|p| p.id == provider_id);
 
     let client = Client::new();
@@ -221,8 +236,7 @@ pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base
 
 #[tauri::command]
 pub async fn ai_chat(app: tauri::AppHandle, request: AiChatRequest) -> Result<AiChatResponse, AppError> {
-    let path = providers_file(&app)?;
-    let providers = load_providers_from_file(&path)?;
+    let providers = load_providers_cached(&app)?;
     let provider = providers.iter().find(|p| p.id == request.provider_id)
         .ok_or(AppError::storage_not_found(format!("Provider '{}' not found", request.provider_id)))?;
 
@@ -278,8 +292,7 @@ pub async fn ai_chat(app: tauri::AppHandle, request: AiChatRequest) -> Result<Ai
 
 #[tauri::command]
 pub async fn ai_stream_chat(app: tauri::AppHandle, request: AiChatRequest) -> Result<String, AppError> {
-    let path = providers_file(&app)?;
-    let providers = load_providers_from_file(&path)?;
+    let providers = load_providers_cached(&app)?;
     let provider = providers.iter().find(|p| p.id == request.provider_id)
         .ok_or(AppError::storage_not_found(format!("Provider '{}' not found", request.provider_id)))?;
 

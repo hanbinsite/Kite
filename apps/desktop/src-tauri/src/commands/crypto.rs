@@ -8,9 +8,18 @@ use argon2::Argon2;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 use tauri::Manager;
 
-static VAULT_KEY: Mutex<Option<[u8; 32]>> = Mutex::new(None);
+static VAULT_KEY: Mutex<Option<([u8; 32], Instant)>> = Mutex::new(None);
+const VAULT_KEY_IDLE_TIMEOUT: Duration = Duration::from_secs(300);
+
+fn drop_key(key: &mut [u8; 32]) {
+    for byte in key.iter_mut() {
+        unsafe { std::ptr::write_volatile(byte, 0) };
+    }
+    std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -53,9 +62,29 @@ fn generate_salt() -> [u8; 16] {
     salt
 }
 
+fn check_key_timeout() -> Result<(), AppError> {
+    let mut vault_key = VAULT_KEY.lock().map_err(|e| AppError::internal(format!("Lock error: {}", e)))?;
+    if let Some((_, last_used)) = *vault_key {
+        if last_used.elapsed() > VAULT_KEY_IDLE_TIMEOUT {
+            if let Some((ref mut key, _)) = *vault_key {
+                drop_key(key);
+            }
+            *vault_key = None;
+        }
+    }
+    Ok(())
+}
+
 fn get_key() -> Result<[u8; 32], AppError> {
-    let vault_key = VAULT_KEY.lock().map_err(|e| AppError::internal(format!("Lock error: {}", e)))?;
-    vault_key.ok_or(AppError::vault_locked())
+    check_key_timeout()?;
+    let mut vault_key = VAULT_KEY.lock().map_err(|e| AppError::internal(format!("Lock error: {}", e)))?;
+    match *vault_key {
+        Some((key, ref mut last_used)) => {
+            *last_used = Instant::now();
+            Ok(key)
+        }
+        None => Err(AppError::vault_locked()),
+    }
 }
 
 #[tauri::command]
@@ -78,7 +107,7 @@ pub async fn unlock_vault(app: tauri::AppHandle, master_password: String) -> Res
 
     {
         let mut vault_key = VAULT_KEY.lock().map_err(|e| AppError::internal(format!("Lock error: {}", e)))?;
-        *vault_key = Some(key);
+        *vault_key = Some((key, Instant::now()));
     }
 
     let verify_file = vault_dir.join("verify.bin");
@@ -113,6 +142,9 @@ pub async fn unlock_vault(app: tauri::AppHandle, master_password: String) -> Res
 #[tauri::command]
 pub async fn lock_vault() -> Result<(), AppError> {
     let mut vault_key = VAULT_KEY.lock().map_err(|e| AppError::internal(format!("Lock error: {}", e)))?;
+    if let Some((ref mut key, _)) = *vault_key {
+        drop_key(key);
+    }
     *vault_key = None;
     Ok(())
 }

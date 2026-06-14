@@ -2,7 +2,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tauri::{Manager, State};
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
@@ -10,8 +10,10 @@ use tokio_util::sync::CancellationToken;
 use crate::error::AppError;
 use crate::storage::CookieEntry;
 
+const CANCELLATION_TOKEN_TTL: Duration = Duration::from_secs(300);
+
 pub struct HttpClientState {
-    pub cancellation_tokens: Arc<RwLock<HashMap<String, CancellationToken>>>,
+    pub cancellation_tokens: Arc<RwLock<HashMap<String, (CancellationToken, Instant)>>>,
 }
 
 impl HttpClientState {
@@ -19,6 +21,11 @@ impl HttpClientState {
         Self {
             cancellation_tokens: Arc::new(RwLock::new(HashMap::new())),
         }
+    }
+
+    pub async fn cleanup_expired_tokens(&self) {
+        let mut tokens = self.cancellation_tokens.write().await;
+        tokens.retain(|_, (_, created)| created.elapsed() < CANCELLATION_TOKEN_TTL);
     }
 }
 
@@ -362,7 +369,7 @@ pub async fn send_http_request(
     let start = Instant::now();
 
     let cancel_token = CancellationToken::new();
-    http_state.cancellation_tokens.write().await.insert(request_id.clone(), cancel_token.clone());
+    http_state.cancellation_tokens.write().await.insert(request_id.clone(), (cancel_token.clone(), Instant::now()));
 
     apply_auth_to_config(&mut config)?;
 
@@ -584,7 +591,7 @@ pub async fn cancel_http_request(
     request_id: String,
 ) -> Result<(), AppError> {
     let mut tokens = state.cancellation_tokens.write().await;
-    if let Some(token) = tokens.remove(&request_id) {
+    if let Some((token, _)) = tokens.remove(&request_id) {
         token.cancel();
     }
     Ok(())

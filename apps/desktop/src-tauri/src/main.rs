@@ -107,6 +107,15 @@ commands::crypto::delete_vault_secret,
                         *storage_lock = Some(s);
                         tracing::info!("Storage initialized at {:?}", data_dir);
                     }
+
+                    let app_handle2 = app_handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
+                        loop {
+                            interval.tick().await;
+                            app_handle2.state::<commands::http::HttpClientState>().cleanup_expired_tokens().await;
+                        }
+                    });
                 }
             });
             Ok(())
