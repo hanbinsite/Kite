@@ -137,6 +137,33 @@ export function JsonViewer({ data, defaultCollapsed = 4 }: JsonViewerProps) {
         setJsonPath(path);
     }, []);
 
+    const filteredValue = useMemo(() => {
+        if (!jsonPath || !parsed) return parsed;
+        try {
+            const segments = jsonPath
+                .replace(/^\$\.?/, "")
+                .split(/(?<=[^\\])\.|(?<!\\)\[|\](?=\.|$)/)
+                .filter(Boolean)
+                .map((s) => s.replace(/^["']|["']$/g, ""));
+            let current: unknown = parsed;
+            for (const seg of segments) {
+                if (current === null || current === undefined) return null;
+                if (Array.isArray(current)) {
+                    const idx = parseInt(seg, 10);
+                    if (isNaN(idx)) return null;
+                    current = (current as unknown[])[idx];
+                } else if (typeof current === "object") {
+                    current = (current as Record<string, unknown>)[seg];
+                } else {
+                    return null;
+                }
+            }
+            return current;
+        } catch {
+            return parsed;
+        }
+    }, [jsonPath, parsed]);
+
     if (parsed === null) {
         return (
             <div className="p-3 font-mono text-[12px] text-fg-secondary whitespace-pre-wrap break-all">
@@ -172,7 +199,7 @@ export function JsonViewer({ data, defaultCollapsed = 4 }: JsonViewerProps) {
             <div className="flex-1 overflow-auto p-3">
       <JsonNode
         keyName={null}
-        value={parsed}
+        value={filteredValue}
         depth={0}
         defaultCollapsed={defaultCollapsed}
         path="$"

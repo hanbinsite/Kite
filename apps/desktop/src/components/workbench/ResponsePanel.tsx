@@ -5,6 +5,7 @@ import { useChatStore, useProviderStore, buildContextMessage } from "@api-client
 import { useShallow } from "zustand/shallow";
 import { useRequestStore } from "../../stores";
 import { JsonViewer } from "../response/JsonViewer";
+import { getStatusClass } from "../response/utils";
 import { ConsolePanel } from "../console/ConsolePanel";
 import { TestsTab } from "../response/TestsTab";
 import { ScriptErrorCard } from "../response/ScriptErrorCard";
@@ -22,13 +23,6 @@ const RESPONSE_TABS = (t: (key: string) => string) => [
 type ResponseTabId = ReturnType<typeof RESPONSE_TABS>[number]["id"];
 
 type BodyViewMode = "pretty" | "raw" | "preview";
-
-function getStatusClass(status: number): string {
-  if (status >= 200 && status < 300) return "s2xx text-accent-success bg-accent-success/12";
-  if (status >= 300 && status < 400) return "s3xx text-accent-info bg-accent-info/12";
-  if (status >= 400 && status < 500) return "s4xx text-accent-warning bg-accent-warning/12";
-  return "s5xx text-accent-danger bg-accent-danger/12";
-}
 
 const LARGE_BODY_THRESHOLD = 1 * 1024 * 1024;
 const TRUNCATE_SIZE = 2 * 1024 * 1024;

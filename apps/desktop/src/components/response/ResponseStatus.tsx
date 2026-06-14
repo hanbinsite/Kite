@@ -2,19 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useRequestStore } from "../../stores/request-store";
 import { useTabStore } from "@api-client/core";
 import { Clock, HardDrive, ArrowDownToLine, Maximize2 } from "lucide-react";
-
-function getStatusClass(status: number): string {
-  if (status >= 200 && status < 300) {
-    return "text-accent-success bg-accent-success/12";
-  }
-  if (status >= 300 && status < 400) {
-    return "text-accent-info bg-accent-info/12";
-  }
-  if (status >= 400 && status < 500) {
-    return "text-accent-warning bg-accent-warning/12";
-  }
-  return "text-accent-danger bg-accent-danger/12";
-}
+import { getStatusClass } from "./utils";
 
 export function ResponseStatus() {
   const { t } = useTranslation();

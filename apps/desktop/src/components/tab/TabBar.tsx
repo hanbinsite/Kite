@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { X, Plus } from "lucide-react";
+import { X, Plus, Loader2 } from "lucide-react";
 import { useTabStore } from "@api-client/core";
 import { useRequestStore, useWsStore, useSseStore, useMqttStore } from "../../stores";
 import { modKeyLabel } from "../../utils/platform";
@@ -17,6 +17,7 @@ export function TabBar() {
   const setActiveTab = useTabStore((s) => s.setActiveTab);
   const removeTabData = useRequestStore((s) => s.removeTabData);
   const dirtyTabs = useRequestStore((s) => s.dirtyTabs);
+  const loadingTabs = useRequestStore((s) => s.loadingTabs);
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; tabId: string } | null>(null);
   const [confirmClose, setConfirmClose] = useState<{ tabId: string; source: "close" | "closeOthers" | "closeAll" } | null>(null);
@@ -129,6 +130,9 @@ export function TabBar() {
               }`}
             >
               <span className="max-w-40 truncate">{tab.name || t("tabs.untitled")}</span>
+              {loadingTabs[tab.id] && (
+                <Loader2 className="w-3 h-3 text-brand animate-spin shrink-0" />
+              )}
               {dirtyTabs[tab.id] && !isActive && (
                 <span className="w-[6px] h-[6px] rounded-full bg-accent-warning shrink-0" />
               )}

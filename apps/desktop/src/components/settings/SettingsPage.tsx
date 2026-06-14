@@ -100,7 +100,7 @@ export function SettingsPage() {
       <div className="fixed inset-0 z-modal flex items-center justify-center animate-fade-in" onClick={(e) => {
         if (e.target === e.currentTarget) handleCloseSettings();
       }}>
-        <div className="absolute inset-0 bg-bg-overlay backdrop-blur-[4px]" />
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
         <div
           className="relative w-[90vw] max-w-[680px] h-[85vh] max-h-[560px] bg-bg-surface border border-border-default rounded-xl shadow-lg flex flex-col overflow-hidden animate-fade-in-up"
           onClick={(e) => e.stopPropagation()}

@@ -394,7 +394,7 @@ pub async fn send_http_request(
     }
 
     let method = reqwest::Method::from_bytes(config.method.to_uppercase().as_bytes())
-        .unwrap_or(reqwest::Method::GET);
+        .map_err(|_| AppError::internal(format!("Invalid HTTP method: {}", config.method)))?;
 
     let mut request_builder = client.request(method, &url);
 
@@ -546,9 +546,13 @@ pub async fn send_http_request(
     let headers: Vec<ResponseHeader> = response
         .headers()
         .iter()
-        .map(|(k, v)| ResponseHeader {
-            key: k.to_string(),
-            value: v.to_str().unwrap_or("").to_string(),
+        .map(|(k, v)| {
+            let value = v.to_str().map(|s| s.to_string()).unwrap_or_else(|_| {
+                let lossy = String::from_utf8_lossy(v.as_bytes()).to_string();
+                tracing::warn!("Non-UTF8 response header '{}': replaced with lossy conversion", k);
+                lossy
+            });
+            ResponseHeader { key: k.to_string(), value }
         })
         .collect();
 

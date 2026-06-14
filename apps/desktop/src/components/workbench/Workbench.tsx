@@ -24,7 +24,7 @@ export function Workbench() {
     if (activeTabId && activeTab?.protocol !== "collection-config") {
       switchTab(activeTabId);
     }
-  }, [activeTabId]);
+  }, [activeTabId, activeTab?.protocol, switchTab]);
 
   if (!activeTabId) {
     return <HomePage />;
