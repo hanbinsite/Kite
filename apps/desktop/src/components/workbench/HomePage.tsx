@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useTabStore, useUIStore } from "@api-client/core";
 import { queryHistoryEntries, type HistoryEntry } from "@api-client/core/http";
 import { modKeyLabel } from "../../utils/platform";
+import { useRequestStore } from "../../stores";
 
 const METHOD_BG: Record<string, string> = {
   get: "bg-method-get",
@@ -18,13 +19,14 @@ export function HomePage() {
   const openTab = useTabStore((s) => s.openTab);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const historyRefreshCounter = useRequestStore((s) => s.historyRefreshCounter);
 
   useEffect(() => {
     queryHistoryEntries(10).then(setHistory).catch((e) => {
       console.error("Failed to load recent requests for home page:", e);
       setHistory([]);
     });
-  }, []);
+  }, [historyRefreshCounter]);
 
   const formatTimeAgo = useCallback((dateStr: string): string => {
     const date = new Date(dateStr);

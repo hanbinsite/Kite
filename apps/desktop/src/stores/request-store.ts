@@ -141,6 +141,7 @@ export interface RequestState {
   requestDataMap: Record<string, RequestData>;
   currentTabId: string | null;
   dirtyTabs: Record<string, boolean>;
+  historyRefreshCounter: number;
 }
 
 export interface RequestActions {
@@ -275,6 +276,7 @@ export const useRequestStore = create<RequestStore>()(
   requestDataMap: {},
   currentTabId: null,
   dirtyTabs: {},
+  historyRefreshCounter: 0,
 
   setTabLoading: (tabId, loading) =>
     set((state) => {
@@ -288,6 +290,7 @@ export const useRequestStore = create<RequestStore>()(
     setResponse: (tabId, response) =>
       set((state) => {
         state.responses[tabId] = response;
+        state.historyRefreshCounter++;
       }),
 
     setError: (tabId, error) =>

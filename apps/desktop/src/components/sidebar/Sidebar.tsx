@@ -313,6 +313,7 @@ const deleteRequest = useCollectionStore((s) => s.deleteRequest);
   const loadCollections = useCollectionStore((s) => s.loadFromDisk);
 
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
+  const historyRefreshCounter = useRequestStore((s) => s.historyRefreshCounter);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
@@ -345,7 +346,7 @@ const deleteRequest = useCollectionStore((s) => s.deleteRequest);
       console.error("Failed to load collections:", e);
     });
     queryHistoryEntries(50).then(setHistoryEntries).catch((e) => console.error('Failed to query history entries:', e));
-  }, []);
+  }, [historyRefreshCounter]);
 
   useEffect(() => {
     if (editingId && editInputRef.current) {
