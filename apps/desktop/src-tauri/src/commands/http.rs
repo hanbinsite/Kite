@@ -259,9 +259,9 @@ pub struct ResponseHeader {
 }
 
 fn build_client(settings: &RequestSettings) -> Result<Client, AppError> {
-    // TODO: Cache clients per settings hash for connection reuse
     let mut builder = Client::builder()
         .cookie_store(false)
+        .no_proxy()
         .timeout(std::time::Duration::from_millis(settings.timeout_ms));
 
     if !settings.follow_redirects {
@@ -375,23 +375,17 @@ pub async fn send_http_request(
 
     let client = build_client(&config.settings)?;
 
-    let mut url = config.url.clone();
-    let params: Vec<(&str, &str)> = config
-        .params
-        .iter()
-        .filter(|p| !p.disabled && !p.key.is_empty())
-        .map(|p| (p.key.as_str(), p.value.as_str()))
-        .collect();
-
-    if !params.is_empty() {
-        let query_string = serde_urlencoded::to_string(&params)
-            .map_err(|e| AppError::internal(e.to_string()))?;
-        if url.contains('?') {
-            url = format!("{}&{}", url, query_string);
-        } else {
-            url = format!("{}?{}", url, query_string);
+    let mut parsed_url = reqwest::Url::parse(&config.url)
+        .map_err(|e| AppError::net_invalid_url(format!("Invalid URL: {}", e)))?;
+    {
+        let mut query = parsed_url.query_pairs_mut();
+        for p in &config.params {
+            if !p.disabled && !p.key.is_empty() {
+                query.append_pair(&p.key, &p.value);
+            }
         }
     }
+    let url = parsed_url.to_string();
 
     let method = reqwest::Method::from_bytes(config.method.to_uppercase().as_bytes())
         .map_err(|_| AppError::internal(format!("Invalid HTTP method: {}", config.method)))?;

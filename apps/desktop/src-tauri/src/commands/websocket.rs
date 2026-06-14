@@ -20,7 +20,7 @@ impl Default for WsState {
 }
 
 pub struct WsConnection {
-    pub sender: tokio::sync::mpsc::UnboundedSender<String>,
+    pub sender: tokio::sync::mpsc::Sender<String>,
     pub write_handle: tokio::task::JoinHandle<()>,
     pub read_handle: tokio::task::JoinHandle<()>,
 }
@@ -77,7 +77,7 @@ pub async fn ws_connect(
 
     let (mut write, mut read) = ws_stream.split();
 
-    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<String>();
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<String>(256);
 
     let write_handle = tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
@@ -172,6 +172,7 @@ pub async fn ws_send(
         .ok_or_else(|| crate::error::AppError::net_connect_failed("Connection not found".to_string()))?;
     conn.sender
         .send(message)
+        .await
         .map_err(|e| crate::error::AppError::net_connect_failed(format!("Send failed: {}", e)))?;
     Ok(())
 }
