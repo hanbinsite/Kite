@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.1.0] — 2026-06-15
 
 ### Added
 - HTTP request with full method/headers/body/auth support
@@ -26,4 +26,6 @@
 - Vault key zeroization and idle timeout
 - Binary mode path validation
 - SSE line buffering and size limits
+
+## [Unreleased]
 

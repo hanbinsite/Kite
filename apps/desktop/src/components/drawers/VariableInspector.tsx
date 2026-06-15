@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X, Search, Copy, Check, ChevronDown, ChevronRight } from "lucide-react";
 import { useEnvironmentStore } from "../../stores/environment-store";
+import { useCollectionStore } from "../../stores";
 import { useTranslation } from "react-i18next";
 
 interface VariableInspectorProps {
@@ -39,6 +40,13 @@ export function VariableInspector({ isOpen, onClose }: VariableInspectorProps) {
     }
   };
 
+  const collections = useCollectionStore((s) => s.collections);
+
+  const collectionVars = useMemo(
+    () => collections.flatMap((c) => (c.config?.variables ?? []).map((v) => ({ ...v, _collection: c.name }))),
+    [collections],
+  );
+
   const filteredGlobals = globals.filter((v) =>
     v.key.toLowerCase().includes(search.toLowerCase()) ||
     v.value.toLowerCase().includes(search.toLowerCase()),
@@ -46,6 +54,14 @@ export function VariableInspector({ isOpen, onClose }: VariableInspectorProps) {
 
   const scopeData: { scope: string; label: string; vars: { key: string; value: string; enabled: boolean }[] }[] = [
     { scope: "globals", label: t("variableInspector.globals"), vars: filteredGlobals },
+    ...(collectionVars.length > 0 ? [{
+      scope: "collection",
+      label: t("variableInspector.collection"),
+      vars: collectionVars.filter((v) =>
+        v.key.toLowerCase().includes(search.toLowerCase()) ||
+        v.value.toLowerCase().includes(search.toLowerCase()),
+      ),
+    }] : []),
     ...environments.map((env) => ({
       scope: `env-${env.id}`,
       label: env.name,

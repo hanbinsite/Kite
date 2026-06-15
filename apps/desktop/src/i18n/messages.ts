@@ -497,6 +497,7 @@ export const messages = {
     variableInspector: {
       title: "Variable Inspector",
       globals: "Globals",
+      collection: "Collection",
       noVariables: "No variables",
       variableCount: "{{count}} variables",
     },
@@ -1058,6 +1059,7 @@ export const messages = {
     variableInspector: {
       title: "变量检查器",
       globals: "全局变量",
+      collection: "集合变量",
       noVariables: "无变量",
       variableCount: "{{count}} 个变量",
     },

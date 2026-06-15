@@ -35,5 +35,16 @@ export default defineConfig({
     target: "esnext",
     minify: !process.env.TAURI_DEBUG ? "esbuild" : false,
     sourcemap: !!process.env.TAURI_DEBUG,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-react": ["react", "react-dom", "react-i18next"],
+          "vendor-ui": ["@radix-ui/react-dialog", "@radix-ui/react-tabs", "@radix-ui/react-switch", "@radix-ui/react-dropdown-menu", "lucide-react", "framer-motion"],
+          "vendor-tauri": ["@tauri-apps/api", "@tauri-apps/plugin-dialog", "@tauri-apps/plugin-fs", "@tauri-apps/plugin-global-shortcut"],
+          "vendor-editor": ["@codemirror/view", "@codemirror/state", "@codemirror/lang-json", "@codemirror/lang-javascript", "monaco-editor"],
+          "vendor-graphql": ["graphql-request"],
+        },
+      },
+    },
   },
 });
