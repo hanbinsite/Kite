@@ -18,7 +18,7 @@ pub async fn insert_history_entry(
 ) -> Result<i64, AppError> {
   let storage = app_handle.state::<crate::AppState>().storage.clone();
   tokio::task::spawn_blocking(move || {
-    let storage_lock = storage.lock().unwrap();
+    let storage_lock = storage.lock().expect("storage Mutex poisoned");
     let storage = storage_lock
       .as_ref()
       .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
@@ -37,7 +37,7 @@ pub async fn query_history_entries(
 ) -> Result<Vec<HistoryEntry>, AppError> {
     let storage = app_handle.state::<crate::AppState>().storage.clone();
     tokio::task::spawn_blocking(move || {
-        let storage_lock = storage.lock().unwrap();
+        let storage_lock = storage.lock().expect("storage Mutex poisoned");
         let storage = storage_lock
             .as_ref()
             .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
@@ -57,7 +57,7 @@ pub async fn search_history_entries(
 ) -> Result<Vec<HistoryEntry>, AppError> {
     let storage = app_handle.state::<crate::AppState>().storage.clone();
     tokio::task::spawn_blocking(move || {
-        let storage_lock = storage.lock().unwrap();
+        let storage_lock = storage.lock().expect("storage Mutex poisoned");
         let storage = storage_lock
             .as_ref()
             .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
@@ -76,7 +76,7 @@ pub async fn delete_history_entry(
 ) -> Result<(), AppError> {
   let storage = app_handle.state::<crate::AppState>().storage.clone();
   tokio::task::spawn_blocking(move || {
-    let storage_lock = storage.lock().unwrap();
+    let storage_lock = storage.lock().expect("storage Mutex poisoned");
     let storage = storage_lock
       .as_ref()
       .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
@@ -94,7 +94,7 @@ pub async fn clear_history(
 ) -> Result<(), AppError> {
   let storage = app_handle.state::<crate::AppState>().storage.clone();
   tokio::task::spawn_blocking(move || {
-    let storage_lock = storage.lock().unwrap();
+    let storage_lock = storage.lock().expect("storage Mutex poisoned");
     let storage = storage_lock
       .as_ref()
       .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
@@ -115,7 +115,7 @@ pub async fn get_setting(
 ) -> Result<Option<String>, AppError> {
   let storage = app_handle.state::<crate::AppState>().storage.clone();
   tokio::task::spawn_blocking(move || {
-    let storage_lock = storage.lock().unwrap();
+    let storage_lock = storage.lock().expect("storage Mutex poisoned");
     let storage = storage_lock
       .as_ref()
       .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
@@ -135,7 +135,7 @@ pub async fn set_setting(
 ) -> Result<(), AppError> {
   let storage = app_handle.state::<crate::AppState>().storage.clone();
   tokio::task::spawn_blocking(move || {
-    let storage_lock = storage.lock().unwrap();
+    let storage_lock = storage.lock().expect("storage Mutex poisoned");
     let storage = storage_lock
       .as_ref()
       .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
@@ -156,7 +156,7 @@ pub async fn insert_cookie(
 ) -> Result<i64, AppError> {
   let storage = app_handle.state::<crate::AppState>().storage.clone();
   tokio::task::spawn_blocking(move || {
-    let storage_lock = storage.lock().unwrap();
+    let storage_lock = storage.lock().expect("storage Mutex poisoned");
     let storage = storage_lock
       .as_ref()
       .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
@@ -175,7 +175,7 @@ pub async fn query_cookies(
 ) -> Result<Vec<CookieEntry>, AppError> {
     let storage = app_handle.state::<crate::AppState>().storage.clone();
     tokio::task::spawn_blocking(move || {
-        let storage_lock = storage.lock().unwrap();
+        let storage_lock = storage.lock().expect("storage Mutex poisoned");
         let storage = storage_lock
             .as_ref()
             .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
@@ -194,7 +194,7 @@ pub async fn delete_cookie(
 ) -> Result<(), AppError> {
   let storage = app_handle.state::<crate::AppState>().storage.clone();
   tokio::task::spawn_blocking(move || {
-    let storage_lock = storage.lock().unwrap();
+    let storage_lock = storage.lock().expect("storage Mutex poisoned");
     let storage = storage_lock
       .as_ref()
       .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;
@@ -212,7 +212,7 @@ pub async fn clear_cookies(
 ) -> Result<(), AppError> {
   let storage = app_handle.state::<crate::AppState>().storage.clone();
   tokio::task::spawn_blocking(move || {
-    let storage_lock = storage.lock().unwrap();
+    let storage_lock = storage.lock().expect("storage Mutex poisoned");
     let storage = storage_lock
       .as_ref()
       .ok_or_else(|| AppError::storage_read_failed("Storage not initialized".into()))?;

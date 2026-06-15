@@ -117,7 +117,7 @@ commands::crypto::delete_vault_secret,
 
                     if let Ok(s) = storage::Storage::new(&data_dir) {
                         let state = app_handle.state::<AppState>();
-                        let mut storage_lock = state.storage.lock().unwrap();
+                        let mut storage_lock = state.storage.lock().expect("storage Mutex poisoned");
                         *storage_lock = Some(s);
                         tracing::info!("Storage initialized at {:?}", data_dir);
                     }

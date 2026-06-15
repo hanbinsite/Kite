@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useTranslation } from "react-i18next";
 import { KeyValueEditor, type KeyValue } from "../request/KeyValueEditor";
@@ -8,6 +8,7 @@ import { ScriptEditor } from "../editor/ScriptEditor";
 import { AUTH_TYPES } from "./AuthForm";
 import { createAuthConfig } from "../../utils/auth";
 import { useRequestStore } from "../../stores";
+import { useTabIndicator } from "../../hooks/useTabIndicator";
 import type { BodyConfig, AuthConfig, BodyMode, RawLanguage, Header, QueryParam, FormDataParam } from "@api-client/types";
 
 const REQUEST_TABS = [
@@ -230,32 +231,7 @@ export function RequestPanel() {
         setRequestAuth(auth);
     };
 
-    const tabRefs = useRef<Partial<Record<RequestTabId, HTMLButtonElement | null>>>({});
-    const [indicatorStyle, setIndicatorStyle] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
-
-  useEffect(() => {
-    const updateIndicator = () => {
-      const el = tabRefs.current[activeTab];
-      if (el) {
-        const parent = el.parentElement;
-        if (parent) {
-          const parentRect = parent.getBoundingClientRect();
-          const elRect = el.getBoundingClientRect();
-          setIndicatorStyle({
-            left: elRect.left - parentRect.left,
-            width: elRect.width,
-          });
-        }
-      }
-    };
-
-    updateIndicator();
-
-    const observer = new ResizeObserver(updateIndicator);
-    const parent = tabRefs.current[activeTab]?.parentElement;
-    if (parent) observer.observe(parent);
-    return () => observer.disconnect();
-  }, [activeTab]);
+    const [tabRefs, indicatorStyle] = useTabIndicator<RequestTabId>(activeTab);
 
     const enabledParamsCount = params.filter((p) => p.enabled && p.key).length;
     const enabledHeadersCount = headers.filter((h) => h.enabled && h.key).length;

@@ -613,7 +613,7 @@ async fn load_cookie_header(
 
     let storage = app_handle.state::<crate::AppState>().storage.clone();
     let cookies = match tokio::task::spawn_blocking(move || {
-        let storage_lock = storage.lock().unwrap();
+        let storage_lock = storage.lock().expect("storage Mutex poisoned");
         let storage = storage_lock.as_ref().ok_or("Storage not initialized".to_string())?;
         storage.query_cookies(Some(&host))
     })
@@ -670,7 +670,7 @@ async fn save_cookies_from_response(
 
     let storage = app_handle.state::<crate::AppState>().storage.clone();
     let _ = tokio::task::spawn_blocking(move || {
-        let storage_lock = storage.lock().unwrap();
+        let storage_lock = storage.lock().expect("storage Mutex poisoned");
         let storage = match storage_lock.as_ref() {
             Some(s) => s,
             None => return,

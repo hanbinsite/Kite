@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useTabStore, useUIStore } from "@api-client/core";
 import { useChatStore, useProviderStore, buildContextMessage } from "@api-client/core/ai";
@@ -6,6 +6,7 @@ import { useShallow } from "zustand/shallow";
 import { useRequestStore } from "../../stores";
 import { JsonViewer } from "../response/JsonViewer";
 import { getStatusClass } from "../response/utils";
+import { useTabIndicator } from "../../hooks/useTabIndicator";
 import { ConsolePanel } from "../console/ConsolePanel";
 import { TestsTab } from "../response/TestsTab";
 import { ScriptErrorCard } from "../response/ScriptErrorCard";
@@ -46,46 +47,7 @@ export function ResponsePanel() {
   const requestDataMap = useRequestStore((s) => s.requestDataMap);
 
   const responseTabs = RESPONSE_TABS(t);
-  const tabRefs = useRef<Partial<Record<ResponseTabId, HTMLButtonElement | null>>>({});
-
-  const [indicatorStyle, setIndicatorStyle] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
-
-  useEffect(() => {
-    const el = tabRefs.current[activeTab];
-    if (el) {
-      const parent = el.parentElement;
-      if (parent) {
-        const parentRect = parent.getBoundingClientRect();
-        const elRect = el.getBoundingClientRect();
-        setIndicatorStyle({
-          left: elRect.left - parentRect.left,
-          width: elRect.width,
-        });
-      }
-    }
-  }, [activeTab]);
-
-  useEffect(() => {
-    const updateIndicator = () => {
-      const el = tabRefs.current[activeTab];
-      if (el) {
-        const parent = el.parentElement;
-        if (parent) {
-          const parentRect = parent.getBoundingClientRect();
-          const elRect = el.getBoundingClientRect();
-          setIndicatorStyle({
-            left: elRect.left - parentRect.left,
-            width: elRect.width,
-          });
-        }
-      }
-    };
-
-    const observer = new ResizeObserver(updateIndicator);
-    const parent = tabRefs.current[activeTab]?.parentElement;
-    if (parent) observer.observe(parent);
-    return () => observer.disconnect();
-  }, [activeTab]);
+  const [tabRefs, indicatorStyle] = useTabIndicator<ResponseTabId>(activeTab);
 
   if (isLoading) {
     return (
