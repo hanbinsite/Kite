@@ -5,16 +5,9 @@ use tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
 use prost_reflect::{DynamicMessage, DescriptorPool};
 use prost::Message;
-use reqwest::Client;
-use std::sync::OnceLock;
-
-fn grpc_client() -> &'static Client {
-    static CLIENT: OnceLock<Client> = OnceLock::new();
-    // NOTE: reqwest auto-negotiates HTTP/2 for HTTPS via ALPN.
-    // Full gRPC HTTP/2 support (trailers, streaming) requires tonic migration.
-    // See: docs/25-发布就绪度审计报告-综合版.md section on architecture deviations.
-    CLIENT.get_or_init(Client::new)
-}
+use tonic::transport::{Endpoint, Channel};
+use tonic::client::GrpcService;
+use bytes::Buf;
 
 pub struct GrpcState {
     pub file_descriptors: Arc<RwLock<HashMap<String, DescriptorPool>>>,
@@ -144,6 +137,14 @@ fn json_to_dynamic_msg(msg_desc: &prost_reflect::MessageDescriptor, json_str: &s
     Ok(msg)
 }
 
+async fn create_grpc_channel(url: &str) -> Result<Channel, crate::error::AppError> {
+    let endpoint = Endpoint::from_shared(url.to_string())
+        .map_err(|e| crate::error::AppError::net_invalid_url(format!("Invalid gRPC URL: {}", e)))?;
+    endpoint.connect()
+        .await
+        .map_err(|e| crate::error::AppError::safe_net_error("gRPC channel connect", e))
+}
+
 #[tauri::command]
 pub async fn send_grpc_request(
     app: tauri::AppHandle,
@@ -168,37 +169,33 @@ pub async fn send_grpc_request(
         .ok_or_else(|| crate::error::AppError::net_connect_failed(format!("Method '{}' not found", config.method_name)))?;
 
     let dynamic_msg = json_to_dynamic_msg(&method.input(), &config.request_json)?;
-
-    let _grpc_path = format!("/{}/{}", config.service_name, config.method_name);
+    let grpc_path = format!("/{}/{}", config.service_name, config.method_name);
     let grpc_body = encode_grpc_message(&dynamic_msg);
 
-    // NOTE: This uses reqwest (HTTP/1.1) instead of tonic/h2 (HTTP/2).
-    // Real gRPC requires HTTP/2 with custom framing and trailers.
-    // This will work with gRPC-Web proxies and some gRPC servers that accept HTTP/1.1,
-    // but will fail against standard gRPC servers.
-    // TODO: Replace with tonic-based HTTP/2 implementation for full gRPC support.
-    let mut request_builder = grpc_client()
-        .post(&config.url)
+    // Use tonic Channel for HTTP/2 transport
+    let mut channel = create_grpc_channel(&config.url).await?;
+
+    let mut request_builder = http::Request::builder()
+        .method(http::Method::POST)
+        .uri(grpc_path)
         .header("content-type", "application/grpc")
         .header("te", "trailers")
         .header("grpc-encoding", "identity")
         .header("grpc-accept-encoding", "identity");
 
-    if let Some(metadata) = &config.metadata {
+    if let Some(ref metadata) = config.metadata {
         for (key, value) in metadata {
             request_builder = request_builder.header(key.as_str(), value.as_str());
         }
     }
 
-    if let Some(timeout) = config.timeout_ms {
-        request_builder = request_builder.timeout(std::time::Duration::from_millis(timeout));
-    }
+    let body = tonic::body::boxed(http_body_util::Full::new(bytes::Bytes::from(grpc_body)));
+    let request = request_builder
+        .body(body)
+        .map_err(|e| crate::error::AppError::safe_net_error("gRPC request build", e))?;
 
-    let response = request_builder
-        .body(grpc_body)
-        .send()
-        .await
-        .map_err(|e| crate::error::AppError::safe_net_error("gRPC request", e))?;
+    let response = channel.call(request).await
+        .map_err(|e| crate::error::AppError::safe_net_error("gRPC request send", e))?;
 
     let grpc_status = response.headers()
         .get("grpc-status")
@@ -219,8 +216,10 @@ pub async fn send_grpc_request(
 
         tokio::spawn(async move {
             use futures_util::StreamExt;
-            let mut stream = response.bytes_stream();
-            let mut buffer = Vec::new();
+            use http_body_util::BodyExt;
+
+            let mut stream = response.into_body().into_data_stream();
+            let mut buffer = bytes::BytesMut::new();
 
             loop {
                 match stream.next().await {
@@ -243,72 +242,52 @@ pub async fn send_grpc_request(
                             }
                             if buffer.len() < 5 + len { break; }
                             let frame_data = buffer[5..5 + len].to_vec();
-                            buffer.drain(..5 + len);
+                            buffer.advance(5 + len);
 
                             let _ = compressed;
 
                             match DynamicMessage::decode(output_desc.clone(), frame_data.as_slice()) {
                                 Ok(msg) => {
                                     let body = dynamic_msg_to_json(&msg);
-                                    let stream_msg = GrpcStreamMessage {
-                                        request_id: conn_id.clone(),
-                                        body,
-                                        stream_type: "data".to_string(),
-                                    };
+                                    let stream_msg = GrpcStreamMessage { request_id: conn_id.clone(), body, stream_type: "data".to_string() };
                                     if let Err(e) = app_handle.emit("grpc-stream-message", &stream_msg) {
-                                    tracing::warn!("Failed to emit grpc-stream-message: {}", e);
-                                }
+                                        tracing::warn!("Failed to emit grpc-stream-message: {}", e);
+                                    }
                                 }
                                 Err(e) => {
-                                    let stream_msg = GrpcStreamMessage {
-                                        request_id: conn_id.clone(),
-                                        body: format!("Decode error: {}", e),
-                                        stream_type: "error".to_string(),
-                                    };
+                                    let stream_msg = GrpcStreamMessage { request_id: conn_id.clone(), body: format!("Decode error: {}", e), stream_type: "error".to_string() };
                                     if let Err(e) = app_handle.emit("grpc-stream-message", &stream_msg) {
-                                    tracing::warn!("Failed to emit grpc-stream-message: {}", e);
-                                }
+                                        tracing::warn!("Failed to emit grpc-stream-message: {}", e);
+                                    }
                                 }
                             }
-                        }
+                    }
                     }
                     Some(Err(e)) => {
-                        let stream_msg = GrpcStreamMessage {
-                            request_id: conn_id.clone(),
-                            body: format!("Stream error: {}", e),
-                            stream_type: "error".to_string(),
-                        };
+                        let stream_msg = GrpcStreamMessage { request_id: conn_id.clone(), body: format!("Stream error: {}", e), stream_type: "error".to_string() };
                         if let Err(e) = app_handle.emit("grpc-stream-message", &stream_msg) {
-                                    tracing::warn!("Failed to emit grpc-stream-message: {}", e);
-                                }
+                            tracing::warn!("Failed to emit grpc-stream-message: {}", e);
+                        }
                         break;
                     }
                     None => {
-                        let stream_msg = GrpcStreamMessage {
-                            request_id: conn_id.clone(),
-                            body: "Stream complete".to_string(),
-                            stream_type: "end".to_string(),
-                        };
+                        let stream_msg = GrpcStreamMessage { request_id: conn_id.clone(), body: "Stream complete".to_string(), stream_type: "end".to_string() };
                         if let Err(e) = app_handle.emit("grpc-stream-message", &stream_msg) {
-                                    tracing::warn!("Failed to emit grpc-stream-message: {}", e);
-                                }
+                            tracing::warn!("Failed to emit grpc-stream-message: {}", e);
+                        }
                         break;
                     }
                 }
             }
         });
 
-        return Ok(GrpcResponse {
-            request_id: config.request_id,
-            status: "streaming".to_string(),
-            headers: response_headers,
-            body: "Streaming started".to_string(),
-            time_ms: start.elapsed().as_millis() as u64,
-        });
+        return Ok(GrpcResponse { request_id: config.request_id, status: "streaming".to_string(), headers: response_headers, body: "Streaming started".to_string(), time_ms: start.elapsed().as_millis() as u64 });
     }
 
-    let response_bytes = response.bytes().await
-        .map_err(|e| crate::error::AppError::net_connect_failed(format!("Read response body failed: {}", e)))?;
+    use http_body_util::BodyExt;
+    let response_bytes = response.into_body().collect().await
+        .map_err(|e| crate::error::AppError::safe_net_error("Read response body", e))?
+        .to_bytes();
 
     let output_desc = method.output();
     let body = if response_bytes.is_empty() {
@@ -327,11 +306,5 @@ pub async fn send_grpc_request(
 
     let status = if grpc_status == "0" { "ok".to_string() } else { format!("error (grpc-status: {})", grpc_status) };
 
-    Ok(GrpcResponse {
-        request_id: config.request_id,
-        status,
-        headers: response_headers,
-        body,
-        time_ms: start.elapsed().as_millis() as u64,
-    })
+    Ok(GrpcResponse { request_id: config.request_id, status, headers: response_headers, body, time_ms: start.elapsed().as_millis() as u64 })
 }

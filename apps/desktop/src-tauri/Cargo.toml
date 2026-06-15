@@ -39,8 +39,10 @@ rumqttc = "0.24"
 prost = "0.13"
 prost-reflect = { version = "0.14", features = ["serde"] }
 protox = "0.7"
+tonic = { version = "0.12", features = ["transport", "tls", "tls-roots"] }
+http = "1"
 bytes = "1"
-hyper = { version = "1", features = ["server", "http1", "http2"] }
+hyper = { version = "1", features = ["server", "http1"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
 http-body-util = "0.1"
  rquickjs = { version = "0.11", features = ["allocator", "macro"] }
