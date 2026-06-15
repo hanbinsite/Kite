@@ -101,7 +101,7 @@ export function App() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [toggleSidebar, openTab]);
+  }, [toggleSidebar, openTab, toggleConsole, toggleAiPanel, t]);
 
   const collections = useCollectionStore((s) => s.collections);
 

@@ -225,7 +225,9 @@ pub async fn send_grpc_request(
                                     body: format!("Frame size {} exceeds maximum {}", len, MAX_GRPC_FRAME_SIZE),
                                     stream_type: "error".to_string(),
                                 };
-                                let _ = app_handle.emit("grpc-stream-message", &stream_msg);
+                                if let Err(e) = app_handle.emit("grpc-stream-message", &stream_msg) {
+                                    tracing::warn!("Failed to emit grpc-stream-message: {}", e);
+                                }
                                 buffer.clear();
                                 break;
                             }
@@ -243,7 +245,9 @@ pub async fn send_grpc_request(
                                         body,
                                         stream_type: "data".to_string(),
                                     };
-                                    let _ = app_handle.emit("grpc-stream-message", &stream_msg);
+                                    if let Err(e) = app_handle.emit("grpc-stream-message", &stream_msg) {
+                                    tracing::warn!("Failed to emit grpc-stream-message: {}", e);
+                                }
                                 }
                                 Err(e) => {
                                     let stream_msg = GrpcStreamMessage {
@@ -251,7 +255,9 @@ pub async fn send_grpc_request(
                                         body: format!("Decode error: {}", e),
                                         stream_type: "error".to_string(),
                                     };
-                                    let _ = app_handle.emit("grpc-stream-message", &stream_msg);
+                                    if let Err(e) = app_handle.emit("grpc-stream-message", &stream_msg) {
+                                    tracing::warn!("Failed to emit grpc-stream-message: {}", e);
+                                }
                                 }
                             }
                         }
@@ -262,7 +268,9 @@ pub async fn send_grpc_request(
                             body: format!("Stream error: {}", e),
                             stream_type: "error".to_string(),
                         };
-                        let _ = app_handle.emit("grpc-stream-message", &stream_msg);
+                        if let Err(e) = app_handle.emit("grpc-stream-message", &stream_msg) {
+                                    tracing::warn!("Failed to emit grpc-stream-message: {}", e);
+                                }
                         break;
                     }
                     None => {
@@ -271,7 +279,9 @@ pub async fn send_grpc_request(
                             body: "Stream complete".to_string(),
                             stream_type: "end".to_string(),
                         };
-                        let _ = app_handle.emit("grpc-stream-message", &stream_msg);
+                        if let Err(e) = app_handle.emit("grpc-stream-message", &stream_msg) {
+                                    tracing::warn!("Failed to emit grpc-stream-message: {}", e);
+                                }
                         break;
                     }
                 }

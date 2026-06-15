@@ -82,7 +82,9 @@ pub async fn sse_connect(
             .unwrap_or_default()
             .as_millis() as u64,
     };
-    let _ = app.emit("sse-event", &sse_event);
+    if let Err(e) = app.emit("sse-event", &sse_event) {
+        tracing::warn!("Failed to emit sse-event: {}", e);
+    }
 
     tokio::spawn(async move {
         let mut stream = response.bytes_stream();
@@ -104,7 +106,9 @@ pub async fn sse_connect(
                             .unwrap_or_default()
                             .as_millis() as u64,
                     };
-                    let _ = app_handle.emit("sse-event", &sse_event);
+                    if let Err(e) = app_handle.emit("sse-event", &sse_event) {
+                            tracing::warn!("Failed to emit sse-event: {}", e);
+                        }
                     break;
                 }
                 chunk = stream.next() => {
@@ -129,7 +133,9 @@ pub async fn sse_connect(
                                             .unwrap_or_default()
                                             .as_millis() as u64,
                                     };
-                                    let _ = app_handle.emit("sse-event", &sse_event);
+                                    if let Err(e) = app_handle.emit("sse-event", &sse_event) {
+                            tracing::warn!("Failed to emit sse-event: {}", e);
+                        }
                                     current_data.clear();
                                     current_event = String::from("message");
                                     current_id = None;
@@ -151,7 +157,9 @@ pub async fn sse_connect(
                                                 .unwrap_or_default()
                                                 .as_millis() as u64,
                                         };
-                                        let _ = app_handle.emit("sse-event", &sse_event);
+                                        if let Err(e) = app_handle.emit("sse-event", &sse_event) {
+                            tracing::warn!("Failed to emit sse-event: {}", e);
+                        }
                                         current_data.clear();
                                         current_event = String::from("message");
                                         current_id = None;
@@ -171,7 +179,9 @@ pub async fn sse_connect(
                                             .unwrap_or_default()
                                             .as_millis() as u64,
                                     };
-                                    let _ = app_handle.emit("sse-event", &sse_event);
+                                    if let Err(e) = app_handle.emit("sse-event", &sse_event) {
+                            tracing::warn!("Failed to emit sse-event: {}", e);
+                        }
                                     current_data.clear();
                                     current_event = String::from("message");
                                 }
@@ -188,7 +198,9 @@ pub async fn sse_connect(
                                     .unwrap_or_default()
                                     .as_millis() as u64,
                             };
-                            let _ = app_handle.emit("sse-event", &sse_event);
+                            if let Err(e) = app_handle.emit("sse-event", &sse_event) {
+                            tracing::warn!("Failed to emit sse-event: {}", e);
+                        }
                             break;
                         }
                         None => {
@@ -202,7 +214,9 @@ pub async fn sse_connect(
                                     .unwrap_or_default()
                                     .as_millis() as u64,
                             };
-                            let _ = app_handle.emit("sse-event", &sse_event);
+                            if let Err(e) = app_handle.emit("sse-event", &sse_event) {
+                            tracing::warn!("Failed to emit sse-event: {}", e);
+                        }
                             break;
                         }
                     }

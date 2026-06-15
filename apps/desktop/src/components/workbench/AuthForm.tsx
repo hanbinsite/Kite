@@ -15,9 +15,7 @@ export const AUTH_TYPES: AuthType[] = [
   { id: "bearer", labelKey: "auth.bearer" },
   { id: "basic", labelKey: "auth.basic" },
   { id: "jwt", labelKey: "auth.jwt" },
-  { id: "oauth1", labelKey: "auth.oauth1" },
   { id: "oauth2", labelKey: "auth.oauth2" },
-  { id: "awsv4", labelKey: "auth.awsv4" },
 ];
 
 function renderAuthFields(auth: AuthConfig, onChange: (auth: AuthConfig) => void, t: (key: string) => string) {

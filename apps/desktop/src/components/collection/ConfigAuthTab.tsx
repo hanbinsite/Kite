@@ -12,9 +12,7 @@ const AUTH_TYPES = [
   "basic",
   "apikey",
   "jwt",
-  "oauth1",
   "oauth2",
-  "awsv4",
 ] as const;
 
 interface ConfigAuthTabProps {

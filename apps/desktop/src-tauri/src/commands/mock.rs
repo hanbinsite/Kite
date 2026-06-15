@@ -132,7 +132,9 @@ async fn handle_mock_request(
         status,
         timestamp,
     };
-    let _ = app_handle.emit("mock-request-received", &log);
+    if let Err(e) = app_handle.emit("mock-request-received", &log) {
+        tracing::warn!("Failed to emit mock-request-received: {}", e);
+    }
 
     let mut resp = hyper::Response::builder()
         .status(StatusCode::from_u16(status).unwrap_or(StatusCode::OK));

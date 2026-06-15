@@ -46,8 +46,7 @@ async function loadSettings(): Promise<AppSettings> {
 }
 
 function persistSettings(settings: AppSettings) {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-  invoke("save_app_settings", { settings: JSON.stringify(settings) }).catch(() => {});
+  invoke("save_app_settings", { settings: JSON.stringify(settings) }).catch((e) => console.error("Failed to persist settings:", e));
 }
 
 function applyFontSize(size: string) {

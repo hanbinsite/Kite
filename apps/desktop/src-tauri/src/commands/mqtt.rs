@@ -95,7 +95,9 @@ pub async fn mqtt_connect(
             .unwrap_or_default()
             .as_millis() as u64,
     };
-    let _ = app.emit("mqtt-message", &msg);
+    if let Err(e) = app.emit("mqtt-message", &msg) {
+        tracing::warn!("Failed to emit mqtt-message: {}", e);
+    }
 
     Ok(())
 }
@@ -116,7 +118,9 @@ async fn poll_mqtt_events(mut connection: Connection, conn_id: String, app_handl
                         .unwrap_or_default()
                         .as_millis() as u64,
                 };
-                let _ = app_handle.emit("mqtt-message", &msg);
+                if let Err(e) = app_handle.emit("mqtt-message", &msg) {
+                    tracing::warn!("Failed to emit mqtt-message: {}", e);
+                }
             }
             Ok(Event::Incoming(Packet::Disconnect)) => {
                 let msg = MqttMessage {
@@ -130,7 +134,9 @@ async fn poll_mqtt_events(mut connection: Connection, conn_id: String, app_handl
                         .unwrap_or_default()
                         .as_millis() as u64,
                 };
-                let _ = app_handle.emit("mqtt-message", &msg);
+                if let Err(e) = app_handle.emit("mqtt-message", &msg) {
+                    tracing::warn!("Failed to emit mqtt-message: {}", e);
+                }
                 break;
             }
             Ok(_) => {}
@@ -146,7 +152,9 @@ async fn poll_mqtt_events(mut connection: Connection, conn_id: String, app_handl
                         .unwrap_or_default()
                         .as_millis() as u64,
                 };
-                let _ = app_handle.emit("mqtt-message", &msg);
+                if let Err(e) = app_handle.emit("mqtt-message", &msg) {
+                    tracing::warn!("Failed to emit mqtt-message: {}", e);
+                }
                 break;
             }
         }

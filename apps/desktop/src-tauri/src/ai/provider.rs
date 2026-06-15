@@ -1,9 +1,10 @@
 use crate::error::AppError;
+use crate::emit_warn;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::{Mutex, RwLock};
-use tauri::{Manager, Emitter};
+use tauri::Manager;
 use futures_util::StreamExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -346,7 +347,7 @@ pub async fn ai_stream_chat(app: tauri::AppHandle, request: AiChatRequest) -> Re
                 continue;
             };
             if data == "[DONE]" {
-                let _ = app.emit("ai-stream-chunk", AiStreamChunk {
+                emit_warn(&app, "ai-stream-chunk", AiStreamChunk {
                     session_id: session_id.clone(),
                     delta: String::new(),
                     done: true,
@@ -357,7 +358,7 @@ pub async fn ai_stream_chat(app: tauri::AppHandle, request: AiChatRequest) -> Re
             if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
                 if let Some(delta) = json["choices"][0]["delta"]["content"].as_str() {
                     full_content.push_str(delta);
-                    let _ = app.emit("ai-stream-chunk", AiStreamChunk {
+                    emit_warn(&app, "ai-stream-chunk", AiStreamChunk {
                         session_id: session_id.clone(),
                         delta: delta.to_string(),
                         done: false,
@@ -371,7 +372,7 @@ pub async fn ai_stream_chat(app: tauri::AppHandle, request: AiChatRequest) -> Re
         let line = line_buf.trim();
         if let Some(data) = line.strip_prefix("data: ") {
             if data == "[DONE]" {
-                let _ = app.emit("ai-stream-chunk", AiStreamChunk {
+                emit_warn(&app, "ai-stream-chunk", AiStreamChunk {
                     session_id: session_id.clone(),
                     delta: String::new(),
                     done: true,
@@ -381,7 +382,7 @@ pub async fn ai_stream_chat(app: tauri::AppHandle, request: AiChatRequest) -> Re
             if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
                 if let Some(delta) = json["choices"][0]["delta"]["content"].as_str() {
                     full_content.push_str(delta);
-                    let _ = app.emit("ai-stream-chunk", AiStreamChunk {
+                    emit_warn(&app, "ai-stream-chunk", AiStreamChunk {
                         session_id: session_id.clone(),
                         delta: delta.to_string(),
                         done: false,
@@ -391,7 +392,7 @@ pub async fn ai_stream_chat(app: tauri::AppHandle, request: AiChatRequest) -> Re
         }
     }
 
-    let _ = app.emit("ai-stream-chunk", AiStreamChunk {
+    emit_warn(&app, "ai-stream-chunk", AiStreamChunk {
         session_id: session_id.clone(),
         delta: String::new(),
         done: true,

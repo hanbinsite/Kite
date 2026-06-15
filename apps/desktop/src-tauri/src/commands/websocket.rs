@@ -107,7 +107,9 @@ pub async fn ws_connect(
                             .unwrap_or_default()
                             .as_millis() as u64,
                     };
-                    let _ = app_handle_read.emit("ws-message", &ws_msg);
+                    if let Err(e) = app_handle_read.emit("ws-message", &ws_msg) {
+                        tracing::warn!("Failed to emit ws-message: {}", e);
+                    }
                 }
                 Ok(Message::Close(_)) => {
                     let ws_msg = WsMessage {
@@ -119,7 +121,9 @@ pub async fn ws_connect(
                             .unwrap_or_default()
                             .as_millis() as u64,
                     };
-                    let _ = app_handle_read.emit("ws-message", &ws_msg);
+                    if let Err(e) = app_handle_read.emit("ws-message", &ws_msg) {
+                        tracing::warn!("Failed to emit ws-message: {}", e);
+                    }
                     break;
                 }
                 Ok(_) => {}
@@ -133,7 +137,9 @@ pub async fn ws_connect(
                             .unwrap_or_default()
                             .as_millis() as u64,
                     };
-                    let _ = app_handle_read.emit("ws-message", &ws_msg);
+                    if let Err(e) = app_handle_read.emit("ws-message", &ws_msg) {
+                        tracing::warn!("Failed to emit ws-message: {}", e);
+                    }
                     break;
                 }
             }
@@ -155,7 +161,9 @@ pub async fn ws_connect(
             .unwrap_or_default()
             .as_millis() as u64,
     };
-    let _ = app.emit("ws-message", &ws_msg);
+    if let Err(e) = app.emit("ws-message", &ws_msg) {
+        tracing::warn!("Failed to emit ws-message: {}", e);
+    }
 
     Ok(())
 }

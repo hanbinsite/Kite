@@ -279,6 +279,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const { [sessionId]: _, ...rest } = s.messages;
       return { messages: rest };
     });
-    aiDeleteSession(sessionId).catch(() => {});
+    aiDeleteSession(sessionId).catch((e) => console.error("Failed to delete AI session:", e));
   },
 }));
