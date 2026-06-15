@@ -4,7 +4,7 @@ import type { AppError } from "@api-client/types";
 // They are NOT user-facing translatable strings — translations happen at the UI layer
 // via i18n using code-based lookups. This map only provides defaults when i18n is unavailable.
 
-export type ErrorCategory = "network" | "storage" | "script" | "vault" | "validation" | "proxy" | "general";
+export type ErrorCategory = "network" | "storage" | "script" | "vault" | "validation" | "mock" | "general";
 
 export interface ErrorMapping {
   title: string;
@@ -197,18 +197,18 @@ const ERROR_MAP: Record<string, ErrorMapping> = {
     category: "validation",
     retryable: false,
   },
-  PROXY_START_FAILED: {
-    title: "Proxy Failed",
-    description: "Could not start the proxy server.",
+  MOCK_START_FAILED: {
+    title: "Mock Server Failed",
+    description: "Could not start the mock server.",
     variant: "error",
-    category: "proxy",
+    category: "mock",
     retryable: true,
   },
-  PROXY_NOT_RUNNING: {
-    title: "Proxy Not Running",
-    description: "The proxy server is not running.",
+  MOCK_NOT_RUNNING: {
+    title: "Mock Server Not Running",
+    description: "The mock server is not running.",
     variant: "warning",
-    category: "proxy",
+    category: "mock",
     retryable: true,
   },
   NOT_IMPLEMENTED: {
@@ -243,7 +243,7 @@ export function categorizeError(code: string): ErrorCategory {
   if (code.startsWith("SCRIPT_")) return "script";
   if (code.startsWith("VAULT_")) return "vault";
   if (code.startsWith("VALIDATION_") || code === "INVALID_INPUT") return "validation";
-  if (code.startsWith("PROXY_")) return "proxy";
+  if (code.startsWith("MOCK_")) return "mock";
   return "general";
 }
 

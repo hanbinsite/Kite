@@ -48,8 +48,8 @@ impl AppError {
     pub fn invalid_input(detail: String) -> Self { Self { code: "INVALID_INPUT".into(), detail } }
 
     // Mock server errors (was proxy)
-    pub fn mock_start_failed(detail: String) -> Self { Self { code: "PROXY_START_FAILED".into(), detail } }
-    pub fn mock_not_running() -> Self { Self { code: "PROXY_NOT_RUNNING".into(), detail: "Mock server is not running".into() } }
+    pub fn mock_start_failed(detail: String) -> Self { Self { code: "MOCK_START_FAILED".into(), detail } }
+    pub fn mock_not_running() -> Self { Self { code: "MOCK_NOT_RUNNING".into(), detail: "Mock server is not running".into() } }
 
     // General
     pub fn not_found(detail: String) -> Self { Self { code: "NOT_FOUND".into(), detail } }

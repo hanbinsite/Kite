@@ -10,7 +10,10 @@ use std::sync::OnceLock;
 
 fn grpc_client() -> &'static Client {
     static CLIENT: OnceLock<Client> = OnceLock::new();
-    CLIENT.get_or_init(|| Client::new())
+    // NOTE: reqwest auto-negotiates HTTP/2 for HTTPS via ALPN.
+    // Full gRPC HTTP/2 support (trailers, streaming) requires tonic migration.
+    // See: docs/25-发布就绪度审计报告-综合版.md section on architecture deviations.
+    CLIENT.get_or_init(Client::new)
 }
 
 pub struct GrpcState {
