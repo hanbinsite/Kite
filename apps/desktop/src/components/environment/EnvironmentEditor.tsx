@@ -101,7 +101,7 @@ export function EnvironmentEditor({ environmentId, isOpen, onClose }: Environmen
   return (
     <Dialog.Root open={isOpen} onOpenChange={handleOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-bg-overlay backdrop-blur-[4px] z-modal animate-fade-in" />
+        <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-modal animate-fade-in" />
         <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[560px] max-h-[80vh] bg-bg-surface border border-border-default rounded-xl shadow-lg flex flex-col overflow-hidden" style={{ zIndex: 410 }}>
           {/* Header */}
           <div className="flex items-center h-12 px-5 border-b border-border-muted shrink-0">

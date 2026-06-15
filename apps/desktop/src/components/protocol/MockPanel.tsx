@@ -193,7 +193,9 @@ export function MockPanel() {
   const clearRoutes = useMockStore((s) => s.clearRoutes);
   const clearLog = useMockStore((s) => s.clearLog);
 
-  const [port, setPort] = useState(4010);
+  const MOCK_PORT_KEY = "api-client-mock-port";
+const savedPort = (() => { try { const v = localStorage.getItem(MOCK_PORT_KEY); return v ? Number(v) : 0; } catch { return 0; } })();
+const [port, setPort] = useState(savedPort || 4010);
 
   useEffect(() => {
     useMockStore.getState().loadRoutes();
@@ -234,7 +236,7 @@ export function MockPanel() {
         <input
           type="number"
           value={port}
-          onChange={(e) => setPort(Number(e.target.value) || 4010)}
+          onChange={(e) => { const v = Number(e.target.value) || 4010; setPort(v); try { localStorage.setItem(MOCK_PORT_KEY, String(v)); } catch {} }}
           disabled={status.running}
           className="w-[72px] h-[28px] px-2 bg-bg-input border border-border-muted rounded text-[12px] text-fg-primary outline-none focus:border-border-focus disabled:opacity-50 font-mono"
         />

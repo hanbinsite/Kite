@@ -10,8 +10,10 @@ async fn main() {
         std::env::temp_dir().join("api-client-logs"),
         "api-client.log",
     );
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
     tracing_subscriber::fmt()
-        .with_writer(file_appender)
+        .json()
+        .with_writer(non_blocking)
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"))
@@ -128,10 +130,34 @@ commands::crypto::delete_vault_secret,
                             app_handle2.state::<commands::http::HttpClientState>().cleanup_expired_tokens().await;
                         }
                     });
+
+                    let log_dir = std::env::temp_dir().join("api-client-logs");
+                    tauri::async_runtime::spawn(async move {
+                        cleanup_old_logs(&log_dir, 7).await;
+                    });
                 }
             });
             Ok(())
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+async fn cleanup_old_logs(log_dir: &std::path::Path, max_age_days: u64) {
+    let cutoff = std::time::SystemTime::now()
+        .checked_sub(std::time::Duration::from_secs(max_age_days * 86400));
+    let Some(cutoff) = cutoff else { return };
+
+    if let Ok(mut entries) = tokio::fs::read_dir(log_dir).await {
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            if let Ok(metadata) = entry.metadata().await {
+                if metadata.is_file()
+                    && metadata.modified().is_ok_and(|m| m < cutoff)
+                    && entry.file_name().to_string_lossy().ends_with(".log")
+                {
+                    let _ = tokio::fs::remove_file(entry.path()).await;
+                }
+            }
+        }
+    }
 }

@@ -140,7 +140,7 @@ export function CommandPalette({ isOpen, onClose, items }: CommandPaletteProps) 
 
   return (
     <div className="fixed inset-0 z-command-palette">
-      <div className="absolute inset-0 bg-bg-overlay backdrop-blur-sm animate-fade-in" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] animate-fade-in" onClick={onClose} />
       <div className="absolute top-[20vh] left-1/2 -translate-x-1/2 w-[560px] max-h-[480px] bg-bg-elevated border border-border-default rounded-xl shadow-xl overflow-hidden animate-cmd-slide-in">
         <div className="flex items-center gap-3 px-4 h-12 border-b border-border-muted">
           <Search className="w-5 h-5 text-fg-tertiary" />

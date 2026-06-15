@@ -92,7 +92,7 @@ export function CodeSnippetDrawer({ isOpen, onClose }: CodeSnippetDrawerProps) {
   return (
     <>
       <div
-        className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px]"
+        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px]"
         onClick={onClose}
       />
       <div className="code-snippet-drawer fixed right-0 top-0 bottom-0 w-[460px] z-50 bg-bg-surface border-l border-border-muted flex flex-col shadow-2xl animate-in slide-in-from-right duration-200">

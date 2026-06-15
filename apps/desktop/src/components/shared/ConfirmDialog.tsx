@@ -51,7 +51,7 @@ export function ConfirmDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/50 z-modal animate-fade-in" />
+        <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-modal animate-fade-in" />
         <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] bg-bg-elevated border border-border-default rounded-xl shadow-xl z-modal p-6 animate-fade-in">
           <div className="flex items-start justify-between mb-4">
             <Dialog.Title className="font-sans text-[15px] font-semibold text-fg-primary">

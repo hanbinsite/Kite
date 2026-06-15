@@ -192,7 +192,9 @@ pub async fn ws_close(
 ) -> Result<(), crate::error::AppError> {
     let mut connections = state.connections.write().await;
     if let Some(ws_conn) = connections.remove(&connection_id) {
-        let _ = ws_conn.sender.send("__CLOSE__".to_string());
+        if ws_conn.sender.try_send("__CLOSE__".to_string()).is_err() {
+        tracing::warn!("WS close signal dropped: channel full or receiver gone for {}", connection_id);
+    }
         let _ = tokio::time::timeout(
             Duration::from_secs(3),
             async {
