@@ -5,6 +5,13 @@ use tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
 use prost_reflect::{DynamicMessage, DescriptorPool};
 use prost::Message;
+use reqwest::Client;
+use std::sync::OnceLock;
+
+fn grpc_client() -> &'static Client {
+    static CLIENT: OnceLock<Client> = OnceLock::new();
+    CLIENT.get_or_init(|| Client::new())
+}
 
 pub struct GrpcState {
     pub file_descriptors: Arc<RwLock<HashMap<String, DescriptorPool>>>,
@@ -167,7 +174,7 @@ pub async fn send_grpc_request(
     // This will work with gRPC-Web proxies and some gRPC servers that accept HTTP/1.1,
     // but will fail against standard gRPC servers.
     // TODO: Replace with tonic-based HTTP/2 implementation for full gRPC support.
-    let mut request_builder = reqwest::Client::new()
+    let mut request_builder = grpc_client()
         .post(&config.url)
         .header("content-type", "application/grpc")
         .header("te", "trailers")

@@ -21,16 +21,6 @@ const MIN_HEIGHT = 100;
 const MAX_HEIGHT = 400;
 const DEFAULT_HEIGHT = 200;
 
-function sourceToFilter(source?: string): FilterMode {
-  if (source === "system") {
-    return "request";
-  }
-  if (source === "pre-request" || source === "post-response") {
-    return "script";
-  }
-  return "all";
-}
-
 export function GlobalConsole() {
   const { t } = useTranslation();
   const [height, setHeight] = useState(DEFAULT_HEIGHT);
@@ -58,7 +48,7 @@ export function GlobalConsole() {
     if (filter === "error") {
       result = result.filter((e) => e.level === "error");
     } else if (filter === "request") {
-      result = result.filter((e) => e.source === "system" || sourceToFilter(e.source) === "request");
+      result = result.filter((e) => e.source === "system");
     } else if (filter === "response") {
       result = result.filter((e) => e.source === "post-response");
     } else if (filter === "script") {

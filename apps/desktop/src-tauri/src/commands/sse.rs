@@ -5,6 +5,12 @@ use tokio::sync::RwLock;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use futures_util::StreamExt;
+use std::sync::OnceLock;
+
+fn sse_client() -> &'static Client {
+    static CLIENT: OnceLock<Client> = OnceLock::new();
+    CLIENT.get_or_init(|| Client::new())
+}
 
 const MAX_SSE_LINE_LENGTH: usize = 1_048_576;
 const MAX_SSE_EVENT_SIZE: usize = 10_485_760;
@@ -48,7 +54,7 @@ pub async fn sse_connect(
     let cancel_token = tokio_util::sync::CancellationToken::new();
     state.active.write().await.insert(connection_id.clone(), cancel_token.clone());
 
-    let client = Client::new();
+    let client = sse_client();
     let mut request_builder = client.get(&url);
     if let Some(hdrs) = headers {
         for (key, value) in hdrs {

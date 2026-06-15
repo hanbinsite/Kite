@@ -35,7 +35,6 @@ serde_urlencoded = "0.7"
 tokio-tungstenite = { version = "0.23", features = ["rustls-tls-webpki-roots"] }
 futures-util = "0.3"
 rumqttc = "0.24"
-tonic = "0.12"
 prost = "0.13"
 prost-reflect = { version = "0.14", features = ["serde"] }
 protox = "0.7"

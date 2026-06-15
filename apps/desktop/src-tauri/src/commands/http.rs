@@ -661,7 +661,10 @@ async fn save_cookies_from_response(
     }
 
     let host = match reqwest::Url::parse(url) {
-        Ok(u) => u.host_str().unwrap_or("").to_string(),
+        Ok(u) => match u.host_str() {
+            Some(h) => h.to_string(),
+            None => { tracing::warn!("URL has no host: {}", url); return; }
+        },
         Err(_) => return,
     };
 
