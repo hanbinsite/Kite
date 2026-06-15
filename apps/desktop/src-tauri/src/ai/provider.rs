@@ -217,7 +217,7 @@ pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base
     let resp = req
         .send()
         .await
-        .map_err(|e| AppError::net_connect_failed(format!("AI provider connection failed: {}", e)))?;
+        .map_err(|e| AppError::safe_net_error("AI provider connection", e))?;
 
     if !resp.status().is_success() {
         let status = resp.status().as_u16();
@@ -265,7 +265,7 @@ pub async fn ai_chat(app: tauri::AppHandle, request: AiChatRequest) -> Result<Ai
         .timeout(std::time::Duration::from_secs(60))
         .send()
         .await
-        .map_err(|e| AppError::net_connect_failed(format!("AI chat request failed: {}", e)))?;
+        .map_err(|e| AppError::safe_net_error("AI chat request", e))?;
 
     if !resp.status().is_success() {
         let status = resp.status().as_u16();
@@ -322,7 +322,7 @@ pub async fn ai_stream_chat(app: tauri::AppHandle, request: AiChatRequest) -> Re
         .timeout(std::time::Duration::from_secs(120))
         .send()
         .await
-        .map_err(|e| AppError::net_connect_failed(format!("AI stream request failed: {}", e)))?;
+        .map_err(|e| AppError::safe_net_error("AI stream request", e))?;
 
     if !resp.status().is_success() {
         let status = resp.status().as_u16();

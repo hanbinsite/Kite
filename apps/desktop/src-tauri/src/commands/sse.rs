@@ -66,7 +66,7 @@ pub async fn sse_connect(
     let response = request_builder
         .send()
         .await
-        .map_err(|e| crate::error::AppError::net_connect_failed(format!("SSE connect failed: {}", e)))?;
+        .map_err(|e| crate::error::AppError::safe_net_error("SSE connect", e))?;
 
     if !response.status().is_success() {
         return Err(crate::error::AppError::net_connect_failed(

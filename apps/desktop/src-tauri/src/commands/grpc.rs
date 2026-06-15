@@ -195,7 +195,7 @@ pub async fn send_grpc_request(
         .body(grpc_body)
         .send()
         .await
-        .map_err(|e| crate::error::AppError::net_connect_failed(format!("gRPC request failed: {}", e)))?;
+        .map_err(|e| crate::error::AppError::safe_net_error("gRPC request", e))?;
 
     let grpc_status = response.headers()
         .get("grpc-status")

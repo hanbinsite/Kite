@@ -9,6 +9,10 @@ pub struct AppError {
 impl AppError {
     // Network errors
     pub fn net_connect_failed(detail: String) -> Self { Self { code: "NET_CONNECT_FAILED".into(), detail } }
+    pub fn safe_net_error(context: &str, raw: impl std::fmt::Display) -> Self {
+        tracing::warn!("{}: {}", context, raw);
+        Self { code: "NET_CONNECT_FAILED".into(), detail: format!("{} failed", context) }
+    }
     pub fn net_timeout(ms: u64) -> Self { Self { code: "NET_TIMEOUT".into(), detail: format!("Request timeout after {}ms", ms) } }
     pub fn net_cancelled() -> Self { Self { code: "NET_REQUEST_CANCELLED".into(), detail: "Request was cancelled".into() } }
     pub fn net_dns_error(detail: String) -> Self { Self { code: "NET_DNS_ERROR".into(), detail } }

@@ -66,14 +66,14 @@ pub async fn ws_connect(
 
     let request = request
         .body(())
-        .map_err(|e| crate::error::AppError::net_connect_failed(format!("Invalid WS request: {}", e)))?;
+        .map_err(|e| crate::error::AppError::safe_net_error("Invalid WS request", e))?;
 
     let (ws_stream, _response) = tokio::time::timeout(
         Duration::from_secs(WS_CONNECT_TIMEOUT_SECS),
         connect_async(request),
     ).await
         .map_err(|_| crate::error::AppError::net_timeout(WS_CONNECT_TIMEOUT_SECS * 1000))?
-        .map_err(|e| crate::error::AppError::net_connect_failed(format!("WS connect failed: {}", e)))?;
+        .map_err(|e| crate::error::AppError::safe_net_error("WS connect", e))?;
 
     let (mut write, mut read) = ws_stream.split();
 
