@@ -43,9 +43,9 @@ impl AppError {
     pub fn validation_failed(detail: String) -> Self { Self { code: "VALIDATION_FAILED".into(), detail } }
     pub fn invalid_input(detail: String) -> Self { Self { code: "INVALID_INPUT".into(), detail } }
 
-    // Proxy errors
-    pub fn proxy_start_failed(detail: String) -> Self { Self { code: "PROXY_START_FAILED".into(), detail } }
-    pub fn proxy_not_running() -> Self { Self { code: "PROXY_NOT_RUNNING".into(), detail: "Proxy server is not running".into() } }
+    // Mock server errors (was proxy)
+    pub fn mock_start_failed(detail: String) -> Self { Self { code: "PROXY_START_FAILED".into(), detail } }
+    pub fn mock_not_running() -> Self { Self { code: "PROXY_NOT_RUNNING".into(), detail: "Mock server is not running".into() } }
 
     // General
     pub fn not_found(detail: String) -> Self { Self { code: "NOT_FOUND".into(), detail } }

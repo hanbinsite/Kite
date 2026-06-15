@@ -62,7 +62,7 @@ export function VariableInspector({ isOpen, onClose }: VariableInspectorProps) {
     <Dialog.Root open={isOpen} onOpenChange={handleOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/50 z-modal animate-fade-in" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[480px] max-h-[400px] bg-bg-elevated/85 backdrop-blur-[20px] border border-white/[0.06] rounded-xl shadow-xl z-modal flex flex-col overflow-hidden">
+        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[480px] max-w-[95vw] max-h-[400px] bg-bg-elevated/85 backdrop-blur-[20px] border border-white/[0.06] rounded-xl shadow-xl z-modal flex flex-col overflow-hidden">
           <div className="h-12 flex items-center justify-between px-4 border-b border-border-default">
             <Dialog.Title className="font-sans text-sm font-semibold text-fg-primary">
               {t("variableInspector.title")}

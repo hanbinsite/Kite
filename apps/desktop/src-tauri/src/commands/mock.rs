@@ -159,7 +159,7 @@ pub async fn start_mock_server(
     {
         let server = state.server.read().await;
         if server.is_some() {
-            return Err(crate::error::AppError::proxy_start_failed(
+            return Err(crate::error::AppError::mock_start_failed(
                 "Mock server is already running".to_string(),
             ));
         }
@@ -172,10 +172,10 @@ pub async fn start_mock_server(
 
     let listener = tokio::net::TcpListener::bind(std::net::SocketAddr::from(([127, 0, 0, 1], port)))
         .await
-        .map_err(|e| crate::error::AppError::proxy_start_failed(format!("Failed to bind port {}: {}", port, e)))?;
+        .map_err(|e| crate::error::AppError::mock_start_failed(format!("Failed to bind port {}: {}", port, e)))?;
 
     let actual_port = listener.local_addr()
-        .map_err(|e| crate::error::AppError::proxy_start_failed(format!("Failed to get local addr: {}", e)))?
+        .map_err(|e| crate::error::AppError::mock_start_failed(format!("Failed to get local addr: {}", e)))?
         .port();
 
     if let Ok(data_dir) = app.path().app_data_dir() {
@@ -242,7 +242,7 @@ pub async fn stop_mock_server(
         let _ = server.shutdown.send(());
         Ok(())
     } else {
-        Err(crate::error::AppError::proxy_not_running())
+        Err(crate::error::AppError::mock_not_running())
     }
 }
 

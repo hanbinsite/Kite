@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import { UrlBar } from "../url-bar";
 import { TabBar } from "../tab";
@@ -9,8 +9,21 @@ import { SplitPane } from "../layout/SplitPane";
 import { useTabStore, useUIStore } from "@api-client/core";
 import { ErrorBoundary } from "@api-client/ui";
 import { useRequestStore } from "../../stores";
-import { WebSocketPanel, SsePanel, MqttPanel, GrpcPanel, MockPanel } from "../protocol";
 import { CollectionConfigTab } from "../collection/CollectionConfigTab";
+
+const WebSocketPanel = lazy(() => import("../protocol").then((m) => ({ default: m.WebSocketPanel })));
+const SsePanel = lazy(() => import("../protocol").then((m) => ({ default: m.SsePanel })));
+const MqttPanel = lazy(() => import("../protocol").then((m) => ({ default: m.MqttPanel })));
+const GrpcPanel = lazy(() => import("../protocol").then((m) => ({ default: m.GrpcPanel })));
+const MockPanel = lazy(() => import("../protocol").then((m) => ({ default: m.MockPanel })));
+
+function ProtocolPanelFallback() {
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="w-5 h-5 border-2 border-border-default border-t-brand rounded-full animate-spin" />
+    </div>
+  );
+}
 
 export function Workbench() {
   const { t } = useTranslation();
@@ -79,22 +92,19 @@ export function Workbench() {
 }
 
 function ProtocolWorkbench({ protocol, tabId, t }: { protocol: string; tabId: string; t: (key: string, options?: Record<string, unknown>) => string }) {
-  switch (protocol) {
-    case "websocket":
-      return <WebSocketPanel connectionId={tabId} />;
-    case "sse":
-      return <SsePanel connectionId={tabId} />;
-    case "mqtt":
-      return <MqttPanel connectionId={tabId} />;
-    case "grpc":
-      return <GrpcPanel connectionId={tabId} />;
-    case "mock":
-      return <MockPanel />;
-    default:
-      return (
+  const panel = (() => {
+    switch (protocol) {
+      case "websocket": return <WebSocketPanel connectionId={tabId} />;
+      case "sse": return <SsePanel connectionId={tabId} />;
+      case "mqtt": return <MqttPanel connectionId={tabId} />;
+      case "grpc": return <GrpcPanel connectionId={tabId} />;
+      case "mock": return <MockPanel />;
+      default: return (
         <div className="flex items-center justify-center h-full text-fg-tertiary text-[13px]">
           {t("errors.unknownProtocol", { protocol })}
         </div>
       );
-  }
+    }
+  })();
+  return <Suspense fallback={<ProtocolPanelFallback />}>{panel}</Suspense>;
 }

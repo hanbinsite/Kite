@@ -25,6 +25,10 @@ export function SplitPane({
     setIsDragging(true);
   }, []);
 
+  const handleTouchStart = useCallback(() => {
+    setIsDragging(true);
+  }, []);
+
   const handleMouseUp = useCallback(() => {
     if (isDragging) {
       setIsDragging(false);
@@ -32,12 +36,18 @@ export function SplitPane({
     }
   }, [isDragging, ratio, onRatioChange]);
 
-  const handleMouseMove = useCallback(
-    (e: MouseEvent) => {
-      if (!isDragging || !containerRef.current) return;
+  const handleTouchEnd = useCallback(() => {
+    if (isDragging) {
+      setIsDragging(false);
+      onRatioChange?.(ratio);
+    }
+  }, [isDragging, ratio, onRatioChange]);
 
+  const handleMove = useCallback(
+    (clientY: number) => {
+      if (!isDragging || !containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
-      const y = e.clientY - rect.top;
+      const y = clientY - rect.top;
       const containerHeight = rect.height;
       const newRatio = Math.max(
         minTopHeight / containerHeight,
@@ -48,20 +58,34 @@ export function SplitPane({
     [isDragging, minTopHeight, minBottomHeight],
   );
 
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => { handleMove(e.clientY); },
+    [handleMove],
+  );
+
+  const handleTouchMove = useCallback(
+    (e: TouchEvent) => { if (e.touches[0]) handleMove(e.touches[0].clientY); },
+    [handleMove],
+  );
+
   useEffect(() => {
     if (isDragging) {
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
+      document.addEventListener("touchmove", handleTouchMove, { passive: false });
+      document.addEventListener("touchend", handleTouchEnd);
       document.body.style.cursor = "row-resize";
       document.body.style.userSelect = "none";
     }
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener("touchmove", handleTouchMove);
+      document.removeEventListener("touchend", handleTouchEnd);
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
-  }, [isDragging, handleMouseMove, handleMouseUp]);
+  }, [isDragging, handleMouseMove, handleMouseUp, handleTouchMove, handleTouchEnd]);
 
   const handleDoubleClick = () => {
     setRatio(0.5);
@@ -73,6 +97,7 @@ export function SplitPane({
       <div style={{ height: `${ratio * 100}%`, minHeight: `${minTopHeight}px` }} className="overflow-hidden flex flex-col shrink-0">{top}</div>
       <div
         onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
         onDoubleClick={handleDoubleClick}
         className={`h-1 cursor-row-resize transition-colors flex-shrink-0 ${
           isDragging ? "bg-brand" : "bg-border-muted hover:bg-brand"
