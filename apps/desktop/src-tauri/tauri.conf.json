@@ -44,5 +44,16 @@
       "digestAlgorithm": "sha256",
       "timestampUrl": ""
     }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://api-client.example.com/updates/{{target}}/{{current_version}}"
+      ],
+      "pubkey": "",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

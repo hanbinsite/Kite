@@ -27,6 +27,7 @@ async fn main() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(AppState { storage: Arc::new(Mutex::new(None)) })
         .manage(commands::http::HttpClientState::new())
         .manage(commands::websocket::WsState::new())

@@ -211,7 +211,7 @@ api-client/
 | reqwest | 0.12.x | HTTP 请求 |
 | tonic + prost | 0.12.x + 0.13.x | gRPC |
 | tokio-tungstenite | 0.23.x | WebSocket |
-| rquickjs | 0.7.x | 脚本引擎 |
+| rquickjs | 0.11.x | 脚本引擎 |
 | rusqlite | 0.31.x | SQLite |
 | keyring | 3.x | 系统密钥链 |
 | argon2 | 0.5.x | 密钥派生（KDF） |
