@@ -30,6 +30,7 @@ export interface IpcRequestSettings {
     follow_redirects: boolean;
     max_redirects: number;
     verify_ssl: boolean;
+    proxy_url?: string | null;
 }
 
 export interface IpcAuthConfig {

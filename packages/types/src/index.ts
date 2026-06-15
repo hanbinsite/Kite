@@ -69,6 +69,7 @@ export interface RequestSettings {
   followRedirects: boolean;
   maxRedirects: number;
   verifySsl: boolean;
+  proxyUrl?: string;
 }
 
 export interface HttpResponse {

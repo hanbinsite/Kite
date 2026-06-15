@@ -260,6 +260,7 @@ export function buildIpcSettings(settings: RequestSettings): IpcRequestSettings 
     follow_redirects: settings.followRedirects,
     max_redirects: settings.maxRedirects,
     verify_ssl: settings.verifySsl,
+    proxy_url: settings.proxyUrl || null,
   };
 }
 
@@ -389,6 +390,10 @@ export const useRequestStore = create<RequestStore>()(
 
       const requestData = state.requestDataMap[tabId] || DEFAULT_REQUEST_DATA;
       const envStore = (await import("./environment-store")).useEnvironmentStore.getState();
+      const settingsStore = (await import("./settings-store")).useSettingsStore.getState();
+
+      // Merge global proxyUrl into per-request settings
+      const mergedSettings = { ...requestData.settings, proxyUrl: settingsStore.proxyUrl || undefined };
 
       const activeTab = useTabStore.getState().tabs.find((t) => t.id === tabId);
       const requestId = activeTab?.requestId ?? tabId;
@@ -433,7 +438,7 @@ export const useRequestStore = create<RequestStore>()(
         params: resolvedParams,
         body: buildIpcBodyConfig(requestData.body, resolver),
         auth: buildIpcAuth(effectiveAuth),
-        settings: buildIpcSettings(requestData.settings),
+        settings: buildIpcSettings(mergedSettings),
       };
 
       const collectionVariablesRecord = { ...collectionVars, ...folderVars };

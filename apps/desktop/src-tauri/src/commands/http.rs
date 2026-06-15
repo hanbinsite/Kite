@@ -225,6 +225,8 @@ pub struct RequestSettings {
     pub max_redirects: u32,
     #[serde(default = "default_true")]
     pub verify_ssl: bool,
+    #[serde(default)]
+    pub proxy_url: Option<String>,
 }
 
 fn default_timeout() -> u64 {
@@ -261,8 +263,16 @@ pub struct ResponseHeader {
 fn build_client(settings: &RequestSettings) -> Result<Client, AppError> {
     let mut builder = Client::builder()
         .cookie_store(false)
-        .no_proxy()
         .timeout(std::time::Duration::from_millis(settings.timeout_ms));
+
+    if let Some(ref proxy_url) = settings.proxy_url {
+        if !proxy_url.is_empty() {
+            builder = builder.proxy(
+                reqwest::Proxy::all(proxy_url)
+                    .map_err(|e| AppError::internal(format!("Invalid proxy URL: {}", e)))?,
+            );
+        }
+    }
 
     if !settings.follow_redirects {
         builder = builder.redirect(reqwest::redirect::Policy::none());
