@@ -398,14 +398,20 @@ function normalizeActionJson(obj: Record<string, unknown>): Record<string, unkno
   const type = obj.type;
   if (typeof type !== "string") return obj;
 
+  // Normalize headers: {"k":"v"} → [{key:"k",value:"v"}]
+  const normalizeHeaders = (data: Record<string, unknown>) => {
+    if (data.headers && typeof data.headers === "object" && !Array.isArray(data.headers)) {
+      const h = data.headers as Record<string, unknown>;
+      data.headers = Object.entries(h).map(([k, v]) => ({ key: k, value: String(v) }));
+    }
+  };
+
   if (type === "create_request") {
     if (!obj.data) {
-      // Case 1: data is nested under "request" key
       if (obj.request && typeof obj.request === "object") {
-        obj.data = obj.request;
+        obj.data = obj.request as Record<string, unknown>;
         delete obj.request;
       } else {
-        // Case 2: flat fields at top level — wrap into data
         const data: Record<string, unknown> = {};
         for (const key of ["method", "url", "name", "headers", "body", "auth"]) {
           if (key in obj) {
@@ -416,7 +422,7 @@ function normalizeActionJson(obj: Record<string, unknown>): Record<string, unkno
         if (Object.keys(data).length > 0) obj.data = data;
       }
     }
-    // Add description if missing
+    normalizeHeaders(obj.data as Record<string, unknown>);
     if (!obj.description) {
       const name = (obj.data as Record<string, unknown>)?.name;
       obj.description = typeof name === "string" ? `Create request: ${name}` : "Create request";
