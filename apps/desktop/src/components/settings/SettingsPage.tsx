@@ -251,7 +251,6 @@ function AiSection() {
     if (editId) {
       const provider = providers.find((p) => p.id === editId);
       if (provider) {
-        await removeProvider(editId);
         const config: AiProviderConfig = {
           id: editId,
           name: newName,
@@ -261,6 +260,9 @@ function AiSection() {
           isDefault: provider.isDefault,
         };
         await addProvider(config, newApiKey || undefined);
+        if (!newApiKey) {
+          useProviderStore.getState().refreshApiKeyStatus(editId);
+        }
       }
     } else {
       const id = `provider-${Date.now()}`;

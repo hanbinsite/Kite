@@ -301,6 +301,14 @@ pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base
         }
     }
 
+    let mut used_key = false;
+    if let Some(p) = provider {
+        if let Ok(api_key) = get_api_key(&p.id) {
+            req = req.header("Authorization", format!("Bearer {}", api_key));
+            used_key = true;
+        }
+    }
+
     let resp = req
         .send()
         .await
@@ -309,7 +317,8 @@ pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base
     if !resp.status().is_success() {
         let status = resp.status().as_u16();
         let text = resp.text().await.unwrap_or_default();
-        return Err(AppError::net_auth_failed(format!("AI provider returned {}: {}", status, text)));
+        let hint = if !used_key { " (no API key found)" } else { " (API key was used)" };
+        return Err(AppError::net_auth_failed(format!("AI provider returned {}{}: {}", status, hint, text)));
     }
 
     let json: serde_json::Value = resp.json().await
