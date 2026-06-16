@@ -86,15 +86,25 @@ export const useEnvironmentStore = create<EnvironmentStore>()(
       set((state) => {
         state.environments.push(env);
       });
+      saveEnvironment(toIpcEnv(env)).catch((e) => {
+        console.error(`Failed to save environment "${env.name}":`, e);
+      });
     },
 
-    updateEnvironment: (id, updates) =>
+    updateEnvironment: (id, updates) => {
       set((state) => {
         const idx = state.environments.findIndex((e) => e.id === id);
         if (idx !== -1 && state.environments[idx]) {
           Object.assign(state.environments[idx], updates);
         }
-      }),
+      });
+      const env = get().environments.find((e) => e.id === id);
+      if (env) {
+        saveEnvironment(toIpcEnv(env)).catch((e) => {
+          console.error(`Failed to persist environment "${env.name}" (${id}):`, e);
+        });
+      }
+    },
 
     deleteEnvironment: (id) => {
       set((state) => {
