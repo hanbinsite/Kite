@@ -4,7 +4,7 @@ import { useChatStore, useProviderStore, buildContextMessage, SLASH_COMMANDS } f
 import type { SlashCommand, AiProviderConfig } from "@api-client/core/ai";
 import { useTabStore, useUIStore } from "@api-client/core";
 import { useCollectionStore, useEnvironmentStore, useRequestStore } from "../../stores";
-import { Send, Bot, User, Loader2, X, PanelRightClose, FileText, Globe, FolderOpen, Zap, ChevronRight, Key } from "lucide-react";
+import { Send, Bot, User, Loader2, X, PanelRightClose, FileText, Globe, FolderOpen, Zap, ChevronRight, Key, Copy, RotateCw } from "lucide-react";
 import { AiActionCard } from "./AiActionCard";
 
 function escapeHtml(text: string): string {
@@ -251,6 +251,24 @@ export function AiChatPanel() {
                 __html: msg.role === "assistant" ? renderMarkdown(msg.content) : escapeHtml(msg.content),
               }}
             />
+            <div className="flex items-center gap-0.5 mt-0.5">
+              <button
+                onClick={() => navigator.clipboard.writeText(msg.content)}
+                className="p-0.5 rounded hover:bg-bg-hover text-fg-tertiary hover:text-fg-primary transition-colors cursor-pointer"
+                title="Copy"
+              >
+                <Copy className="w-3 h-3" />
+              </button>
+              {msg.role === "assistant" && (
+                <button
+                  onClick={() => { setInput(""); if (activeProviderId) useChatStore.getState().sendMessage(sessionId, activeProviderId, { role: "user", content: "Please retry the previous action. Return a valid JSON action in a ```json code block." }, buildContextMsgs()); }}
+                  className="p-0.5 rounded hover:bg-bg-hover text-fg-tertiary hover:text-fg-primary transition-colors cursor-pointer"
+                  title="Retry"
+                >
+                  <RotateCw className="w-3 h-3" />
+                </button>
+              )}
+            </div>
             {msg.role === "user" && (
               <User className="w-5 h-5 text-fg-tertiary shrink-0 mt-0.5" />
             )}
