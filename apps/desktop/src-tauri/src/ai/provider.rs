@@ -316,8 +316,8 @@ pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base
 
     let body = serde_json::json!({
         "model": model,
-        "messages": [{"role": "user", "content": "ping"}],
-        "max_tokens": 5,
+        "messages": [{"role": "user", "content": "Say hi"}],
+        "max_tokens": 50,
     });
 
     let mut req = client
