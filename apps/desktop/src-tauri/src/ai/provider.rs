@@ -286,9 +286,11 @@ pub async fn ai_remove_provider(app: tauri::AppHandle, provider_id: String) -> R
 
 #[tauri::command]
 pub async fn ai_set_api_key(app: tauri::AppHandle, provider_id: String, api_key: String) -> Result<(), AppError> {
+    eprintln!("[AI KEY] saving key for '{}', length={}", provider_id, api_key.len());
     let mut keys = load_api_keys(&app)?;
     keys.insert(provider_id.clone(), api_key);
     save_api_keys(&app, &keys)?;
+    eprintln!("[AI KEY] key saved to file successfully");
     Ok(())
 }
 
@@ -355,8 +357,9 @@ pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base
 
     if used_key {
         let api_key = get_api_key(&app, &provider_id)?;
-        let masked = format!("{}...{}", &api_key[..8.min(api_key.len())], &api_key[api_key.len().saturating_sub(4)..]);
-        eprintln!("[AI TEST] using Bearer key: {}", masked);
+        eprintln!("[AI TEST] key first 12 chars: {}", &api_key[..12.min(api_key.len())]);
+        eprintln!("[AI TEST] key last 8 chars: {}", &api_key[api_key.len().saturating_sub(8)..]);
+        eprintln!("[AI TEST] key total length: {}", api_key.len());
         req = req.header("Authorization", format!("Bearer {}", api_key));
     } else {
         eprintln!("[AI TEST] no key, sending without Authorization");
