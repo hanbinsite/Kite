@@ -360,9 +360,45 @@ function detectActions(sessionId: string, get: () => ChatState, set: (fn: (state
 
 function tryParseAction(jsonStr: string): AgentAction | null {
   try {
-    const parsed = JSON.parse(jsonStr);
+    let parsed = JSON.parse(jsonStr);
+    parsed = normalizeActionJson(parsed);
     return parseAgentAction(parsed);
   } catch {
     return null;
   }
+}
+
+function normalizeActionJson(obj: Record<string, unknown>): Record<string, unknown> {
+  const type = obj.type;
+  if (typeof type !== "string") return obj;
+
+  // For create_request: if method/url are at top level, wrap them in data
+  if (type === "create_request" && !obj.data) {
+    const data: Record<string, unknown> = {};
+    if (typeof obj.method === "string") { data.method = obj.method; delete obj.method; }
+    if (typeof obj.url === "string") { data.url = obj.url; delete obj.url; }
+    if (typeof obj.name === "string") { data.name = obj.name; delete obj.name; }
+    if (obj.headers) { data.headers = obj.headers; delete obj.headers; }
+    if (obj.body) { data.body = obj.body; delete obj.body; }
+    if (obj.auth) { data.auth = obj.auth; delete obj.auth; }
+    if (Object.keys(data).length > 0) {
+      obj.data = data;
+    }
+  }
+
+  // For other types: ensure top-level fields are in data
+  if (!obj.data && (type === "write_test" || type === "generate_doc" || type === "generate_mock")) {
+    const data: Record<string, unknown> = {};
+    for (const key of Object.keys(obj)) {
+      if (key !== "type" && key !== "description") {
+        data[key] = obj[key];
+        delete obj[key];
+      }
+    }
+    if (Object.keys(data).length > 0) {
+      obj.data = data;
+    }
+  }
+
+  return obj;
 }
