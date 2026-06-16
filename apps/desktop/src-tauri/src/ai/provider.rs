@@ -191,7 +191,7 @@ fn get_api_key(provider_id: &str) -> Result<String, AppError> {
     let keyring_entry = keyring::Entry::new("api-client", &format!("ai-key-{}", provider_id))
         .map_err(|e| AppError::vault_keyring_failed(format!("Keyring error: {}", e)))?;
     keyring_entry.get_password()
-        .map_err(|_| AppError::vault_keyring_failed(format!("AI API key not found for provider '{}'", provider_id)))
+        .map_err(|e| AppError::vault_keyring_failed(format!("AI API key not found for '{}': {}", provider_id, e)))
 }
 
 #[tauri::command]
@@ -304,36 +304,37 @@ pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base
     let mut used_key = false;
     match provider {
         None => {
-            eprintln!("[AI TEST] Provider '{}' not found in cache ({} cached)", provider_id, providers.len());
-            // Force re-read from file
+            eprintln!("[AI TEST] Provider '{}' not found in cache", provider_id);
             let path = providers_file(&app)?;
             let fresh = load_providers_from_file(&path)?;
             let fresh_provider = fresh.iter().find(|p| p.id == provider_id);
             if let Some(p) = fresh_provider {
-                match get_api_key(&p.id) {
-                    Ok(api_key) => {
-                        eprintln!("[AI TEST] Key found for provider '{}' (length: {})", p.id, api_key.len());
-                        req = req.header("Authorization", format!("Bearer {}", api_key));
-                        used_key = true;
-                    }
-                    Err(e) => {
-                        eprintln!("[AI TEST] Key lookup FAILED for provider '{}': {}", p.id, e);
-                    }
+                let keyring_entry = keyring::Entry::new("api-client", &format!("ai-key-{}", p.id));
+                match keyring_entry {
+                    Ok(entry) => match entry.get_password() {
+                        Ok(api_key) => {
+                            eprintln!("[AI TEST] Key found for '{}', length={}", p.id, api_key.len());
+                            req = req.header("Authorization", format!("Bearer {}", api_key));
+                            used_key = true;
+                        }
+                        Err(e) => eprintln!("[AI TEST] get_password() FAILED for '{}': {:?}", p.id, e),
+                    },
+                    Err(e) => eprintln!("[AI TEST] Entry::new FAILED for '{}': {:?}", p.id, e),
                 }
-            } else {
-                eprintln!("[AI TEST] Provider '{}' not found in file either", provider_id);
             }
         }
         Some(p) => {
-            match get_api_key(&p.id) {
-                Ok(api_key) => {
-                    eprintln!("[AI TEST] Key found for provider '{}' (length: {})", p.id, api_key.len());
-                    req = req.header("Authorization", format!("Bearer {}", api_key));
-                    used_key = true;
-                }
-                Err(e) => {
-                    eprintln!("[AI TEST] Key lookup FAILED for provider '{}': {}", p.id, e);
-                }
+            let keyring_entry = keyring::Entry::new("api-client", &format!("ai-key-{}", p.id));
+            match keyring_entry {
+                Ok(entry) => match entry.get_password() {
+                    Ok(api_key) => {
+                        eprintln!("[AI TEST] Key found for '{}', length={}", p.id, api_key.len());
+                        req = req.header("Authorization", format!("Bearer {}", api_key));
+                        used_key = true;
+                    }
+                    Err(e) => eprintln!("[AI TEST] get_password() FAILED for '{}': {:?}", p.id, e),
+                },
+                Err(e) => eprintln!("[AI TEST] Entry::new FAILED for '{}': {:?}", p.id, e),
             }
         }
     }
