@@ -122,6 +122,8 @@ fn providers_file(app: &tauri::AppHandle) -> Result<PathBuf, AppError> {
         .path()
         .app_data_dir()
         .map_err(|e| AppError::internal(format!("Failed to get app data dir: {}", e)))?;
+    std::fs::create_dir_all(&data_dir)
+        .map_err(|e| AppError::storage_write_failed(format!("Failed to create app data dir: {}", e)))?;
     Ok(data_dir.join("ai-providers.json"))
 }
 
@@ -133,6 +135,31 @@ fn load_providers_from_file(path: &PathBuf) -> Result<Vec<AiProviderConfig>, App
         .map_err(|e| AppError::storage_read_failed(format!("Failed to read providers file: {}", e)))?;
     serde_json::from_str(&content)
         .map_err(|e| AppError::storage_parse_failed(format!("Failed to parse providers file: {}", e)))
+}
+
+fn active_provider_file(app: &tauri::AppHandle) -> Result<PathBuf, AppError> {
+    let data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| AppError::internal(format!("Failed to get app data dir: {}", e)))?;
+    Ok(data_dir.join("ai-active-provider.txt"))
+}
+
+fn load_active_provider(app: &tauri::AppHandle) -> Result<Option<String>, AppError> {
+    let path = active_provider_file(app)?;
+    if !path.exists() {
+        return Ok(None);
+    }
+    let content = std::fs::read_to_string(&path)
+        .map_err(|e| AppError::storage_read_failed(format!("Failed to read active provider: {}", e)))?;
+    Ok(Some(content.trim().to_string()).filter(|s| !s.is_empty()))
+}
+
+fn save_active_provider(app: &tauri::AppHandle, provider_id: &str) -> Result<(), AppError> {
+    let path = active_provider_file(app)?;
+    std::fs::write(&path, provider_id)
+        .map_err(|e| AppError::storage_write_failed(format!("Failed to save active provider: {}", e)))?;
+    Ok(())
 }
 
 fn load_providers_cached(app: &tauri::AppHandle) -> Result<Vec<AiProviderConfig>, AppError> {
@@ -169,7 +196,18 @@ fn get_api_key(provider_id: &str) -> Result<String, AppError> {
 
 #[tauri::command]
 pub async fn ai_list_providers(app: tauri::AppHandle) -> Result<Vec<AiProviderConfig>, AppError> {
-    load_providers_cached(&app)
+    let providers = load_providers_cached(&app)?;
+    // On first load, restore active provider from disk
+    if ACTIVE_PROVIDER.lock().ok().and_then(|a| a.clone()).is_none() {
+        if let Ok(Some(id)) = load_active_provider(&app) {
+            if providers.iter().any(|p| p.id == id) {
+                if let Ok(mut active) = ACTIVE_PROVIDER.lock() {
+                    *active = Some(id);
+                }
+            }
+        }
+    }
+    Ok(providers)
 }
 
 #[tauri::command]
@@ -180,8 +218,9 @@ pub async fn ai_set_provider(app: tauri::AppHandle, provider_id: String) -> Resu
     }
     {
         let mut active = ACTIVE_PROVIDER.lock().map_err(|e| AppError::internal(format!("Lock error: {}", e)))?;
-        *active = Some(provider_id);
+        *active = Some(provider_id.clone());
     }
+    save_active_provider(&app, &provider_id)?;
     Ok(())
 }
 
