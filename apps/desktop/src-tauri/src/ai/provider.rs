@@ -302,14 +302,36 @@ pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base
     }
 
     let mut used_key = false;
-    if let Some(p) = provider {
-        match get_api_key(&p.id) {
-            Ok(api_key) => {
-                req = req.header("Authorization", format!("Bearer {}", api_key));
-                used_key = true;
+    match provider {
+        None => {
+            tracing::warn!("Provider '{}' not found in cache ({} cached). Re-loading from file.", provider_id, providers.len());
+            // Force re-read from file
+            let path = providers_file(&app)?;
+            let fresh = load_providers_from_file(&path)?;
+            let fresh_provider = fresh.iter().find(|p| p.id == provider_id);
+            if let Some(p) = fresh_provider {
+                match get_api_key(&p.id) {
+                    Ok(api_key) => {
+                        req = req.header("Authorization", format!("Bearer {}", api_key));
+                        used_key = true;
+                    }
+                    Err(e) => {
+                        tracing::warn!("API key lookup failed for provider '{}': {}", p.id, e);
+                    }
+                }
+            } else {
+                tracing::warn!("Provider '{}' not found in file either.", provider_id);
             }
-            Err(e) => {
-                tracing::warn!("API key lookup failed for provider '{}': {}", p.id, e);
+        }
+        Some(p) => {
+            match get_api_key(&p.id) {
+                Ok(api_key) => {
+                    req = req.header("Authorization", format!("Bearer {}", api_key));
+                    used_key = true;
+                }
+                Err(e) => {
+                    tracing::warn!("API key lookup failed for provider '{}': {}", p.id, e);
+                }
             }
         }
     }
