@@ -317,37 +317,31 @@ function detectActions(sessionId: string, get: () => ChatState, set: (fn: (state
   const content = lastAssistant.content;
   console.log("[detectActions] scanning content, length=", content.length, "preview=", content.slice(0, 200));
 
-  // Strategy 1: extract from ```json code blocks
-  const codeBlockRe = /```json\s*([\s\S]*?)```/g;
+  // Strategy 1: extract from ```json code blocks with brace counting
+  const codeBlockRe = /```json\s*/g;
   let match: RegExpExecArray | null;
   while ((match = codeBlockRe.exec(content)) !== null) {
-    const jsonStr = match[1]?.trim();
-    console.log("[detectActions] code block found:", jsonStr?.slice(0, 100));
-    if (jsonStr) {
-      const action = tryParseAction(jsonStr);
+    const start = match.index + match[0].length;
+    const end = content.indexOf("```", start);
+    const blockContent = end > start ? content.slice(start, end) : content.slice(start);
+    const jsonObj = extractJsonObject(blockContent);
+    if (jsonObj) {
+      console.log("[detectActions] code block JSON:", jsonObj.slice(0, 100));
+      const action = tryParseAction(jsonObj);
       if (action) { console.log("[detectActions] parsed action:", action.type); actions.push(action); }
       else console.log("[detectActions] failed to parse code block JSON");
     }
   }
 
-  // Strategy 2: find standalone JSON objects containing "type" field
+  // Strategy 2: extract complete JSON objects from text
   if (actions.length === 0) {
-    const jsonRe = /\{[\s\S]*?"type"\s*:\s*"[a-z_]+"[\s\S]*?\}/g;
-    while ((match = jsonRe.exec(content)) !== null) {
-      const jsonStr = match[0]?.trim();
-      console.log("[detectActions] inline JSON found:", jsonStr?.slice(0, 100));
-      if (jsonStr) {
-        const action = tryParseAction(jsonStr);
-        if (action) { console.log("[detectActions] parsed action:", action.type); actions.push(action); }
-        else console.log("[detectActions] failed to parse inline JSON");
-      }
+    const jsonObj = extractJsonObject(content);
+    if (jsonObj) {
+      console.log("[detectActions] extracted JSON:", jsonObj.slice(0, 100));
+      const action = tryParseAction(jsonObj);
+      if (action) { console.log("[detectActions] parsed action:", action.type); actions.push(action); }
+      else console.log("[detectActions] failed to parse extracted JSON");
     }
-  }
-
-  // Strategy 3: try to parse the entire content as JSON
-  if (actions.length === 0) {
-    const action = tryParseAction(content);
-    if (action) { console.log("[detectActions] parsed whole content as action:", action.type); actions.push(action); }
   }
 
   console.log("[detectActions] found", actions.length, "actions");
@@ -356,6 +350,34 @@ function detectActions(sessionId: string, get: () => ChatState, set: (fn: (state
       pendingActions: { ...s.pendingActions, [sessionId]: actions },
     }));
   }
+}
+
+function extractJsonObject(text: string): string | null {
+  // Find first { after "type" to start extracting
+  const typeIdx = text.indexOf('"type"');
+  if (typeIdx === -1) return null;
+
+  // Find the { that opens the JSON object containing "type"
+  let braceStart = -1;
+  for (let i = typeIdx; i >= 0; i--) {
+    if (text[i] === "{") { braceStart = i; break; }
+  }
+  if (braceStart === -1) return null;
+
+  // Count braces to find the matching closing }
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = braceStart; i < text.length; i++) {
+    const ch = text[i];
+    if (escaped) { escaped = false; continue; }
+    if (ch === "\\") { escaped = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === "{") { depth++; }
+    else if (ch === "}") { depth--; if (depth === 0) return text.slice(braceStart, i + 1); }
+  }
+  return null;
 }
 
 function tryParseAction(jsonStr: string): AgentAction | null {
