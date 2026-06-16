@@ -272,7 +272,7 @@ pub struct ResponseHeader {
     pub value: String,
 }
 
-fn build_client(settings: &RequestSettings) -> Result<Client, AppError> {
+pub(crate) fn build_client(settings: &RequestSettings) -> Result<Client, AppError> {
     let mut builder = Client::builder()
         .cookie_store(false)
         .timeout(std::time::Duration::from_millis(settings.timeout_ms));
@@ -299,7 +299,7 @@ fn build_client(settings: &RequestSettings) -> Result<Client, AppError> {
     builder.build().map_err(|e| AppError::internal(format!("Failed to build HTTP client: {}", e)))
 }
 
-fn apply_auth_to_config(
+pub(crate) fn apply_auth_to_config(
     config: &mut HttpRequestConfig,
 ) -> Result<(), AppError> {
     if let Some(auth) = &config.auth {
