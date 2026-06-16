@@ -2,7 +2,7 @@
 
 **Last updated: 2026-06-15**
 
-API Client is a local desktop application. All data is stored exclusively on your device.
+Kite is a local desktop application. All data is stored exclusively on your device.
 
 ## Data Collection
 

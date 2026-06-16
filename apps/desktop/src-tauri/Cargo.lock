@@ -101,52 +101,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
-name = "api-client"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "argon2",
- "base64 0.22.1",
- "bytes",
- "chrono",
- "futures-util",
- "http",
- "http-body-util",
- "hyper",
- "hyper-util",
- "keyring",
- "prost",
- "prost-reflect",
- "protox",
- "reqwest 0.12.28",
- "rquickjs",
- "rumqttc",
- "rusqlite",
- "serde",
- "serde_json",
- "serde_urlencoded",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-fs",
- "tauri-plugin-global-shortcut",
- "tauri-plugin-notification",
- "tauri-plugin-process",
- "tauri-plugin-shell",
- "tauri-plugin-updater",
- "tempfile",
- "tokio",
- "tokio-tungstenite",
- "tokio-util",
- "tonic",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "ts-rs",
- "uuid",
-]
-
-[[package]]
 name = "arbitrary"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2484,6 +2438,52 @@ checksum = "eebcc3aff044e5944a8fbaf69eb277d11986064cba30c468730e8b9909fb551c"
 dependencies = [
  "log",
  "zeroize",
+]
+
+[[package]]
+name = "kite"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "argon2",
+ "base64 0.22.1",
+ "bytes",
+ "chrono",
+ "futures-util",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "keyring",
+ "prost",
+ "prost-reflect",
+ "protox",
+ "reqwest 0.12.28",
+ "rquickjs",
+ "rumqttc",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "serde_urlencoded",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-fs",
+ "tauri-plugin-global-shortcut",
+ "tauri-plugin-notification",
+ "tauri-plugin-process",
+ "tauri-plugin-shell",
+ "tauri-plugin-updater",
+ "tempfile",
+ "tokio",
+ "tokio-tungstenite",
+ "tokio-util",
+ "tonic",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "ts-rs",
+ "uuid",
 ]
 
 [[package]]
