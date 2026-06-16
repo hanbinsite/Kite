@@ -47,7 +47,7 @@ pub struct FolderConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum CollectionItem {
-    Folder(CollectionFolder),
+    Folder(Box<CollectionFolder>),
     Request(Box<SavedRequest>),
 }
 
