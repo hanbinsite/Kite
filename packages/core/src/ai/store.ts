@@ -316,22 +316,47 @@ function detectActions(sessionId: string, get: () => ChatState, set: (fn: (state
   const actions: AgentAction[] = [];
   const content = lastAssistant.content;
 
-  const jsonBlocks = content.match(/\{[\s\S]*?"type"[\s\S]*?\}/g);
-  if (!jsonBlocks) return;
-
-  for (const block of jsonBlocks) {
-    try {
-      const parsed = JSON.parse(block);
-      const action = parseAgentAction(parsed);
+  // Strategy 1: extract from ```json code blocks
+  const codeBlockRe = /```json\s*([\s\S]*?)```/g;
+  let match: RegExpExecArray | null;
+  while ((match = codeBlockRe.exec(content)) !== null) {
+    const jsonStr = match[1]?.trim();
+    if (jsonStr) {
+      const action = tryParseAction(jsonStr);
       if (action) actions.push(action);
-    } catch {
-      // not valid JSON, skip
     }
+  }
+
+  // Strategy 2: find standalone JSON objects containing "type" field
+  if (actions.length === 0) {
+    const jsonRe = /\{[\s\S]*?"type"\s*:\s*"[a-z_]+"[\s\S]*?\}/g;
+    while ((match = jsonRe.exec(content)) !== null) {
+      const jsonStr = match[0]?.trim();
+      if (jsonStr) {
+        const action = tryParseAction(jsonStr);
+        if (action) actions.push(action);
+      }
+    }
+  }
+
+  // Strategy 3: try to parse the entire content as JSON
+  if (actions.length === 0) {
+    const action = tryParseAction(content);
+    if (action) actions.push(action);
   }
 
   if (actions.length > 0) {
     set((s) => ({
       pendingActions: { ...s.pendingActions, [sessionId]: actions },
     }));
+  }
+}
+
+function tryParseAction(jsonStr: string): AgentAction | null {
+  try {
+    const parsed = JSON.parse(jsonStr);
+    return parseAgentAction(parsed);
+  } catch {
+    return null;
   }
 }
