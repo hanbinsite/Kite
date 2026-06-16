@@ -143,7 +143,8 @@ export const useProviderStore = create<ProviderStore>((set) => ({
       const result = await testConnection(providerId, baseUrl, model);
       return `Connected — ${result.responseContent || "(empty response)"}\nModel: ${result.model}\nTokens: ${result.usage.totalTokens} (${result.usage.promptTokens} prompt + ${result.usage.completionTokens} completion)`;
     } catch (e) {
-      return `Connection failed: ${e instanceof Error ? e.message : String(e)}`;
+      const detail = e && typeof e === 'object' ? (e as Record<string, unknown>).detail ?? String(e) : String(e);
+      return `Connection failed: ${detail}`;
     }
   },
 
