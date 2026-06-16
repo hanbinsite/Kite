@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, Fragment } from "react";
-import { X, Settings, Globe, Type, Database, Info, Server, Cookie, Trash2, Leaf, Bot } from "lucide-react";
+import { X, Settings, Globe, Type, Database, Info, Server, Cookie, Trash2, Leaf, Bot, Pencil } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useUIStore } from "@api-client/core";
 import type { Theme } from "@api-client/core";
@@ -215,37 +215,73 @@ function AiSection() {
   const testProviderConnection = useProviderStore((s) => s.testProviderConnection);
 
   const [showAdd, setShowAdd] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [newBaseUrl, setNewBaseUrl] = useState("");
   const [newModel, setNewModel] = useState("");
+  const [newProviderType, setNewProviderType] = useState("openai-compatible");
   const [newApiKey, setNewApiKey] = useState("");
   const [editingKeyProviderId, setEditingKeyProviderId] = useState<string | null>(null);
   const [editApiKey, setEditApiKey] = useState("");
   const [testResult, setTestResult] = useState<Record<string, string | null>>({});
+  const [testDialogProvider, setTestDialogProvider] = useState<AiProviderConfig | null>(null);
 
-  const handleAddProvider = async () => {
-    if (!newName || !newBaseUrl || !newModel) return;
-    const id = `provider-${Date.now()}`;
-    const config: AiProviderConfig = {
-      id,
-      name: newName,
-      providerType: "openai-compatible",
-      baseUrl: newBaseUrl,
-      model: newModel,
-      isDefault: providers.length === 0,
-    };
-    await addProvider(config, newApiKey || undefined);
+  const resetForm = () => {
     setNewName("");
     setNewBaseUrl("");
     setNewModel("");
+    setNewProviderType("openai-compatible");
     setNewApiKey("");
     setShowAdd(false);
+    setEditId(null);
+  };
+
+  const startEdit = (p: AiProviderConfig) => {
+    setEditId(p.id);
+    setNewName(p.name);
+    setNewBaseUrl(p.baseUrl);
+    setNewModel(p.model);
+    setNewProviderType(p.providerType);
+    setNewApiKey("");
+    setShowAdd(true);
+  };
+
+  const handleAddOrEdit = async () => {
+    if (!newName || !newBaseUrl || !newModel) return;
+    if (editId) {
+      const provider = providers.find((p) => p.id === editId);
+      if (provider) {
+        await removeProvider(editId);
+        const config: AiProviderConfig = {
+          id: editId,
+          name: newName,
+          providerType: newProviderType,
+          baseUrl: newBaseUrl,
+          model: newModel,
+          isDefault: provider.isDefault,
+        };
+        await addProvider(config, newApiKey || undefined);
+      }
+    } else {
+      const id = `provider-${Date.now()}`;
+      const config: AiProviderConfig = {
+        id,
+        name: newName,
+        providerType: newProviderType,
+        baseUrl: newBaseUrl,
+        model: newModel,
+        isDefault: providers.length === 0,
+      };
+      await addProvider(config, newApiKey || undefined);
+    }
+    resetForm();
   };
 
   const handleTestConnection = async (provider: AiProviderConfig) => {
     setTestResult((prev) => ({ ...prev, [provider.id]: null }));
     const result = await testProviderConnection(provider.id, provider.baseUrl, provider.model);
     setTestResult((prev) => ({ ...prev, [provider.id]: result }));
+    setTestDialogProvider(provider);
   };
 
   const handleSetApiKey = async (providerId: string) => {
@@ -272,6 +308,7 @@ function AiSection() {
               <div className="flex items-center gap-2">
                 <span className="font-sans text-[13px] text-fg-primary truncate">{p.name}</span>
                 <span className="font-mono text-[11px] text-fg-tertiary">{p.model}</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-elevated text-fg-tertiary">{p.providerType}</span>
               </div>
               <span className="font-mono text-[10px] text-fg-tertiary truncate">{p.baseUrl}</span>
             </div>
@@ -292,11 +329,12 @@ function AiSection() {
               >
                 {t("common.test")}
               </button>
-              {testResult[p.id] && (
-                <span className={`text-[10px] max-w-[120px] truncate ${testResult[p.id]?.startsWith("Connected") ? "text-accent-success" : "text-accent-danger"}`}>
-                  {testResult[p.id]}
-                </span>
-              )}
+              <button
+                onClick={() => startEdit(p)}
+                className="p-1 rounded hover:bg-bg-hover text-fg-tertiary hover:text-brand cursor-pointer transition-colors"
+              >
+                <Pencil className="w-3 h-3" />
+              </button>
               {p.id !== activeProviderId && (
                 <button
                   onClick={() => setActiveProvider(p.id)}
@@ -352,16 +390,31 @@ function AiSection() {
             placeholder={t("ai.providerNamePlaceholder")}
             className="w-full h-8 px-3 bg-bg-input border border-border-muted rounded-md text-[13px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary"
           />
+          <div className="flex items-center gap-2">
+            <select
+              value={newProviderType}
+              onChange={(e) => setNewProviderType(e.target.value)}
+              className="flex-1 h-8 px-3 bg-bg-input border border-border-muted rounded-md text-[12px] text-fg-primary outline-none focus:border-border-focus cursor-pointer"
+            >
+              <option value="openai-compatible">OpenAI Compatible</option>
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
+              <option value="ollama">Ollama</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="qwen">Qwen</option>
+              <option value="custom">Custom</option>
+            </select>
+            <input
+              value={newModel}
+              onChange={(e) => setNewModel(e.target.value)}
+              placeholder={t("ai.modelPlaceholder")}
+              className="flex-1 h-8 px-3 bg-bg-input border border-border-muted rounded-md text-[12px] text-fg-primary font-mono outline-none focus:border-border-focus placeholder:text-fg-tertiary"
+            />
+          </div>
           <input
             value={newBaseUrl}
             onChange={(e) => setNewBaseUrl(e.target.value)}
             placeholder={t("ai.baseUrlPlaceholder")}
-            className="w-full h-8 px-3 bg-bg-input border border-border-muted rounded-md text-[12px] text-fg-primary font-mono outline-none focus:border-border-focus placeholder:text-fg-tertiary"
-          />
-          <input
-            value={newModel}
-            onChange={(e) => setNewModel(e.target.value)}
-            placeholder={t("ai.modelPlaceholder")}
             className="w-full h-8 px-3 bg-bg-input border border-border-muted rounded-md text-[12px] text-fg-primary font-mono outline-none focus:border-border-focus placeholder:text-fg-tertiary"
           />
           <input
@@ -373,14 +426,14 @@ function AiSection() {
           />
           <div className="flex items-center gap-2">
             <button
-              onClick={handleAddProvider}
+              onClick={handleAddOrEdit}
               disabled={!newName || !newBaseUrl || !newModel}
               className="h-8 px-4 rounded-md bg-brand text-white text-[12px] font-medium cursor-pointer hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {t("ai.addProvider")}
+              {editId ? t("common.save") : t("ai.addProvider")}
             </button>
             <button
-              onClick={() => { setShowAdd(false); setNewName(""); setNewBaseUrl(""); setNewModel(""); setNewApiKey(""); }}
+              onClick={resetForm}
               className="h-8 px-3 rounded-md text-fg-tertiary text-[12px] cursor-pointer hover:text-fg-primary transition-colors"
             >
               {t("common.cancel")}
@@ -397,8 +450,48 @@ function AiSection() {
         </button>
       )}
 
-      <div className="mt-4 text-[11px] text-fg-tertiary">
-        {t("ai.keyringHint")}
+      {testDialogProvider && testResult[testDialogProvider.id] && (
+        <TestResultDialog
+          providerName={testDialogProvider.name}
+          result={testResult[testDialogProvider.id]!}
+          onClose={() => setTestDialogProvider(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function TestResultDialog({ providerName, result, onClose }: { providerName: string; result: string; onClose: () => void }) {
+  const isSuccess = result.startsWith("Connected");
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div className="bg-bg-surface border border-border-default rounded-lg shadow-2xl w-[400px] max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border-default">
+          <span className="font-sans text-[13px] font-semibold text-fg-primary">Test Connection</span>
+          <button onClick={onClose} className="p-1 rounded hover:bg-bg-hover text-fg-tertiary hover:text-fg-primary cursor-pointer transition-colors">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <div className="px-4 py-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] text-fg-secondary">Provider:</span>
+            <span className="text-[12px] text-fg-primary font-medium">{providerName}</span>
+          </div>
+          <div className={`p-3 rounded-md border ${isSuccess ? "bg-accent-success/10 border-accent-success/20" : "bg-accent-danger/10 border-accent-danger/20"}`}>
+            <div className="flex items-center gap-2 mb-1">
+              <div className={`w-2 h-2 rounded-full ${isSuccess ? "bg-accent-success" : "bg-accent-danger"}`} />
+              <span className={`text-[12px] font-medium ${isSuccess ? "text-accent-success" : "text-accent-danger"}`}>
+                {isSuccess ? "Connection Successful" : "Connection Failed"}
+              </span>
+            </div>
+            <p className="text-[11px] text-fg-secondary whitespace-pre-wrap">{result}</p>
+          </div>
+        </div>
+        <div className="px-4 py-3 border-t border-border-default flex justify-end">
+          <button onClick={onClose} className="h-8 px-4 rounded-md bg-fg-primary/10 text-fg-primary text-[12px] font-medium cursor-pointer hover:bg-fg-primary/20 transition-colors">
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );
