@@ -294,64 +294,76 @@ function AiSection() {
   return (
     <div className="mb-6">
       <SectionTitle>{t("ai.providersTitle")}</SectionTitle>
-      <div className="flex flex-col gap-2 mb-4">
+      <div className="flex flex-col gap-3 mb-4">
         {providers.map((p: AiProviderConfig) => (
           <div
             key={p.id}
-            className={`flex items-center gap-3 h-12 px-3 rounded-md border transition-colors ${
+            className={`rounded-md border transition-colors overflow-hidden ${
               p.id === activeProviderId
                 ? "border-brand bg-brand-muted"
                 : "border-border-muted hover:bg-bg-hover"
             }`}
           >
-            <div className="flex flex-col flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-sans text-[13px] text-fg-primary truncate">{p.name}</span>
-                <span className="font-mono text-[11px] text-fg-tertiary">{p.model}</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-elevated text-fg-tertiary">{p.providerType}</span>
+            <div className="px-4 py-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  {p.id === activeProviderId && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-brand text-white shrink-0">{t("common.active")}</span>
+                  )}
+                  <span className="font-sans text-[13px] font-medium text-fg-primary truncate">{p.name}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-elevated text-fg-tertiary shrink-0">{p.providerType}</span>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {apiKeyStatus[p.id] ? (
+                    <span className="text-[10px] text-accent-success px-1">&#10003;</span>
+                  ) : (
+                    <button
+                      onClick={() => { setEditingKeyProviderId(p.id); setEditApiKey(""); }}
+                      className="text-[10px] text-accent-danger hover:text-white hover:bg-accent-danger px-2 py-0.5 rounded cursor-pointer transition-colors"
+                    >
+                      {t("ai.noKey")}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleTestConnection(p)}
+                    className="h-6 px-2 rounded text-[10px] text-fg-tertiary hover:text-fg-primary hover:bg-bg-hover cursor-pointer transition-colors"
+                  >
+                    {t("common.test")}
+                  </button>
+                  <button
+                    onClick={() => startEdit(p)}
+                    className="h-6 w-6 flex items-center justify-center rounded hover:bg-bg-hover text-fg-tertiary hover:text-brand cursor-pointer transition-colors"
+                    title="Edit"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                  {p.id !== activeProviderId && (
+                    <button
+                      onClick={() => setActiveProvider(p.id)}
+                      className="h-6 px-2 rounded text-[10px] text-brand hover:bg-brand/10 cursor-pointer transition-colors"
+                    >
+                      {t("ai.setActive")}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => removeProvider(p.id)}
+                    className="h-6 w-6 flex items-center justify-center rounded hover:bg-bg-hover text-fg-tertiary hover:text-accent-danger cursor-pointer transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
-              <span className="font-mono text-[10px] text-fg-tertiary truncate">{p.baseUrl}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              {apiKeyStatus[p.id] ? (
-                <span className="text-[10px] text-accent-success">{t("ai.keySet")}</span>
-              ) : (
-                <button
-                  onClick={() => { setEditingKeyProviderId(p.id); setEditApiKey(""); }}
-                  className="text-[10px] text-accent-danger hover:text-accent-danger/80 cursor-pointer"
-                >
-                  {t("ai.noKey")}
-                </button>
-              )}
-              <button
-                onClick={() => handleTestConnection(p)}
-                className="h-6 px-2 rounded text-[10px] text-fg-tertiary hover:text-fg-primary hover:bg-bg-hover cursor-pointer transition-colors"
-              >
-                {t("common.test")}
-              </button>
-              <button
-                onClick={() => startEdit(p)}
-                className="p-1 rounded hover:bg-bg-hover text-fg-tertiary hover:text-brand cursor-pointer transition-colors"
-              >
-                <Pencil className="w-3 h-3" />
-              </button>
-              {p.id !== activeProviderId && (
-                <button
-                  onClick={() => setActiveProvider(p.id)}
-                  className="h-6 px-2 rounded text-[10px] text-brand hover:bg-brand/10 cursor-pointer transition-colors"
-                >
-                  {t("ai.setActive")}
-                </button>
-              )}
-              {p.id === activeProviderId && (
-                <span className="text-[10px] text-brand font-medium">{t("common.active")}</span>
-              )}
-              <button
-                onClick={() => removeProvider(p.id)}
-                className="p-1 rounded hover:bg-bg-hover text-fg-tertiary hover:text-accent-danger cursor-pointer transition-colors"
-              >
-                <Trash2 className="w-3 h-3" />
-              </button>
+              <div className="space-y-1 text-[11px]">
+                <div className="flex items-center gap-2">
+                  <span className="text-fg-tertiary shrink-0 w-[50px]">Model</span>
+                  <span className="font-mono text-fg-secondary">{p.model}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-fg-tertiary shrink-0 w-[50px]">URL</span>
+                  <span className="font-mono text-fg-secondary truncate">{p.baseUrl}</span>
+                </div>
+              </div>
             </div>
           </div>
         ))}
