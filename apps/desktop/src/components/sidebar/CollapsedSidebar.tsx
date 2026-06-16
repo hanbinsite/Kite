@@ -1,4 +1,4 @@
-import { Settings, Search, FolderOpen, Plus, History } from "lucide-react";
+import { Settings, Search, FolderOpen, Plus, History, Bot } from "lucide-react";
 import { useUIStore, useTabStore } from "@api-client/core";
 import { useTranslation } from "react-i18next";
 
@@ -6,6 +6,7 @@ export function CollapsedSidebar() {
   const { t } = useTranslation();
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const openSettings = useUIStore((s) => s.openSettings);
+  const toggleAiPanel = useUIStore((s) => s.toggleAiPanel);
   const openTab = useTabStore((s) => s.openTab);
 
   return (
@@ -39,6 +40,13 @@ export function CollapsedSidebar() {
         <History className="w-4 h-4 text-fg-secondary" />
       </button>
       <div className="flex-1" />
+      <button
+        onClick={() => toggleAiPanel()}
+        className="p-2 hover:bg-bg-hover rounded transition-colors"
+        title="AI Assistant"
+      >
+        <Bot className="w-4 h-4 text-fg-tertiary" />
+      </button>
       <button
         onClick={() => openSettings()}
         className="p-2 hover:bg-bg-hover rounded transition-colors"

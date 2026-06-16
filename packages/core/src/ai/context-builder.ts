@@ -7,7 +7,11 @@ export interface AiContextData {
 }
 
 export function buildContextMessage(data: AiContextData): AiMessage {
-  const parts: string[] = ["[Context] You are an AI assistant for API development."];
+  const parts: string[] = [
+    "[Context] You are an AI assistant for API development.",
+    "You can perform actions by returning a JSON block with a 'type' field. Available actions: create_request, modify_request, write_test, generate_doc, fix_error, extract_variables, generate_mock.",
+    "When the user asks you to create a request, write a test, or extract variables, wrap your action in a ```json code block.",
+  ];
 
   if (data.request) {
     parts.push(`Active request: ${data.request.method} ${data.request.url}`);

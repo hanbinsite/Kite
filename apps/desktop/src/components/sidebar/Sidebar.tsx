@@ -11,6 +11,7 @@ import {
   Settings,
   X,
   FileText,
+  Bot,
 } from "lucide-react";
 import { useUIStore, useTabStore, type Tab } from "@api-client/core";
 import { useRequestStore } from "../../stores/request-store";
@@ -298,6 +299,7 @@ function CollectionTreeItems({
 export function Sidebar() {
   const { t } = useTranslation();
   const openSettings = useUIStore((s) => s.openSettings);
+  const toggleAiPanel = useUIStore((s) => s.toggleAiPanel);
   const openTab = useTabStore((s) => s.openTab);
   const initTabData = useRequestStore((s) => s.initTabData);
 
@@ -758,13 +760,22 @@ const commitEdit = () => {
 
       <div className="h-10 border-t border-border-muted flex items-center justify-between px-3">
         <ThemeToggle />
-        <button
-          onClick={() => openSettings()}
-          className="p-1.5 hover:bg-bg-hover rounded transition-colors"
-          title={t("settings.title")}
-        >
-          <Settings className="w-4 h-4 text-fg-tertiary" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => toggleAiPanel()}
+            className="p-1.5 hover:bg-bg-hover rounded transition-colors"
+            title={t("ai.assistant")}
+          >
+            <Bot className="w-4 h-4 text-fg-tertiary" />
+          </button>
+          <button
+            onClick={() => openSettings()}
+            className="p-1.5 hover:bg-bg-hover rounded transition-colors"
+            title={t("settings.title")}
+          >
+            <Settings className="w-4 h-4 text-fg-tertiary" />
+          </button>
+        </div>
       </div>
 
       {contextMenu && (
