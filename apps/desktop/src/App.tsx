@@ -15,6 +15,7 @@ import { useWsStore } from "./stores/websocket-store";
 import { useSseStore } from "./stores/sse-store";
 import { useMqttStore } from "./stores/mqtt-store";
 import { useProviderStore } from "@api-client/core/ai";
+import { useEnvironmentStore } from "./stores/environment-store";
 import { i18n } from "./i18n";
 import { formatShortcut } from "./utils/platform";
 
@@ -39,6 +40,7 @@ export function App() {
     initGrpcEventListener();
     initMockEventListener();
     useProviderStore.getState().loadProviders();
+    useEnvironmentStore.getState().loadFromDisk();
   }, []);
 
   useEffect(() => {
