@@ -337,6 +337,16 @@ var __logs = [];
 var __tests = [];
 var __vars = [];
 
+var crypto = {{
+    randomUUID: function() {{
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {{
+            var r = Math.random() * 16 | 0;
+            var v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        }});
+    }}
+}};
+
 var console = {{
     log: function() {{ __logs.push({{level: 'log', message: Array.from(arguments).map(function(a) {{ return typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a); }}).join(' '), timestamp: new Date().toISOString()}}); }},
     warn: function() {{ __logs.push({{level: 'warn', message: Array.from(arguments).map(function(a) {{ return typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a); }}).join(' '), timestamp: new Date().toISOString()}}); }},
