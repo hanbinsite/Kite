@@ -304,7 +304,7 @@ pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base
     let mut used_key = false;
     match provider {
         None => {
-            tracing::warn!("Provider '{}' not found in cache ({} cached). Re-loading from file.", provider_id, providers.len());
+            eprintln!("[AI TEST] Provider '{}' not found in cache ({} cached)", provider_id, providers.len());
             // Force re-read from file
             let path = providers_file(&app)?;
             let fresh = load_providers_from_file(&path)?;
@@ -312,25 +312,27 @@ pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base
             if let Some(p) = fresh_provider {
                 match get_api_key(&p.id) {
                     Ok(api_key) => {
+                        eprintln!("[AI TEST] Key found for provider '{}' (length: {})", p.id, api_key.len());
                         req = req.header("Authorization", format!("Bearer {}", api_key));
                         used_key = true;
                     }
                     Err(e) => {
-                        tracing::warn!("API key lookup failed for provider '{}': {}", p.id, e);
+                        eprintln!("[AI TEST] Key lookup FAILED for provider '{}': {}", p.id, e);
                     }
                 }
             } else {
-                tracing::warn!("Provider '{}' not found in file either.", provider_id);
+                eprintln!("[AI TEST] Provider '{}' not found in file either", provider_id);
             }
         }
         Some(p) => {
             match get_api_key(&p.id) {
                 Ok(api_key) => {
+                    eprintln!("[AI TEST] Key found for provider '{}' (length: {})", p.id, api_key.len());
                     req = req.header("Authorization", format!("Bearer {}", api_key));
                     used_key = true;
                 }
                 Err(e) => {
-                    tracing::warn!("API key lookup failed for provider '{}': {}", p.id, e);
+                    eprintln!("[AI TEST] Key lookup FAILED for provider '{}': {}", p.id, e);
                 }
             }
         }
