@@ -5,6 +5,7 @@ import type { SlashCommand, AiProviderConfig } from "@api-client/core/ai";
 import { useTabStore, useUIStore } from "@api-client/core";
 import { useCollectionStore, useEnvironmentStore, useRequestStore } from "../../stores";
 import { Send, Bot, User, Loader2, X, PanelRightClose, FileText, Globe, FolderOpen, Zap, ChevronRight, Key } from "lucide-react";
+import { AiActionCard } from "./AiActionCard";
 
 function escapeHtml(text: string): string {
   return text
@@ -39,10 +40,13 @@ export function AiChatPanel() {
   const messages = chatMessages[sessionId] ?? [];
   const loading = loadingSessions[sessionId] ?? false;
   const isStreaming = streamingSessions[sessionId] !== undefined;
+  const pendingActions = useChatStore((s) => s.pendingActions[sessionId]) ?? [];
   const sendMessage = useChatStore((s) => s.sendMessage);
   const sendSlashCommand = useChatStore((s) => s.sendSlashCommand);
   const clearMessages = useChatStore((s) => s.clearMessages);
   const loadSession = useChatStore((s) => s.loadSession);
+  const applyPendingActions = useChatStore((s) => s.applyPendingActions);
+  const rejectPendingActions = useChatStore((s) => s.rejectPendingActions);
 
   const providers = useProviderStore((s) => s.providers);
   const activeProviderId = useProviderStore((s) => s.activeProviderId);
@@ -251,7 +255,14 @@ export function AiChatPanel() {
               <User className="w-5 h-5 text-fg-tertiary shrink-0 mt-0.5" />
             )}
           </div>
-        ))}
+        )        )}
+        {pendingActions.length > 0 && (
+          <AiActionCard
+            actions={pendingActions}
+            onApply={() => applyPendingActions(sessionId)}
+            onReject={() => rejectPendingActions(sessionId)}
+          />
+        )}
         {loading && !isStreaming && (
           <div className="flex gap-2">
             <Bot className="w-5 h-5 text-brand shrink-0 mt-0.5" />

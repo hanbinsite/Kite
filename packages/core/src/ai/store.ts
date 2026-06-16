@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import type { AiProviderConfig, AiStreamChunk } from "./index";
-import { listProviders, addProvider as addProviderIpc, removeProvider as removeProviderIpc, setProvider as setProviderIpc, testConnection, aiStreamChat, setApiKey as setApiKeyIpc, getApiKeyStatus, aiSaveSession, aiLoadSession, aiDeleteSession } from "./index";
+import { listProviders, addProvider as addProviderIpc, removeProvider as removeProviderIpc, setProvider as setProviderIpc, testConnection, aiStreamChat, setApiKey as setApiKeyIpc, getApiKeyStatus, aiSaveSession, aiLoadSession, aiDeleteSession, parseAgentAction } from "./index";
 import type { AiMessage } from "./index";
+import type { AgentAction } from "./action-types";
 
 async function executeStreaming(
   get: () => ChatState,
@@ -172,6 +173,7 @@ export interface ChatState {
   loadingSessions: Record<string, boolean>;
   streamingSessions: Record<string, string>;
   loadedSessions: Record<string, boolean>;
+  pendingActions: Record<string, AgentAction[]>;
 
   setMessages: (sessionId: string, messages: AiMessage[]) => void;
   addMessage: (sessionId: string, message: AiMessage) => void;
@@ -181,6 +183,8 @@ export interface ChatState {
   loadSession: (sessionId: string) => Promise<void>;
   saveSession: (sessionId: string) => Promise<void>;
   clearMessages: (sessionId: string) => void;
+  applyPendingActions: (sessionId: string) => void;
+  rejectPendingActions: (sessionId: string) => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -188,6 +192,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   loadingSessions: {},
   streamingSessions: {},
   loadedSessions: {},
+  pendingActions: {},
 
   setMessages: (sessionId, messages) => {
     set((s) => ({ messages: { ...s.messages, [sessionId]: messages } }));
@@ -219,35 +224,37 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const updatedMessages = [...prevMessages, message];
     set((s) => ({ messages: { ...s.messages, [sessionId]: updatedMessages } }));
 
-    const allMessages = [...(contextMessages ?? []), ...updatedMessages].map((m) => ({ role: m.role, content: m.content }));
+      const allMessages = [...(contextMessages ?? []), ...updatedMessages].map((m) => ({ role: m.role, content: m.content }));
 
-    await executeStreaming(get, set, sessionId, providerId, allMessages, updatedMessages);
-  },
+      await executeStreaming(get, set, sessionId, providerId, allMessages, updatedMessages);
+      detectActions(sessionId, get, set);
+    },
 
-  sendSlashCommand: async (sessionId, providerId, command, contextMessages) => {
-    const cmd = command.trim();
-    if (!cmd.startsWith("/")) return;
+    sendSlashCommand: async (sessionId, providerId, command, contextMessages) => {
+      const cmd = command.trim();
+      if (!cmd.startsWith("/")) return;
 
-    const commandKey = cmd.slice(1).split(" ")[0] ?? "";
-    const { SLASH_COMMANDS } = await import("./index");
-    const slashCmd = SLASH_COMMANDS.find((c) => c.key === commandKey);
-    if (!slashCmd) return;
+      const commandKey = cmd.slice(1).split(" ")[0] ?? "";
+      const { SLASH_COMMANDS } = await import("./index");
+      const slashCmd = SLASH_COMMANDS.find((c) => c.key === commandKey);
+      if (!slashCmd) return;
 
-    const userMessage: AiMessage = { role: "user", content: slashCmd.label };
-    set((s) => ({
-      loadingSessions: { ...s.loadingSessions, [sessionId]: true },
-      streamingSessions: { ...s.streamingSessions, [sessionId]: "" },
-    }));
+      const userMessage: AiMessage = { role: "user", content: slashCmd.label };
+      set((s) => ({
+        loadingSessions: { ...s.loadingSessions, [sessionId]: true },
+        streamingSessions: { ...s.streamingSessions, [sessionId]: "" },
+      }));
 
-    const prevMessages = get().messages[sessionId] ?? [];
-    const updatedMessages = [...prevMessages, userMessage];
-    set((s) => ({ messages: { ...s.messages, [sessionId]: updatedMessages } }));
+      const prevMessages = get().messages[sessionId] ?? [];
+      const updatedMessages = [...prevMessages, userMessage];
+      set((s) => ({ messages: { ...s.messages, [sessionId]: updatedMessages } }));
 
-    const systemMessage = { role: "system" as const, content: slashCmd.prompt };
-    const allMessages = [...(contextMessages ?? []), systemMessage, ...updatedMessages].map((m) => ({ role: m.role, content: m.content }));
+      const systemMessage = { role: "system" as const, content: slashCmd.prompt };
+      const allMessages = [...(contextMessages ?? []), systemMessage, ...updatedMessages].map((m) => ({ role: m.role, content: m.content }));
 
-    await executeStreaming(get, set, sessionId, providerId, allMessages, updatedMessages);
-  },
+      await executeStreaming(get, set, sessionId, providerId, allMessages, updatedMessages);
+      detectActions(sessionId, get, set);
+    },
 
   loadSession: async (sessionId) => {
     if (get().loadedSessions[sessionId]) return;
@@ -277,8 +284,53 @@ export const useChatStore = create<ChatState>((set, get) => ({
   clearMessages: (sessionId) => {
     set((s) => {
       const { [sessionId]: _, ...rest } = s.messages;
-      return { messages: rest };
+      const { [sessionId]: __, ...restActions } = s.pendingActions;
+      return { messages: rest, pendingActions: restActions };
     });
     aiDeleteSession(sessionId).catch((e) => console.error("Failed to delete AI session:", e));
   },
+
+  applyPendingActions: (sessionId) => {
+    set((s) => {
+      const { [sessionId]: _, ...rest } = s.pendingActions;
+      return { pendingActions: rest };
+    });
+  },
+
+  rejectPendingActions: (sessionId) => {
+    set((s) => {
+      const { [sessionId]: _, ...rest } = s.pendingActions;
+      return { pendingActions: rest };
+    });
+  },
 }));
+
+function detectActions(sessionId: string, get: () => ChatState, set: (fn: (state: ChatState) => Partial<ChatState>) => void) {
+  const msgs = get().messages[sessionId];
+  if (!msgs || msgs.length === 0) return;
+
+  const lastAssistant = [...msgs].reverse().find((m) => m.role === "assistant");
+  if (!lastAssistant) return;
+
+  const actions: AgentAction[] = [];
+  const content = lastAssistant.content;
+
+  const jsonBlocks = content.match(/\{[\s\S]*?"type"[\s\S]*?\}/g);
+  if (!jsonBlocks) return;
+
+  for (const block of jsonBlocks) {
+    try {
+      const parsed = JSON.parse(block);
+      const action = parseAgentAction(parsed);
+      if (action) actions.push(action);
+    } catch {
+      // not valid JSON, skip
+    }
+  }
+
+  if (actions.length > 0) {
+    set((s) => ({
+      pendingActions: { ...s.pendingActions, [sessionId]: actions },
+    }));
+  }
+}
