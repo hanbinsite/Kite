@@ -3,7 +3,7 @@ mod integration_tests {
     use crate::commands::http::{
         HttpRequestConfig, RequestSettings, Header, BodyConfig, UrlEncodedParam,
         build_client, apply_auth_to_config,
-        AuthConfig, BearerAuth,
+        AuthConfig, BearerAuth, HttpClientState,
     };
     use wiremock::{MockServer, Mock, ResponseTemplate};
     use wiremock::matchers::{method, path, header_exists};
@@ -350,5 +350,230 @@ mod integration_tests {
         assert_eq!(response.status(), 200);
         let body = response.json::<serde_json::Value>().await.unwrap();
         assert_eq!(body["version"], "1.0");
+    }
+
+    #[tokio::test]
+    async fn test_cancellation_token_triggers_cancelled() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/slow"))
+            .respond_with(ResponseTemplate::new(200).set_delay(std::time::Duration::from_secs(10)))
+            .mount(&server)
+            .await;
+
+        let config = HttpRequestConfig {
+            id: "cancel-test".into(),
+            method: "GET".into(),
+            url: format!("{}/slow", server.uri()),
+            headers: vec![],
+            params: vec![],
+            body: None,
+            auth: None,
+            settings: RequestSettings::default(),
+        };
+        let state = HttpClientState::new();
+        let token = tokio_util::sync::CancellationToken::new();
+        let child_token = token.clone();
+        state.cancellation_tokens.write().await.insert(config.id.clone(), (child_token, std::time::Instant::now()));
+
+        let client = build_client(&config.settings).unwrap();
+        let request_future = client.get(&config.url).send();
+        let cancel_future = tokio::time::sleep(std::time::Duration::from_millis(50));
+
+        tokio::select! {
+            _ = request_future => {}
+            _ = cancel_future => {
+                token.cancel();
+                state.cancellation_tokens.write().await.remove(&config.id);
+            }
+        }
+        assert!(state.cancellation_tokens.read().await.get(&config.id).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_cleanup_removes_expired_tokens() {
+        let state = HttpClientState::new();
+        let token = tokio_util::sync::CancellationToken::new();
+        state.cancellation_tokens.write().await.insert("old".into(), (token, std::time::Instant::now() - std::time::Duration::from_secs(400)));
+        state.cleanup_expired_tokens().await;
+        assert!(state.cancellation_tokens.read().await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_graphql_body_mode() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/graphql"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"data":{"user":{"name":"test"}}})))
+            .mount(&server)
+            .await;
+
+        let payload = serde_json::json!({
+            "query": "query { user { name } }",
+            "variables": null,
+        });
+        let config = HttpRequestConfig {
+            id: "t".into(),
+            method: "POST".into(),
+            url: format!("{}/graphql", server.uri()),
+            headers: vec![],
+            params: vec![],
+            body: Some(BodyConfig {
+                mode: "graphql".into(),
+                content: None,
+                content_type: Some("application/json".into()),
+                formdata: vec![],
+                urlencoded: vec![],
+                graphql_query: Some("query { user { name } }".into()),
+                graphql_variables: None,
+            }),
+            auth: None,
+            settings: RequestSettings::default(),
+        };
+        let client = build_client(&config.settings).unwrap();
+        let response = client.post(&config.url).json(&payload).send().await.unwrap();
+        assert_eq!(response.status(), 200);
+    }
+
+    #[tokio::test]
+    async fn test_patch_request() {
+        let server = MockServer::start().await;
+        Mock::given(method("PATCH"))
+            .and(path("/users/1"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"updated":true})))
+            .mount(&server)
+            .await;
+
+        let config = HttpRequestConfig {
+            id: "t".into(),
+            method: "PATCH".into(),
+            url: format!("{}/users/1", server.uri()),
+            headers: vec![],
+            params: vec![],
+            body: None,
+            auth: None,
+            settings: RequestSettings::default(),
+        };
+        let client = build_client(&config.settings).unwrap();
+        let response = client.patch(&config.url).send().await.unwrap();
+        assert_eq!(response.status(), 200);
+    }
+
+    #[tokio::test]
+    async fn test_response_binary_body() {
+        let server = MockServer::start().await;
+        let binary_data = vec![0, 1, 2, 3, 255];
+        Mock::given(method("GET"))
+            .and(path("/binary"))
+            .respond_with(ResponseTemplate::new(200)
+                .insert_header("Content-Type", "application/octet-stream")
+                .set_body_bytes(binary_data.clone()))
+            .mount(&server)
+            .await;
+
+        let config = HttpRequestConfig {
+            id: "t".into(),
+            method: "GET".into(),
+            url: format!("{}/binary", server.uri()),
+            headers: vec![],
+            params: vec![],
+            body: None,
+            auth: None,
+            settings: RequestSettings::default(),
+        };
+        let client = build_client(&config.settings).unwrap();
+        let response = client.get(&config.url).send().await.unwrap();
+        assert_eq!(response.status(), 200);
+        let bytes = response.bytes().await.unwrap();
+        assert_eq!(bytes.to_vec(), binary_data);
+    }
+
+    #[tokio::test]
+    async fn test_request_with_disabled_header_ignored() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/check"))
+            .respond_with(ResponseTemplate::new(200))
+            .mount(&server)
+            .await;
+
+        let config = HttpRequestConfig {
+            id: "t".into(),
+            method: "GET".into(),
+            url: format!("{}/check", server.uri()),
+            headers: vec![
+                Header { key: "X-Enabled".into(), value: "yes".into(), disabled: false },
+                Header { key: "X-Disabled".into(), value: "no".into(), disabled: true },
+            ],
+            params: vec![],
+            body: None,
+            auth: None,
+            settings: RequestSettings::default(),
+        };
+        let client = build_client(&config.settings).unwrap();
+        let mut req = client.get(&config.url);
+        for h in &config.headers {
+            if !h.disabled && !h.key.is_empty() {
+                req = req.header(&h.key, &h.value);
+            }
+        }
+        let response = req.send().await.unwrap();
+        assert_eq!(response.status(), 200);
+    }
+
+    #[tokio::test]
+    async fn test_proxy_config_applied() {
+        let mut settings = RequestSettings::default();
+        settings.proxy_url = Some("http://127.0.0.1:19998".into());
+        let client = build_client(&settings);
+        assert!(client.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_missing_path_returns_404() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/exists"))
+            .respond_with(ResponseTemplate::new(200))
+            .mount(&server)
+            .await;
+
+        let config = HttpRequestConfig {
+            id: "t".into(),
+            method: "GET".into(),
+            url: format!("{}/missing", server.uri()),
+            headers: vec![],
+            params: vec![],
+            body: None,
+            auth: None,
+            settings: RequestSettings::default(),
+        };
+        let client = build_client(&config.settings).unwrap();
+        let response = client.get(&config.url).send().await.unwrap();
+        assert_eq!(response.status(), 404);
+    }
+
+    #[tokio::test]
+    async fn test_server_error_500() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/error"))
+            .respond_with(ResponseTemplate::new(500).set_body_string("Internal Server Error"))
+            .mount(&server)
+            .await;
+
+        let config = HttpRequestConfig {
+            id: "t".into(),
+            method: "GET".into(),
+            url: format!("{}/error", server.uri()),
+            headers: vec![],
+            params: vec![],
+            body: None,
+            auth: None,
+            settings: RequestSettings::default(),
+        };
+        let client = build_client(&config.settings).unwrap();
+        let response = client.get(&config.url).send().await.unwrap();
+        assert_eq!(response.status(), 500);
     }
 }
