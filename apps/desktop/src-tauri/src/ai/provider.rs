@@ -187,11 +187,49 @@ fn save_providers_to_file(path: &PathBuf, providers: &[AiProviderConfig]) -> Res
     Ok(())
 }
 
-fn get_api_key(provider_id: &str) -> Result<String, AppError> {
-    let keyring_entry = keyring::Entry::new("api-client", &format!("ai-key-{}", provider_id))
-        .map_err(|e| AppError::vault_keyring_failed(format!("Keyring error: {}", e)))?;
-    keyring_entry.get_password()
-        .map_err(|e| AppError::vault_keyring_failed(format!("AI API key not found for '{}': {}", provider_id, e)))
+fn api_keys_file(app: &tauri::AppHandle) -> Result<PathBuf, AppError> {
+    let data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| AppError::internal(format!("Failed to get app data dir: {}", e)))?;
+    Ok(data_dir.join("ai-api-keys.json"))
+}
+
+fn load_api_keys(app: &tauri::AppHandle) -> Result<std::collections::HashMap<String, String>, AppError> {
+    let path = api_keys_file(app)?;
+    if !path.exists() {
+        return Ok(std::collections::HashMap::new());
+    }
+    let content = std::fs::read_to_string(&path)
+        .map_err(|e| AppError::storage_read_failed(format!("Failed to read keys: {}", e)))?;
+    serde_json::from_str(&content)
+        .map_err(|e| AppError::storage_parse_failed(format!("Failed to parse keys: {}", e)))
+}
+
+fn save_api_keys(app: &tauri::AppHandle, keys: &std::collections::HashMap<String, String>) -> Result<(), AppError> {
+    let path = api_keys_file(app)?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| AppError::storage_write_failed(format!("Failed to create dir: {}", e)))?;
+    }
+    let content = serde_json::to_string_pretty(keys)
+        .map_err(|e| AppError::internal(format!("Failed to serialize keys: {}", e)))?;
+    std::fs::write(&path, content)
+        .map_err(|e| AppError::storage_write_failed(format!("Failed to write keys: {}", e)))?;
+    Ok(())
+}
+
+fn get_api_key(app: &tauri::AppHandle, provider_id: &str) -> Result<String, AppError> {
+    let keys = load_api_keys(app)?;
+    keys.get(provider_id)
+        .cloned()
+        .ok_or_else(|| AppError::vault_keyring_failed(format!("AI API key not found for '{}'", provider_id)))
+}
+
+fn delete_api_key(app: &tauri::AppHandle, provider_id: &str) -> Result<(), AppError> {
+    let mut keys = load_api_keys(app)?;
+    keys.remove(provider_id);
+    save_api_keys(app, &keys)
 }
 
 #[tauri::command]
@@ -242,30 +280,22 @@ pub async fn ai_remove_provider(app: tauri::AppHandle, provider_id: String) -> R
     providers.retain(|p| p.id != provider_id);
     save_providers_to_file(&path, &providers)?;
     invalidate_providers_cache();
-
-    if let Ok(keyring_entry) = keyring::Entry::new("api-client", &format!("ai-key-{}", provider_id)) {
-        let _ = keyring_entry.delete_credential();
-    }
-
+    let _ = delete_api_key(&app, &provider_id);
     Ok(())
 }
 
 #[tauri::command]
-pub async fn ai_set_api_key(provider_id: String, api_key: String) -> Result<(), AppError> {
-    let keyring_entry = keyring::Entry::new("api-client", &format!("ai-key-{}", provider_id))
-        .map_err(|e| AppError::vault_keyring_failed(format!("Keyring error: {}", e)))?;
-    keyring_entry
-        .set_password(&api_key)
-        .map_err(|e| AppError::vault_keyring_failed(format!("Failed to save API key: {}", e)))?;
+pub async fn ai_set_api_key(app: tauri::AppHandle, provider_id: String, api_key: String) -> Result<(), AppError> {
+    let mut keys = load_api_keys(&app)?;
+    keys.insert(provider_id.clone(), api_key);
+    save_api_keys(&app, &keys)?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn ai_get_api_key_status(provider_id: String) -> Result<AiApiKeyStatus, AppError> {
-    let keyring_entry = keyring::Entry::new("api-client", &format!("ai-key-{}", provider_id))
-        .map_err(|e| AppError::vault_keyring_failed(format!("Keyring error: {}", e)))?;
-    let has_key = keyring_entry.get_password().is_ok();
-    Ok(AiApiKeyStatus { has_key })
+pub async fn ai_get_api_key_status(app: tauri::AppHandle, provider_id: String) -> Result<AiApiKeyStatus, AppError> {
+    let keys = load_api_keys(&app)?;
+    Ok(AiApiKeyStatus { has_key: keys.contains_key(&provider_id) })
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -296,7 +326,7 @@ pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base
         .timeout(std::time::Duration::from_secs(10));
 
     if let Some(p) = provider {
-        if let Ok(api_key) = get_api_key(&p.id) {
+        if let Ok(api_key) = get_api_key(&app, &p.id) {
             req = req.header("Authorization", format!("Bearer {}", api_key));
         }
     }
@@ -304,37 +334,26 @@ pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base
     let mut used_key = false;
     match provider {
         None => {
-            eprintln!("[AI TEST] Provider '{}' not found in cache", provider_id);
             let path = providers_file(&app)?;
             let fresh = load_providers_from_file(&path)?;
             let fresh_provider = fresh.iter().find(|p| p.id == provider_id);
             if let Some(p) = fresh_provider {
-                let keyring_entry = keyring::Entry::new("api-client", &format!("ai-key-{}", p.id));
-                match keyring_entry {
-                    Ok(entry) => match entry.get_password() {
-                        Ok(api_key) => {
-                            eprintln!("[AI TEST] Key found for '{}', length={}", p.id, api_key.len());
-                            req = req.header("Authorization", format!("Bearer {}", api_key));
-                            used_key = true;
-                        }
-                        Err(e) => eprintln!("[AI TEST] get_password() FAILED for '{}': {:?}", p.id, e),
-                    },
-                    Err(e) => eprintln!("[AI TEST] Entry::new FAILED for '{}': {:?}", p.id, e),
+                match get_api_key(&app, &p.id) {
+                    Ok(api_key) => {
+                        req = req.header("Authorization", format!("Bearer {}", api_key));
+                        used_key = true;
+                    }
+                    Err(e) => eprintln!("[AI TEST] Key not found for '{}': {}", p.id, e),
                 }
             }
         }
         Some(p) => {
-            let keyring_entry = keyring::Entry::new("api-client", &format!("ai-key-{}", p.id));
-            match keyring_entry {
-                Ok(entry) => match entry.get_password() {
-                    Ok(api_key) => {
-                        eprintln!("[AI TEST] Key found for '{}', length={}", p.id, api_key.len());
-                        req = req.header("Authorization", format!("Bearer {}", api_key));
-                        used_key = true;
-                    }
-                    Err(e) => eprintln!("[AI TEST] get_password() FAILED for '{}': {:?}", p.id, e),
-                },
-                Err(e) => eprintln!("[AI TEST] Entry::new FAILED for '{}': {:?}", p.id, e),
+            match get_api_key(&app, &p.id) {
+                Ok(api_key) => {
+                    req = req.header("Authorization", format!("Bearer {}", api_key));
+                    used_key = true;
+                }
+                Err(e) => eprintln!("[AI TEST] Key not found for '{}': {}", p.id, e),
             }
         }
     }
@@ -375,7 +394,7 @@ pub async fn ai_chat(app: tauri::AppHandle, request: AiChatRequest) -> Result<Ai
     let provider = providers.iter().find(|p| p.id == request.provider_id)
         .ok_or(AppError::storage_not_found(format!("Provider '{}' not found", request.provider_id)))?;
 
-    let api_key = get_api_key(&provider.id)?;
+    let api_key = get_api_key(&app, &provider.id)?;
 
     let client = Client::new();
     let url = format!("{}/v1/chat/completions", provider.base_url.trim_end_matches('/'));
@@ -431,7 +450,7 @@ pub async fn ai_stream_chat(app: tauri::AppHandle, request: AiChatRequest) -> Re
     let provider = providers.iter().find(|p| p.id == request.provider_id)
         .ok_or(AppError::storage_not_found(format!("Provider '{}' not found", request.provider_id)))?;
 
-    let api_key = get_api_key(&provider.id)?;
+    let api_key = get_api_key(&app, &provider.id)?;
 
     let client = Client::new();
     let url = format!("{}/v1/chat/completions", provider.base_url.trim_end_matches('/'));
@@ -598,7 +617,7 @@ pub async fn ai_chat_with_tools(app: tauri::AppHandle, request: AiChatWithToolsR
     let provider = providers.iter().find(|p| p.id == request.provider_id)
         .ok_or(AppError::storage_not_found(format!("Provider '{}' not found", request.provider_id)))?;
 
-    let api_key = get_api_key(&provider.id)?;
+    let api_key = get_api_key(&app, &provider.id)?;
 
     let client = Client::new();
     let url = format!("{}/v1/chat/completions", provider.base_url.trim_end_matches('/'));
