@@ -1,5 +1,6 @@
 import { useUIStore } from "@api-client/core";
 import { GlobalConsole } from "../console/GlobalConsole";
+import { AiChatPanel } from "../ai/AiChatPanel";
 
 interface AppLayoutProps {
   sidebar: React.ReactNode;
@@ -29,7 +30,10 @@ export function AppLayout({ sidebar, collapsedSidebar, workbench }: AppLayoutPro
         </div>
       )}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-hidden">{workbench}</div>
+        <div className="flex-1 flex overflow-hidden">
+          <div className="flex-1 overflow-hidden">{workbench}</div>
+          <AiChatPanel />
+        </div>
         {consoleOpen && <GlobalConsole />}
       </div>
     </div>
