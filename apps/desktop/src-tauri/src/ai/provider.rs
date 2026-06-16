@@ -308,54 +308,58 @@ pub struct AiTestResult {
 
 #[tauri::command]
 pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base_url: String, model: String) -> Result<AiTestResult, AppError> {
+    eprintln!("[AI TEST] === Starting connection test ===");
+    eprintln!("[AI TEST] provider_id: {}", provider_id);
+    eprintln!("[AI TEST] base_url: {}", base_url);
+    eprintln!("[AI TEST] model: {}", model);
+
     let providers = load_providers_cached(&app)?;
     let provider = providers.iter().find(|p| p.id == provider_id);
+    eprintln!("[AI TEST] provider found in cache: {}", provider.is_some());
 
     let client = Client::new();
     let url = format!("{}/v1/chat/completions", base_url.trim_end_matches('/'));
+    eprintln!("[AI TEST] full URL: {}", url);
 
     let body = serde_json::json!({
         "model": model,
         "messages": [{"role": "user", "content": "Say hi"}],
         "max_tokens": 50,
     });
-
-    let mut req = client
-        .post(&url)
-        .json(&body)
-        .timeout(std::time::Duration::from_secs(10));
-
-    if let Some(p) = provider {
-        if let Ok(api_key) = get_api_key(&app, &p.id) {
-            req = req.header("Authorization", format!("Bearer {}", api_key));
-        }
-    }
+    eprintln!("[AI TEST] request body: {}", serde_json::to_string(&body).unwrap_or_default());
 
     let mut used_key = false;
     match provider {
         None => {
             let path = providers_file(&app)?;
             let fresh = load_providers_from_file(&path)?;
-            let fresh_provider = fresh.iter().find(|p| p.id == provider_id);
-            if let Some(p) = fresh_provider {
+            if let Some(p) = fresh.iter().find(|p| p.id == provider_id) {
                 match get_api_key(&app, &p.id) {
-                    Ok(api_key) => {
-                        req = req.header("Authorization", format!("Bearer {}", api_key));
-                        used_key = true;
-                    }
-                    Err(e) => eprintln!("[AI TEST] Key not found for '{}': {}", p.id, e),
+                    Ok(api_key) => { used_key = true; eprintln!("[AI TEST] key found (len={})", api_key.len()); }
+                    Err(e) => eprintln!("[AI TEST] key NOT found: {}", e),
                 }
             }
         }
         Some(p) => {
             match get_api_key(&app, &p.id) {
-                Ok(api_key) => {
-                    req = req.header("Authorization", format!("Bearer {}", api_key));
-                    used_key = true;
-                }
-                Err(e) => eprintln!("[AI TEST] Key not found for '{}': {}", p.id, e),
+                Ok(api_key) => { used_key = true; eprintln!("[AI TEST] key found (len={})", api_key.len()); }
+                Err(e) => eprintln!("[AI TEST] key NOT found: {}", e),
             }
         }
+    }
+
+    let mut req = client
+        .post(&url)
+        .json(&body)
+        .timeout(std::time::Duration::from_secs(10));
+
+    if used_key {
+        let api_key = get_api_key(&app, &provider_id)?;
+        let masked = format!("{}...{}", &api_key[..8.min(api_key.len())], &api_key[api_key.len().saturating_sub(4)..]);
+        eprintln!("[AI TEST] using Bearer key: {}", masked);
+        req = req.header("Authorization", format!("Bearer {}", api_key));
+    } else {
+        eprintln!("[AI TEST] no key, sending without Authorization");
     }
 
     let resp = req
@@ -363,15 +367,21 @@ pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base
         .await
         .map_err(|e| AppError::safe_net_error("AI provider connection", e))?;
 
+    let status = resp.status().as_u16();
+    eprintln!("[AI TEST] response status: {}", status);
+
     if !resp.status().is_success() {
-        let status = resp.status().as_u16();
         let text = resp.text().await.unwrap_or_default();
-        let hint = if !used_key { " (No API key found in keyring. Click 'No Key' in settings to set a new key.)" } else { " (API key was used)" };
+        eprintln!("[AI TEST] error body: {}", &text[..500.min(text.len())]);
+        let hint = if !used_key { " (No API key)" } else { " (API key was used)" };
         return Err(AppError::net_auth_failed(format!("AI provider returned {}{}: {}", status, hint, text)));
     }
 
     let json: serde_json::Value = resp.json().await
         .map_err(|e| AppError::internal(format!("Failed to parse AI response: {}", e)))?;
+
+    eprintln!("[AI TEST] response JSON: {}", serde_json::to_string(&json).unwrap_or_default());
+    eprintln!("[AI TEST] === Test PASSED ===");
 
     let response_content = json["choices"][0]["message"]["content"]
         .as_str().unwrap_or("").to_string();
