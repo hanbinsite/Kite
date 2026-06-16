@@ -9,7 +9,7 @@ use std::sync::OnceLock;
 
 fn sse_client() -> &'static Client {
     static CLIENT: OnceLock<Client> = OnceLock::new();
-    CLIENT.get_or_init(|| Client::new())
+    CLIENT.get_or_init(Client::new)
 }
 
 const MAX_SSE_LINE_LENGTH: usize = 1_048_576;

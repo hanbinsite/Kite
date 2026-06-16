@@ -288,3 +288,146 @@ pub async fn list_vault_secrets(app: tauri::AppHandle) -> Result<Vec<VaultSecret
 
     Ok(secrets)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Mutex;
+
+    fn reset_vault() {
+        let mut vk = VAULT_KEY.lock().unwrap();
+        if let Some((ref mut key, _)) = *vk {
+            drop_key(key);
+        }
+        *vk = None;
+    }
+
+    #[test]
+    fn test_derive_key_produces_32_byte_key() {
+        let salt = generate_salt();
+        let key = derive_key("password123", &salt).unwrap();
+        assert_eq!(key.len(), 32);
+    }
+
+    #[test]
+    fn test_derive_key_deterministic() {
+        let salt = generate_salt();
+        let key1 = derive_key("password123", &salt).unwrap();
+        let key2 = derive_key("password123", &salt).unwrap();
+        assert_eq!(key1, key2);
+    }
+
+    #[test]
+    fn test_derive_key_different_password() {
+        let salt = generate_salt();
+        let key1 = derive_key("password1", &salt).unwrap();
+        let key2 = derive_key("password2", &salt).unwrap();
+        assert_ne!(key1, key2);
+    }
+
+    #[test]
+    fn test_drop_key_zeroizes() {
+        let mut key = [42u8; 32];
+        drop_key(&mut key);
+        for byte in &key {
+            assert_eq!(*byte, 0);
+        }
+    }
+
+    #[test]
+    fn test_vault_initial_state_locked() {
+        reset_vault();
+        let result = get_key();
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, "VAULT_LOCKED");
+    }
+
+    #[test]
+    fn test_vault_after_manual_set() {
+        reset_vault();
+        let key = [1u8; 32];
+        {
+            let mut vk = VAULT_KEY.lock().unwrap();
+            *vk = Some((key, std::time::Instant::now()));
+        }
+        let result = get_key();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_check_key_timeout_fresh() {
+        reset_vault();
+        let key = [1u8; 32];
+        {
+            let mut vk = VAULT_KEY.lock().unwrap();
+            *vk = Some((key, std::time::Instant::now()));
+        }
+        assert!(check_key_timeout().is_ok());
+        let result = get_key();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_path_traversal_slash() {
+        assert!(contains_path_traversal("a/b"));
+        assert!(contains_path_traversal("a\\b"));
+    }
+
+    #[test]
+    fn test_path_traversal_dotdot() {
+        assert!(contains_path_traversal(".."));
+        assert!(contains_path_traversal("a..b"));
+    }
+
+    #[test]
+    fn test_valid_secret_names() {
+        assert!(!contains_path_traversal("my_secret"));
+        assert!(!contains_path_traversal("api-key-123"));
+        assert!(!contains_path_traversal("JWT_TOKEN"));
+    }
+
+    #[test]
+    fn test_generate_salt_is_random() {
+        let salt1 = generate_salt();
+        let salt2 = generate_salt();
+        assert_ne!(salt1, salt2);
+    }
+
+    #[test]
+    fn test_generate_salt_length() {
+        let salt = generate_salt();
+        assert_eq!(salt.len(), 16);
+    }
+
+    #[test]
+    fn test_drop_key_zeroizes_stack_key() {
+        let mut key = [42u8; 32];
+        drop_key(&mut key);
+        for byte in &key {
+            assert_eq!(*byte, 0);
+        }
+    }
+
+    #[test]
+    fn test_lock_vault_scenario() {
+        reset_vault();
+        let mut key = [42u8; 32];
+        {
+            let mut vk = VAULT_KEY.lock().unwrap();
+            *vk = Some((key, std::time::Instant::now()));
+        }
+        {
+            let mut vk = VAULT_KEY.lock().unwrap();
+            if let Some((ref mut k, _)) = *vk {
+                drop_key(k);
+            }
+            *vk = None;
+        }
+        assert!(VAULT_KEY.lock().unwrap().is_none());
+    }
+}
+
+#[allow(dead_code)]
+fn contains_path_traversal(name: &str) -> bool {
+    name.contains('/') || name.contains('\\') || name.contains("..")
+}
