@@ -36,7 +36,8 @@
     "active": true,
     "targets": ["msi", "nsis", "dmg", "app", "deb", "appimage"],
     "icon": [
-      "icons/icon.png"
+      "icons/icon.png",
+      "icons/icon.ico"
     ],
     "resources": [],
     "windows": {
