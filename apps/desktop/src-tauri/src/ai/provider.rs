@@ -235,6 +235,7 @@ fn delete_api_key(app: &tauri::AppHandle, provider_id: &str) -> Result<(), AppEr
 #[tauri::command]
 pub async fn ai_list_providers(app: tauri::AppHandle) -> Result<Vec<AiProviderConfig>, AppError> {
     let providers = load_providers_cached(&app)?;
+    eprintln!("[AI PROVIDER] list: returning {} providers", providers.len());
     // On first load, restore active provider from disk
     if ACTIVE_PROVIDER.lock().ok().and_then(|a| a.clone()).is_none() {
         if let Ok(Some(id)) = load_active_provider(&app) {
@@ -264,12 +265,15 @@ pub async fn ai_set_provider(app: tauri::AppHandle, provider_id: String) -> Resu
 
 #[tauri::command]
 pub async fn ai_add_provider(app: tauri::AppHandle, config: AiProviderConfig) -> Result<(), AppError> {
+    eprintln!("[AI PROVIDER] adding provider '{}' id='{}', type='{}'", config.name, config.id, config.provider_type);
     let path = providers_file(&app)?;
+    eprintln!("[AI PROVIDER] file path: {:?}", path);
     let mut providers = load_providers_from_file(&path)?;
     providers.retain(|p| p.id != config.id);
     providers.push(config);
     save_providers_to_file(&path, &providers)?;
     invalidate_providers_cache();
+    eprintln!("[AI PROVIDER] saved {} providers to file", providers.len());
     Ok(())
 }
 
