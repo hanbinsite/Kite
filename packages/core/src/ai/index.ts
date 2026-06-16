@@ -3,6 +3,8 @@ export interface AiMessage {
   content: string;
 }
 
+import type { AiChatWithToolsRequest, AiChatWithToolsResponse } from "./action-types";
+
 export interface AiChatRequest {
   providerId: string;
   messages: AiMessage[];
@@ -110,6 +112,11 @@ export async function aiStreamChat(request: AiChatRequest): Promise<string> {
   return invoke<string>("ai_stream_chat", { request });
 }
 
+export async function aiChatWithTools(request: AiChatWithToolsRequest): Promise<AiChatWithToolsResponse> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<AiChatWithToolsResponse>("ai_chat_with_tools", { request });
+}
+
 export async function aiSaveSession(sessionId: string, messages: AiMessage[]): Promise<void> {
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke<void>("ai_save_session", { sessionId, messages });
@@ -129,3 +136,7 @@ export { useProviderStore, useChatStore } from "./store";
 export type { ProviderStore, ChatState } from "./store";
 export { buildContextMessage } from "./context-builder";
 export type { AiContextData } from "./context-builder";
+export { parseAgentAction, AGENT_TOOLS } from "./action-types";
+export type { CreateRequestAction, ModifyRequestAction, WriteTestAction, GenerateDocAction, FixErrorAction, ExtractVariablesAction, GenerateMockAction, ToolDefinition, AiChatWithToolsRequest, AiChatWithToolsResponse, AiToolCall } from "./action-types";
+export { chatAndParseActions } from "./action-dispatcher";
+export type { DispatchResult } from "./action-dispatcher";

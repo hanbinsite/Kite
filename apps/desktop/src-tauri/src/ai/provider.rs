@@ -25,6 +25,46 @@ pub struct AiProviderConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct AiChatWithToolsRequest {
+    pub provider_id: String,
+    pub messages: Vec<AiChatMessage>,
+    pub tools: Vec<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiToolCallResponse {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub call_type: String,
+    pub function: AiToolCallFunction,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiToolCallFunction {
+    pub name: String,
+    pub arguments: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiChatWithToolsResponse {
+    pub id: String,
+    pub content: Option<String>,
+    pub model: String,
+    pub tool_calls: Vec<AiToolCallResponse>,
+    pub usage: AiUsage,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AiChatRequest {
     pub provider_id: String,
     pub messages: Vec<AiChatMessage>,
@@ -456,4 +496,78 @@ pub async fn ai_delete_session(app: tauri::AppHandle, session_id: String) -> Res
             .map_err(|e| AppError::storage_write_failed(format!("Failed to delete session: {}", e)))?;
     }
     Ok(())
+}
+
+#[tauri::command]
+pub async fn ai_chat_with_tools(app: tauri::AppHandle, request: AiChatWithToolsRequest) -> Result<AiChatWithToolsResponse, AppError> {
+    let providers = load_providers_cached(&app)?;
+    let provider = providers.iter().find(|p| p.id == request.provider_id)
+        .ok_or(AppError::storage_not_found(format!("Provider '{}' not found", request.provider_id)))?;
+
+    let api_key = get_api_key(&provider.id)?;
+
+    let client = Client::new();
+    let url = format!("{}/v1/chat/completions", provider.base_url.trim_end_matches('/'));
+
+    let messages_json: Vec<serde_json::Value> = request.messages.iter().map(|m| {
+        serde_json::json!({"role": m.role, "content": m.content})
+    }).collect();
+
+    let body = serde_json::json!({
+        "model": provider.model,
+        "messages": messages_json,
+        "temperature": provider.temperature.unwrap_or(0.7),
+        "max_tokens": provider.max_tokens.unwrap_or(4096),
+        "tools": request.tools,
+        "tool_choice": "auto",
+    });
+
+    let resp = client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Content-Type", "application/json")
+        .json(&body)
+        .timeout(std::time::Duration::from_secs(120))
+        .send()
+        .await
+        .map_err(|e| AppError::safe_net_error("AI chat with tools", e))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status().as_u16();
+        let text = resp.text().await.unwrap_or_default();
+        return Err(AppError::net_auth_failed(format!("AI chat failed {}: {}", status, text)));
+    }
+
+    let json: serde_json::Value = resp.json().await
+        .map_err(|e| AppError::internal(format!("Failed to parse AI response: {}", e)))?;
+
+    let choice = &json["choices"][0];
+    let message = &choice["message"];
+    let content = message["content"].as_str().map(|s| s.to_string());
+
+    let tool_calls: Vec<AiToolCallResponse> = message["tool_calls"]
+        .as_array()
+        .map(|arr| {
+            arr.iter().map(|tc| AiToolCallResponse {
+                id: tc["id"].as_str().unwrap_or_default().to_string(),
+                call_type: tc["type"].as_str().unwrap_or("function").to_string(),
+                function: AiToolCallFunction {
+                    name: tc["function"]["name"].as_str().unwrap_or_default().to_string(),
+                    arguments: tc["function"]["arguments"].as_str().unwrap_or("{}").to_string(),
+                },
+            }).collect()
+        })
+        .unwrap_or_default();
+
+    Ok(AiChatWithToolsResponse {
+        id: json["id"].as_str().unwrap_or_default().to_string(),
+        content,
+        model: json["model"].as_str().unwrap_or(&provider.model).to_string(),
+        tool_calls,
+        usage: AiUsage {
+            prompt_tokens: json["usage"]["prompt_tokens"].as_u64().unwrap_or(0) as u32,
+            completion_tokens: json["usage"]["completion_tokens"].as_u64().unwrap_or(0) as u32,
+            total_tokens: json["usage"]["total_tokens"].as_u64().unwrap_or(0) as u32,
+        },
+    })
 }
