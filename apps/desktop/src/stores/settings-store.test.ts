@@ -1,4 +1,7 @@
-import { describe, it, expect } from "vitest";
+const invoke = vi.fn().mockResolvedValue(undefined);
+vi.mock("@tauri-apps/api/core", () => ({ invoke }));
+
+import { describe, it, expect, vi } from "vitest";
 
 describe("settings-store", () => {
   it("should export the store factory", async () => {
@@ -19,6 +22,7 @@ describe("settings-store", () => {
 
   it("updateSetting should change value", async () => {
     const { useSettingsStore } = await import("./settings-store");
+    invoke.mockResolvedValue(undefined);
     useSettingsStore.getState().updateSetting("timeout", "60000");
     expect(useSettingsStore.getState().timeout).toBe("60000");
     useSettingsStore.getState().updateSetting("timeout", "30000");
@@ -26,9 +30,9 @@ describe("settings-store", () => {
 
   it("updateSetting should persist to localStorage", async () => {
     const { useSettingsStore } = await import("./settings-store");
+    invoke.mockResolvedValue(undefined);
     useSettingsStore.getState().updateSetting("proxyUrl", "http://proxy.test:8080");
-    const saved = localStorage.getItem("api-client-settings");
-    expect(saved).toContain("proxy.test");
+    expect(invoke).toHaveBeenCalledWith("save_app_settings", expect.objectContaining({ settings: expect.stringContaining("proxy.test") }));
     useSettingsStore.getState().updateSetting("proxyUrl", "");
   });
 });

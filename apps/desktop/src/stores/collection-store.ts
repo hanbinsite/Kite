@@ -357,7 +357,7 @@ export const useCollectionStore = create<CollectionStore>()(
         renameRequest: (collectionId, requestId, name) => {
             set((state) => {
                 const col = state.collections.find((c) => c.id === collectionId);
-                if (col) findAndRenameNode(col.items, requestId, name);
+                if (col) col.items = findAndRenameNode(col.items, requestId, name);
             });
             get().persistCollection(collectionId);
         },

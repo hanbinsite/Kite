@@ -36,9 +36,13 @@ describe("environment-store", () => {
     const { useEnvironmentStore } = await import("./environment-store");
     invoke.mockResolvedValue([]);
     await useEnvironmentStore.getState().loadFromDisk();
-    const env = useEnvironmentStore.getState().environments.find((e) => e.name === "Development");
-    if (!env) return;
-    useEnvironmentStore.getState().setActiveEnvironment(env!.id);
+    useEnvironmentStore.getState().addEnvironment({
+      id: "env-getvar",
+      name: "Dev",
+      variables: [{ key: "base_url", value: "http://localhost:3000", enabled: true }],
+      isActive: false,
+    });
+    useEnvironmentStore.getState().setActiveEnvironment("env-getvar");
     const val = useEnvironmentStore.getState().getVariable("base_url");
     expect(val).toBe("http://localhost:3000");
   });
