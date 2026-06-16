@@ -372,22 +372,33 @@ function normalizeActionJson(obj: Record<string, unknown>): Record<string, unkno
   const type = obj.type;
   if (typeof type !== "string") return obj;
 
-  // For create_request: if method/url are at top level, wrap them in data
-  if (type === "create_request" && !obj.data) {
-    const data: Record<string, unknown> = {};
-    if (typeof obj.method === "string") { data.method = obj.method; delete obj.method; }
-    if (typeof obj.url === "string") { data.url = obj.url; delete obj.url; }
-    if (typeof obj.name === "string") { data.name = obj.name; delete obj.name; }
-    if (obj.headers) { data.headers = obj.headers; delete obj.headers; }
-    if (obj.body) { data.body = obj.body; delete obj.body; }
-    if (obj.auth) { data.auth = obj.auth; delete obj.auth; }
-    if (Object.keys(data).length > 0) {
-      obj.data = data;
+  if (type === "create_request") {
+    if (!obj.data) {
+      // Case 1: data is nested under "request" key
+      if (obj.request && typeof obj.request === "object") {
+        obj.data = obj.request;
+        delete obj.request;
+      } else {
+        // Case 2: flat fields at top level — wrap into data
+        const data: Record<string, unknown> = {};
+        for (const key of ["method", "url", "name", "headers", "body", "auth"]) {
+          if (key in obj) {
+            data[key] = obj[key];
+            delete obj[key];
+          }
+        }
+        if (Object.keys(data).length > 0) obj.data = data;
+      }
+    }
+    // Add description if missing
+    if (!obj.description) {
+      const name = (obj.data as Record<string, unknown>)?.name;
+      obj.description = typeof name === "string" ? `Create request: ${name}` : "Create request";
     }
   }
 
-  // For other types: ensure top-level fields are in data
-  if (!obj.data && (type === "write_test" || type === "generate_doc" || type === "generate_mock")) {
+  // For other action types: ensure top-level fields are in data
+  if (!obj.data && (type === "write_test" || type === "generate_doc" || type === "generate_mock" || type === "fix_error" || type === "extract_variables")) {
     const data: Record<string, unknown> = {};
     for (const key of Object.keys(obj)) {
       if (key !== "type" && key !== "description") {
@@ -395,9 +406,7 @@ function normalizeActionJson(obj: Record<string, unknown>): Record<string, unkno
         delete obj[key];
       }
     }
-    if (Object.keys(data).length > 0) {
-      obj.data = data;
-    }
+    if (Object.keys(data).length > 0) obj.data = data;
   }
 
   return obj;
