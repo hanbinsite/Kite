@@ -303,9 +303,14 @@ pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base
 
     let mut used_key = false;
     if let Some(p) = provider {
-        if let Ok(api_key) = get_api_key(&p.id) {
-            req = req.header("Authorization", format!("Bearer {}", api_key));
-            used_key = true;
+        match get_api_key(&p.id) {
+            Ok(api_key) => {
+                req = req.header("Authorization", format!("Bearer {}", api_key));
+                used_key = true;
+            }
+            Err(e) => {
+                tracing::warn!("API key lookup failed for provider '{}': {}", p.id, e);
+            }
         }
     }
 
@@ -317,7 +322,7 @@ pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base
     if !resp.status().is_success() {
         let status = resp.status().as_u16();
         let text = resp.text().await.unwrap_or_default();
-        let hint = if !used_key { " (no API key found)" } else { " (API key was used)" };
+        let hint = if !used_key { " (No API key found in keyring. Click 'No Key' in settings to set a new key.)" } else { " (API key was used)" };
         return Err(AppError::net_auth_failed(format!("AI provider returned {}{}: {}", status, hint, text)));
     }
 
