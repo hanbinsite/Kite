@@ -52,6 +52,8 @@ async function executeStreaming(
     }
   } finally {
     if (unlisten) unlisten();
+    // Small delay to let last chunk event be processed
+    await new Promise((r) => setTimeout(r, 50));
     set((s) => {
       const { [sessionId]: _, ...rest } = s.streamingSessions;
       return {
@@ -228,6 +230,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const allMessages = [...(contextMessages ?? []), ...updatedMessages].map((m) => ({ role: m.role, content: m.content }));
 
       await executeStreaming(get, set, sessionId, providerId, allMessages, updatedMessages);
+      await new Promise((r) => setTimeout(r, 100));
       detectActions(sessionId, get, set);
     },
 
@@ -254,6 +257,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const allMessages = [...(contextMessages ?? []), systemMessage, ...updatedMessages].map((m) => ({ role: m.role, content: m.content }));
 
       await executeStreaming(get, set, sessionId, providerId, allMessages, updatedMessages);
+      await new Promise((r) => setTimeout(r, 100));
       detectActions(sessionId, get, set);
     },
 
