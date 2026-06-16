@@ -97,9 +97,9 @@ export async function getApiKeyStatus(providerId: string): Promise<AiApiKeyStatu
   return invoke<AiApiKeyStatus>("ai_get_api_key_status", { providerId });
 }
 
-export async function testConnection(providerId: string, baseUrl: string, model: string): Promise<{ promptTokens: number; completionTokens: number; totalTokens: number }> {
+export async function testConnection(providerId: string, baseUrl: string, model: string): Promise<{ usage: { promptTokens: number; completionTokens: number; totalTokens: number }; model: string; responseContent: string }> {
   const { invoke } = await import("@tauri-apps/api/core");
-  return invoke<{ promptTokens: number; completionTokens: number; totalTokens: number }>("ai_test_connection", { providerId, baseUrl, model });
+  return invoke<{ usage: { promptTokens: number; completionTokens: number; totalTokens: number }; model: string; responseContent: string }>("ai_test_connection", { providerId, baseUrl, model });
 }
 
 export async function aiChat(request: AiChatRequest): Promise<AiChatResponse> {

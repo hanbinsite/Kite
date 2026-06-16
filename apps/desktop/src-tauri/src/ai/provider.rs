@@ -229,8 +229,16 @@ pub async fn ai_get_api_key_status(provider_id: String) -> Result<AiApiKeyStatus
     Ok(AiApiKeyStatus { has_key })
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiTestResult {
+    pub usage: AiUsage,
+    pub model: String,
+    pub response_content: String,
+}
+
 #[tauri::command]
-pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base_url: String, model: String) -> Result<AiUsage, AppError> {
+pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base_url: String, model: String) -> Result<AiTestResult, AppError> {
     let providers = load_providers_cached(&app)?;
     let provider = providers.iter().find(|p| p.id == provider_id);
 
@@ -268,10 +276,18 @@ pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base
     let json: serde_json::Value = resp.json().await
         .map_err(|e| AppError::internal(format!("Failed to parse AI response: {}", e)))?;
 
-    Ok(AiUsage {
-        prompt_tokens: json["usage"]["prompt_tokens"].as_u64().unwrap_or(0) as u32,
-        completion_tokens: json["usage"]["completion_tokens"].as_u64().unwrap_or(0) as u32,
-        total_tokens: json["usage"]["total_tokens"].as_u64().unwrap_or(0) as u32,
+    let response_content = json["choices"][0]["message"]["content"]
+        .as_str().unwrap_or("").to_string();
+    let response_model = json["model"].as_str().unwrap_or(&model).to_string();
+
+    Ok(AiTestResult {
+        usage: AiUsage {
+            prompt_tokens: json["usage"]["prompt_tokens"].as_u64().unwrap_or(0) as u32,
+            completion_tokens: json["usage"]["completion_tokens"].as_u64().unwrap_or(0) as u32,
+            total_tokens: json["usage"]["total_tokens"].as_u64().unwrap_or(0) as u32,
+        },
+        model: response_model,
+        response_content,
     })
 }
 

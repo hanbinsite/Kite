@@ -141,7 +141,7 @@ export const useProviderStore = create<ProviderStore>((set) => ({
   testProviderConnection: async (providerId, baseUrl, model) => {
     try {
       const result = await testConnection(providerId, baseUrl, model);
-      return `Connected (${result.totalTokens} tokens)`;
+      return `Connected — ${result.responseContent || "(empty response)"}\nModel: ${result.model}\nTokens: ${result.usage.totalTokens} (${result.usage.promptTokens} prompt + ${result.usage.completionTokens} completion)`;
     } catch (e) {
       return `Connection failed: ${e instanceof Error ? e.message : String(e)}`;
     }
