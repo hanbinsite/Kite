@@ -315,15 +315,18 @@ function detectActions(sessionId: string, get: () => ChatState, set: (fn: (state
 
   const actions: AgentAction[] = [];
   const content = lastAssistant.content;
+  console.log("[detectActions] scanning content, length=", content.length, "preview=", content.slice(0, 200));
 
   // Strategy 1: extract from ```json code blocks
   const codeBlockRe = /```json\s*([\s\S]*?)```/g;
   let match: RegExpExecArray | null;
   while ((match = codeBlockRe.exec(content)) !== null) {
     const jsonStr = match[1]?.trim();
+    console.log("[detectActions] code block found:", jsonStr?.slice(0, 100));
     if (jsonStr) {
       const action = tryParseAction(jsonStr);
-      if (action) actions.push(action);
+      if (action) { console.log("[detectActions] parsed action:", action.type); actions.push(action); }
+      else console.log("[detectActions] failed to parse code block JSON");
     }
   }
 
@@ -332,9 +335,11 @@ function detectActions(sessionId: string, get: () => ChatState, set: (fn: (state
     const jsonRe = /\{[\s\S]*?"type"\s*:\s*"[a-z_]+"[\s\S]*?\}/g;
     while ((match = jsonRe.exec(content)) !== null) {
       const jsonStr = match[0]?.trim();
+      console.log("[detectActions] inline JSON found:", jsonStr?.slice(0, 100));
       if (jsonStr) {
         const action = tryParseAction(jsonStr);
-        if (action) actions.push(action);
+        if (action) { console.log("[detectActions] parsed action:", action.type); actions.push(action); }
+        else console.log("[detectActions] failed to parse inline JSON");
       }
     }
   }
@@ -342,9 +347,10 @@ function detectActions(sessionId: string, get: () => ChatState, set: (fn: (state
   // Strategy 3: try to parse the entire content as JSON
   if (actions.length === 0) {
     const action = tryParseAction(content);
-    if (action) actions.push(action);
+    if (action) { console.log("[detectActions] parsed whole content as action:", action.type); actions.push(action); }
   }
 
+  console.log("[detectActions] found", actions.length, "actions");
   if (actions.length > 0) {
     set((s) => ({
       pendingActions: { ...s.pendingActions, [sessionId]: actions },
