@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { AiProviderConfig, AiStreamChunk } from "./index";
-import { listProviders, addProvider as addProviderIpc, removeProvider as removeProviderIpc, setProvider as setProviderIpc, testConnection, aiStreamChat, setApiKey as setApiKeyIpc, getApiKeyStatus, aiSaveSession, aiLoadSession, aiDeleteSession, parseAgentAction } from "./index";
+import { listProviders, addProvider as addProviderIpc, removeProvider as removeProviderIpc, setProvider as setProviderIpc, testConnection, aiStreamChat, setApiKey as setApiKeyIpc, getApiKeyStatus, aiSaveSession, aiLoadSession, aiDeleteSession } from "./index";
 import type { AiMessage } from "./index";
 import type { AgentAction } from "./action-types";
 
@@ -188,6 +188,7 @@ export interface ChatState {
   clearMessages: (sessionId: string) => void;
   applyPendingActions: (sessionId: string) => void;
   rejectPendingActions: (sessionId: string) => void;
+  setPendingActions: (sessionId: string, actions: AgentAction[]) => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -231,7 +232,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       await executeStreaming(get, set, sessionId, providerId, allMessages, updatedMessages);
       await new Promise((r) => setTimeout(r, 100));
-      detectActions(sessionId, get, set);
+      await detectActions(sessionId);
     },
 
     sendSlashCommand: async (sessionId, providerId, command, contextMessages) => {
@@ -258,7 +259,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       await executeStreaming(get, set, sessionId, providerId, allMessages, updatedMessages);
       await new Promise((r) => setTimeout(r, 100));
-      detectActions(sessionId, get, set);
+      await detectActions(sessionId);
     },
 
   loadSession: async (sessionId) => {
@@ -308,138 +309,32 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return { pendingActions: rest };
     });
   },
-}));
 
-function detectActions(sessionId: string, get: () => ChatState, set: (fn: (state: ChatState) => Partial<ChatState>) => void) {
-  const msgs = get().messages[sessionId];
-  if (!msgs || msgs.length === 0) return;
-
-  const lastAssistant = [...msgs].reverse().find((m) => m.role === "assistant");
-  if (!lastAssistant) return;
-
-  const actions: AgentAction[] = [];
-  const content = lastAssistant.content;
-  console.log("[detectActions] scanning content, length=", content.length, "preview=", content.slice(0, 200));
-
-  // Strategy 1: extract from ```json code blocks with brace counting
-  const codeBlockRe = /```json\s*/g;
-  let match: RegExpExecArray | null;
-  while ((match = codeBlockRe.exec(content)) !== null) {
-    const start = match.index + match[0].length;
-    const end = content.indexOf("```", start);
-    const blockContent = end > start ? content.slice(start, end) : content.slice(start);
-    const jsonObj = extractJsonObject(blockContent);
-    if (jsonObj) {
-      console.log("[detectActions] code block JSON:", jsonObj.slice(0, 100));
-      const action = tryParseAction(jsonObj);
-      if (action) { console.log("[detectActions] parsed action:", action.type); actions.push(action); }
-      else console.log("[detectActions] failed to parse code block JSON");
-    }
-  }
-
-  // Strategy 2: extract complete JSON objects from text
-  if (actions.length === 0) {
-    const jsonObj = extractJsonObject(content);
-    if (jsonObj) {
-      console.log("[detectActions] extracted JSON:", jsonObj.slice(0, 100));
-      const action = tryParseAction(jsonObj);
-      if (action) { console.log("[detectActions] parsed action:", action.type); actions.push(action); }
-      else console.log("[detectActions] failed to parse extracted JSON");
-    }
-  }
-
-  console.log("[detectActions] found", actions.length, "actions");
-  if (actions.length > 0) {
+  setPendingActions: (sessionId, actions) => {
     set((s) => ({
       pendingActions: { ...s.pendingActions, [sessionId]: actions },
     }));
-  }
-}
+  },
+}));
 
-function extractJsonObject(text: string): string | null {
-  // Find first { after "type" to start extracting
-  const typeIdx = text.indexOf('"type"');
-  if (typeIdx === -1) return null;
+async function detectActions(sessionId: string) {
+  const { useChatStore } = await import("./store");
+  const { useProviderStore } = await import("./store");
+  const msgs = useChatStore.getState().messages[sessionId];
+  if (!msgs || msgs.length === 0) return;
 
-  // Find the { that opens the JSON object containing "type"
-  let braceStart = -1;
-  for (let i = typeIdx; i >= 0; i--) {
-    if (text[i] === "{") { braceStart = i; break; }
-  }
-  if (braceStart === -1) return null;
+  const activeProviderId = useProviderStore.getState().activeProviderId;
+  if (!activeProviderId) return;
 
-  // Count braces to find the matching closing }
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-  for (let i = braceStart; i < text.length; i++) {
-    const ch = text[i];
-    if (escaped) { escaped = false; continue; }
-    if (ch === "\\") { escaped = true; continue; }
-    if (ch === '"') { inString = !inString; continue; }
-    if (inString) continue;
-    if (ch === "{") { depth++; }
-    else if (ch === "}") { depth--; if (depth === 0) return text.slice(braceStart, i + 1); }
-  }
-  return null;
-}
-
-function tryParseAction(jsonStr: string): AgentAction | null {
   try {
-    let parsed = JSON.parse(jsonStr);
-    parsed = normalizeActionJson(parsed);
-    return parseAgentAction(parsed);
-  } catch {
-    return null;
+    const { chatAndParseActions } = await import("./action-dispatcher");
+    const apiMessages = msgs.map((m) => ({ role: m.role, content: m.content }));
+    const { actions } = await chatAndParseActions(activeProviderId, apiMessages);
+    console.log("[detectActions] tools returned", actions.length, "actions");
+    if (actions.length > 0) {
+      useChatStore.getState().setPendingActions?.(sessionId, actions);
+    }
+  } catch (e) {
+    console.error("[detectActions] tools call failed:", e);
   }
-}
-
-function normalizeActionJson(obj: Record<string, unknown>): Record<string, unknown> {
-  const type = obj.type;
-  if (typeof type !== "string") return obj;
-
-  // Normalize headers: {"k":"v"} → [{key:"k",value:"v"}]
-  const normalizeHeaders = (data: Record<string, unknown>) => {
-    if (data.headers && typeof data.headers === "object" && !Array.isArray(data.headers)) {
-      const h = data.headers as Record<string, unknown>;
-      data.headers = Object.entries(h).map(([k, v]) => ({ key: k, value: String(v) }));
-    }
-  };
-
-  if (type === "create_request") {
-    if (!obj.data) {
-      if (obj.request && typeof obj.request === "object") {
-        obj.data = obj.request as Record<string, unknown>;
-        delete obj.request;
-      } else {
-        const data: Record<string, unknown> = {};
-        for (const key of ["method", "url", "name", "headers", "body", "auth"]) {
-          if (key in obj) {
-            data[key] = obj[key];
-            delete obj[key];
-          }
-        }
-        if (Object.keys(data).length > 0) obj.data = data;
-      }
-    }
-    normalizeHeaders(obj.data as Record<string, unknown>);
-    if (!obj.description) {
-      const name = (obj.data as Record<string, unknown>)?.name;
-      obj.description = typeof name === "string" ? `Create request: ${name}` : "Create request";
-    }
-  }
-
-  // For other action types: ensure top-level fields are in data
-  if (!obj.data && (type === "write_test" || type === "generate_doc" || type === "generate_mock" || type === "fix_error" || type === "extract_variables")) {
-    const data: Record<string, unknown> = {};
-    for (const key of Object.keys(obj)) {
-      if (key !== "type" && key !== "description") {
-        data[key] = obj[key];
-        delete obj[key];
-      }
-    }
-    if (Object.keys(data).length > 0) obj.data = data;
-  }
-
-  return obj;
 }
