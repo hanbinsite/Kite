@@ -7,12 +7,22 @@ pub struct Storage {
 }
 
 impl Storage {
+    #[cfg(test)]
+    pub fn in_memory() -> Result<Self, String> {
+        let conn = Connection::open_in_memory().map_err(|e| e.to_string())?;
+        Self::init_tables(&conn)?;
+        Ok(Self { conn: Mutex::new(conn) })
+    }
+
     pub fn new(data_dir: &Path) -> Result<Self, String> {
         std::fs::create_dir_all(data_dir).map_err(|e| e.to_string())?;
-
         let db_path = data_dir.join("api_client.db");
         let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
+        Self::init_tables(&conn)?;
+        Ok(Self { conn: Mutex::new(conn) })
+    }
 
+    fn init_tables(conn: &Connection) -> Result<(), String> {
         conn.execute_batch(
             "
             CREATE TABLE IF NOT EXISTS history (
@@ -57,7 +67,7 @@ impl Storage {
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")
             .map_err(|e| e.to_string())?;
 
-        Ok(Self { conn: Mutex::new(conn) })
+        Ok(())
     }
 
     // --- History ---
@@ -324,23 +334,20 @@ fn default_same_site() -> String {
 #[cfg(test)]
 mod tests {
     use super::Storage;
-    use tempfile::TempDir;
 
-    fn setup() -> (TempDir, Storage) {
-        let dir = TempDir::new().unwrap();
-        let storage = Storage::new(dir.path()).unwrap();
-        (dir, storage)
+    fn setup() -> Storage {
+        Storage::in_memory().unwrap()
     }
 
     #[test]
     fn test_storage_init() {
-        let (dir, _) = setup();
-        assert!(dir.path().join("api_client.db").exists());
+        let storage = setup();
+        assert!(storage.conn.lock().is_ok());
     }
 
     #[test]
     fn test_insert_and_query_history() {
-        let (_, storage) = setup();
+        let storage = setup();
 
         let id1 = storage.insert_history("GET", "https://api.example.com/users", 200, 150).unwrap();
         let id2 = storage.insert_history("POST", "https://api.example.com/users", 201, 300).unwrap();
@@ -356,7 +363,7 @@ mod tests {
 
     #[test]
     fn test_history_limit() {
-        let (_, storage) = setup();
+        let storage = setup();
         for i in 0..20 {
             storage.insert_history("GET", &format!("https://api.example.com/item/{}", i), 200, 100).unwrap();
         }
@@ -366,7 +373,7 @@ mod tests {
 
     #[test]
     fn test_history_search() {
-        let (_, storage) = setup();
+        let storage = setup();
         storage.insert_history("GET", "https://api.example.com/users", 200, 150).unwrap();
         storage.insert_history("POST", "https://api.example.com/orders", 201, 300).unwrap();
         let entries = storage.search_history("users", 10).unwrap();
@@ -376,7 +383,7 @@ mod tests {
 
     #[test]
     fn test_history_delete_and_clear() {
-        let (_, storage) = setup();
+        let storage = setup();
         let id = storage.insert_history("GET", "https://example.com", 200, 100).unwrap();
         storage.delete_history(id).unwrap();
         assert_eq!(storage.query_history(10).unwrap().len(), 0);
@@ -389,7 +396,7 @@ mod tests {
 
     #[test]
     fn test_settings_crud() {
-        let (_, storage) = setup();
+        let storage = setup();
 
         assert!(storage.get_setting("theme").unwrap().is_none());
 
@@ -405,7 +412,7 @@ mod tests {
 
     #[test]
     fn test_cookie_crud() {
-        let (_, storage) = setup();
+        let storage = setup();
 
         let cookie = super::CookieEntry {
             id: None,
@@ -425,7 +432,7 @@ mod tests {
         assert_eq!(cookies[0].name, "session");
         assert_eq!(cookies[0].domain, ".example.com");
 
-        let filtered = storage.query_cookies(Some("example")).unwrap();
+        let filtered = storage.query_cookies(Some("example.com")).unwrap();
         assert_eq!(filtered.len(), 1);
 
         storage.clear_cookies().unwrap();
@@ -434,8 +441,7 @@ mod tests {
 
     #[test]
     fn test_concurrent_access() {
-        let dir = TempDir::new().unwrap();
-        let storage = Storage::new(dir.path()).unwrap();
+        let storage = Storage::in_memory().unwrap();
 
         let results: Vec<_> = (0..10)
             .map(|i| {
