@@ -209,5 +209,15 @@ describe("importer", () => {
       expect(result.format).toBe("unknown");
       expect(result.errors.length).toBeGreaterThan(0);
     });
+
+    it("imports empty string as unknown", () => {
+      const result = importCollection("");
+      expect(result.format).toBe("unknown");
+    });
+
+    it("imports random JSON as unknown", () => {
+      const result = importCollection(JSON.stringify({ foo: "bar" }));
+      expect(result.format).toBe("unknown");
+    });
   });
 });

@@ -8,7 +8,11 @@ pub mod environment;
 #[cfg(test)]
 mod environment_test;
 pub mod websocket;
+#[cfg(test)]
+mod ws_message_test;
 pub mod sse;
+#[cfg(test)]
+mod sse_test;
 pub mod mqtt;
 pub mod grpc;
 pub mod mock;
