@@ -156,4 +156,60 @@ mod tests {
         let app_err: AppError = json_err.into();
         assert_eq!(app_err.code, "STORAGE_PARSE_FAILED");
     }
+
+    #[test]
+    fn test_from_reqwest_error_types() {
+        let app_err = AppError::net_timeout(5000);
+        assert_eq!(app_err.code, "NET_TIMEOUT");
+
+        let app_err = AppError::net_connect_failed("refused".into());
+        assert_eq!(app_err.code, "NET_CONNECT_FAILED");
+
+        let app_err = AppError::net_redirect_limit(10);
+        assert_eq!(app_err.code, "NET_REDIRECT_LIMIT");
+    }
+
+    #[test]
+    fn test_safe_net_error() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "refused");
+        let app_err = AppError::safe_net_error("HTTP request", io_err);
+        assert_eq!(app_err.code, "NET_CONNECT_FAILED");
+        assert!(app_err.detail.contains("HTTP request failed"));
+    }
+
+    #[test]
+    fn test_safe_net_error_masking() {
+        let raw = "https://secret.example.com?token=abc123";
+        let app_err = AppError::safe_net_error("HTTP request", raw);
+        assert_eq!(app_err.code, "NET_CONNECT_FAILED");
+        assert!(!app_err.detail.contains("abc123"));
+        assert!(!app_err.detail.contains("token"));
+    }
+
+    #[test]
+    fn test_net_invalid_url() {
+        let app_err = AppError::net_invalid_url("bad url".into());
+        assert_eq!(app_err.code, "NET_INVALID_URL");
+    }
+
+    #[test]
+    fn test_vault_keyring_failed() {
+        let app_err = AppError::vault_keyring_failed("keyring error".into());
+        assert_eq!(app_err.code, "VAULT_KEYRING_FAILED");
+    }
+
+    #[test]
+    fn test_mock_errors() {
+        let app_err = AppError::mock_start_failed("port in use".into());
+        assert_eq!(app_err.code, "MOCK_START_FAILED");
+
+        let app_err = AppError::mock_not_running();
+        assert_eq!(app_err.code, "MOCK_NOT_RUNNING");
+    }
+
+    #[test]
+    fn test_invalid_input() {
+        let app_err = AppError::invalid_input("field required".into());
+        assert_eq!(app_err.code, "INVALID_INPUT");
+    }
 }

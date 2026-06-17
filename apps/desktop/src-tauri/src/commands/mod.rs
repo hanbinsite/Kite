@@ -1,4 +1,6 @@
 pub mod http;
+#[cfg(test)]
+mod http_integration_tests;
 pub mod file_ops;
 pub mod history;
 pub mod collection;

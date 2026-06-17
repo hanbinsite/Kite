@@ -4,6 +4,8 @@ pub mod storage;
 pub mod script;
 pub mod ai;
 mod ts_export;
+#[cfg(test)]
+pub mod test_utils;
 
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Runtime};

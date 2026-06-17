@@ -215,7 +215,7 @@ pub struct AwsV4Auth {
     pub region: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RequestSettings {
     #[serde(default = "default_timeout")]
     pub timeout_ms: u64,
@@ -227,6 +227,18 @@ pub struct RequestSettings {
     pub verify_ssl: bool,
     #[serde(default)]
     pub proxy_url: Option<String>,
+}
+
+impl Default for RequestSettings {
+    fn default() -> Self {
+        Self {
+            timeout_ms: default_timeout(),
+            follow_redirects: default_true(),
+            max_redirects: default_redirects(),
+            verify_ssl: default_true(),
+            proxy_url: None,
+        }
+    }
 }
 
 fn default_timeout() -> u64 {
@@ -260,7 +272,7 @@ pub struct ResponseHeader {
     pub value: String,
 }
 
-fn build_client(settings: &RequestSettings) -> Result<Client, AppError> {
+pub(crate) fn build_client(settings: &RequestSettings) -> Result<Client, AppError> {
     let mut builder = Client::builder()
         .cookie_store(false)
         .timeout(std::time::Duration::from_millis(settings.timeout_ms));
@@ -287,7 +299,7 @@ fn build_client(settings: &RequestSettings) -> Result<Client, AppError> {
     builder.build().map_err(|e| AppError::internal(format!("Failed to build HTTP client: {}", e)))
 }
 
-fn apply_auth_to_config(
+pub(crate) fn apply_auth_to_config(
     config: &mut HttpRequestConfig,
 ) -> Result<(), AppError> {
     if let Some(auth) = &config.auth {
@@ -779,4 +791,340 @@ fn parse_cookie_expires(s: &str) -> Result<chrono::DateTime<chrono::Utc>, Box<dy
         }
     }
     Err(format!("Cannot parse cookie date: {}", s).into())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_settings() {
+        let settings = RequestSettings::default();
+        assert_eq!(settings.timeout_ms, 30000);
+        assert!(settings.follow_redirects);
+        assert_eq!(settings.max_redirects, 10);
+        assert!(settings.verify_ssl);
+        assert!(settings.proxy_url.is_none());
+    }
+
+    #[test]
+    fn test_build_client_default() {
+        let settings = RequestSettings::default();
+        let client = build_client(&settings);
+        assert!(client.is_ok());
+    }
+
+    #[test]
+    fn test_build_client_no_redirects() {
+        let mut settings = RequestSettings::default();
+        settings.follow_redirects = false;
+        let client = build_client(&settings);
+        assert!(client.is_ok());
+    }
+
+    #[test]
+    fn test_build_client_no_ssl_verify() {
+        let mut settings = RequestSettings::default();
+        settings.verify_ssl = false;
+        let client = build_client(&settings);
+        assert!(client.is_ok());
+    }
+
+    #[test]
+    fn test_build_client_custom_timeout() {
+        let mut settings = RequestSettings::default();
+        settings.timeout_ms = 5000;
+        let client = build_client(&settings);
+        assert!(client.is_ok());
+    }
+
+    #[test]
+    fn test_apply_auth_none() {
+        let mut config = HttpRequestConfig {
+            id: "t1".into(),
+            method: "GET".into(),
+            url: "https://example.com".into(),
+            headers: vec![],
+            params: vec![],
+            body: None,
+            auth: Some(AuthConfig::None(EmptyAuth {})),
+            settings: RequestSettings::default(),
+        };
+        let result = apply_auth_to_config(&mut config);
+        assert!(result.is_ok());
+        assert!(config.headers.is_empty());
+    }
+
+    #[test]
+    fn test_apply_auth_bearer() {
+        let mut config = HttpRequestConfig {
+            id: "t1".into(),
+            method: "GET".into(),
+            url: "https://example.com".into(),
+            headers: vec![],
+            params: vec![],
+            body: None,
+            auth: Some(AuthConfig::Bearer(BearerAuth {
+                token: "abc123".into(),
+                prefix: "Bearer".into(),
+            })),
+            settings: RequestSettings::default(),
+        };
+        apply_auth_to_config(&mut config).unwrap();
+        let auth_header = config.headers.iter().find(|h| h.key == "Authorization").unwrap();
+        assert_eq!(auth_header.value, "Bearer abc123");
+    }
+
+    #[test]
+    fn test_apply_auth_bearer_custom_prefix() {
+        let mut config = HttpRequestConfig {
+            id: "t1".into(),
+            method: "GET".into(),
+            url: "https://example.com".into(),
+            headers: vec![],
+            params: vec![],
+            body: None,
+            auth: Some(AuthConfig::Bearer(BearerAuth {
+                token: "xyz".into(),
+                prefix: "Token".into(),
+            })),
+            settings: RequestSettings::default(),
+        };
+        apply_auth_to_config(&mut config).unwrap();
+        let auth_header = config.headers.iter().find(|h| h.key == "Authorization").unwrap();
+        assert_eq!(auth_header.value, "Token xyz");
+    }
+
+    #[test]
+    fn test_apply_auth_bearer_empty_token() {
+        let mut config = HttpRequestConfig {
+            id: "t1".into(),
+            method: "GET".into(),
+            url: "https://example.com".into(),
+            headers: vec![Header { key: "Authorization".into(), value: "old".into(), disabled: false }],
+            params: vec![],
+            body: None,
+            auth: Some(AuthConfig::Bearer(BearerAuth {
+                token: "".into(),
+                prefix: "Bearer".into(),
+            })),
+            settings: RequestSettings::default(),
+        };
+        apply_auth_to_config(&mut config).unwrap();
+        let auth_header = config.headers.iter().find(|h| h.key == "Authorization").unwrap();
+        assert_eq!(auth_header.value, "old");
+    }
+
+    #[test]
+    fn test_apply_auth_basic() {
+        let mut config = HttpRequestConfig {
+            id: "t1".into(),
+            method: "GET".into(),
+            url: "https://example.com".into(),
+            headers: vec![],
+            params: vec![],
+            body: None,
+            auth: Some(AuthConfig::Basic(BasicAuth {
+                username: "user".into(),
+                password: "pass".into(),
+            })),
+            settings: RequestSettings::default(),
+        };
+        apply_auth_to_config(&mut config).unwrap();
+        let auth_header = config.headers.iter().find(|h| h.key == "Authorization").unwrap();
+        assert!(auth_header.value.starts_with("Basic "));
+    }
+
+    #[test]
+    fn test_apply_auth_apikey_header() {
+        let mut config = HttpRequestConfig {
+            id: "t1".into(),
+            method: "GET".into(),
+            url: "https://example.com".into(),
+            headers: vec![],
+            params: vec![],
+            body: None,
+            auth: Some(AuthConfig::ApiKey(ApiKeyAuth {
+                key: "X-API-Key".into(),
+                value: "secret-key".into(),
+                add_to: "header".into(),
+            })),
+            settings: RequestSettings::default(),
+        };
+        apply_auth_to_config(&mut config).unwrap();
+        let header = config.headers.iter().find(|h| h.key == "X-API-Key").unwrap();
+        assert_eq!(header.value, "secret-key");
+    }
+
+    #[test]
+    fn test_apply_auth_apikey_query() {
+        let mut config = HttpRequestConfig {
+            id: "t1".into(),
+            method: "GET".into(),
+            url: "https://example.com".into(),
+            headers: vec![],
+            params: vec![],
+            body: None,
+            auth: Some(AuthConfig::ApiKey(ApiKeyAuth {
+                key: "api_key".into(),
+                value: "val123".into(),
+                add_to: "query".into(),
+            })),
+            settings: RequestSettings::default(),
+        };
+        apply_auth_to_config(&mut config).unwrap();
+        let param = config.params.iter().find(|p| p.key == "api_key").unwrap();
+        assert_eq!(param.value, "val123");
+    }
+
+    #[test]
+    fn test_apply_auth_jwt() {
+        let mut config = HttpRequestConfig {
+            id: "t1".into(),
+            method: "GET".into(),
+            url: "https://example.com".into(),
+            headers: vec![],
+            params: vec![],
+            body: None,
+            auth: Some(AuthConfig::Jwt(JwtAuth {
+                token: "jwt.token.here".into(),
+                secret: None,
+            })),
+            settings: RequestSettings::default(),
+        };
+        apply_auth_to_config(&mut config).unwrap();
+        let auth_header = config.headers.iter().find(|h| h.key == "Authorization").unwrap();
+        assert_eq!(auth_header.value, "Bearer jwt.token.here");
+    }
+
+    #[test]
+    fn test_apply_auth_oauth2() {
+        let mut config = HttpRequestConfig {
+            id: "t1".into(),
+            method: "GET".into(),
+            url: "https://example.com".into(),
+            headers: vec![],
+            params: vec![],
+            body: None,
+            auth: Some(AuthConfig::OAuth2(OAuth2Auth {
+                access_token: "access123".into(),
+                token_type: "Bearer".into(),
+                refresh_token: None,
+                expires_in: None,
+            })),
+            settings: RequestSettings::default(),
+        };
+        apply_auth_to_config(&mut config).unwrap();
+        let auth_header = config.headers.iter().find(|h| h.key == "Authorization").unwrap();
+        assert_eq!(auth_header.value, "Bearer access123");
+    }
+
+    #[test]
+    fn test_apply_auth_oauth1_not_implemented() {
+        let mut config = HttpRequestConfig {
+            id: "t1".into(),
+            method: "GET".into(),
+            url: "https://example.com".into(),
+            headers: vec![],
+            params: vec![],
+            body: None,
+            auth: Some(AuthConfig::OAuth1(OAuth1Auth {
+                consumer_key: "ck".into(),
+                consumer_secret: "cs".into(),
+                token: "t".into(),
+                token_secret: "ts".into(),
+                signature_method: "HMAC-SHA1".into(),
+            })),
+            settings: RequestSettings::default(),
+        };
+        let result = apply_auth_to_config(&mut config);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, "NOT_IMPLEMENTED");
+    }
+
+    #[test]
+    fn test_apply_auth_awsv4_not_implemented() {
+        let mut config = HttpRequestConfig {
+            id: "t1".into(),
+            method: "GET".into(),
+            url: "https://example.com".into(),
+            headers: vec![],
+            params: vec![],
+            body: None,
+            auth: Some(AuthConfig::AwsV4(AwsV4Auth {
+                access_key_id: "ak".into(),
+                secret_access_key: "sk".into(),
+                session_token: None,
+                service: "s3".into(),
+                region: "us-east-1".into(),
+            })),
+            settings: RequestSettings::default(),
+        };
+        let result = apply_auth_to_config(&mut config);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, "NOT_IMPLEMENTED");
+    }
+
+    #[test]
+    fn test_parse_set_cookie_full() {
+        let cookie = parse_set_cookie(
+            "session=abc123; Path=/; Domain=.example.com; HttpOnly; Secure; SameSite=Strict; Expires=Fri, 31 Dec 2027 23:59:59 GMT; Max-Age=3600",
+            "example.com",
+        );
+        assert_eq!(cookie.domain, ".example.com");
+        assert_eq!(cookie.name, "session");
+        assert_eq!(cookie.value, "abc123");
+        assert_eq!(cookie.path, "/");
+        assert!(cookie.secure);
+        assert!(cookie.http_only);
+        assert_eq!(cookie.same_site, "Strict");
+    }
+
+    #[test]
+    fn test_parse_set_cookie_minimal() {
+        let cookie = parse_set_cookie("simple=value", "example.com");
+        assert_eq!(cookie.name, "simple");
+        assert_eq!(cookie.value, "value");
+        assert_eq!(cookie.domain, ".example.com");
+        assert_eq!(cookie.path, "/");
+        assert!(!cookie.secure);
+        assert!(!cookie.http_only);
+        assert_eq!(cookie.same_site, "Lax");
+    }
+
+    #[test]
+    fn test_parse_set_cookie_empty() {
+        let cookie = parse_set_cookie("", "example.com");
+        assert_eq!(cookie.name, "");
+    }
+
+    #[test]
+    fn test_parse_cookie_expires_rfc1123() {
+        let result = parse_cookie_expires("Fri, 31 Dec 2027 23:59:59 GMT");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_parse_cookie_expires_invalid() {
+        let result = parse_cookie_expires("not-a-date");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_http_client_state_new() {
+        let state = HttpClientState::new();
+        let tokens = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            state.cancellation_tokens.read().await.len()
+        });
+        assert_eq!(tokens, 0);
+    }
+
+    #[test]
+    fn test_cleanup_expired_tokens_no_panic() {
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        runtime.block_on(async {
+            let state = HttpClientState::new();
+            state.cleanup_expired_tokens().await;
+        });
+    }
 }
