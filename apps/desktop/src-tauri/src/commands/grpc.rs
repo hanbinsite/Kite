@@ -105,7 +105,7 @@ pub async fn parse_proto_file(
     Ok(methods)
 }
 
-fn encode_grpc_message(msg: &DynamicMessage) -> Vec<u8> {
+pub fn encode_grpc_message(msg: &DynamicMessage) -> Vec<u8> {
     let mut buf = Vec::with_capacity(msg.encoded_len() + 5);
     buf.push(0);
     let len = msg.encoded_len() as u32;
@@ -114,7 +114,7 @@ fn encode_grpc_message(msg: &DynamicMessage) -> Vec<u8> {
     buf
 }
 
-fn decode_grpc_frame(data: &[u8]) -> Result<Vec<u8>, crate::error::AppError> {
+pub fn decode_grpc_frame(data: &[u8]) -> Result<Vec<u8>, crate::error::AppError> {
     if data.len() < 5 {
         return Err(crate::error::AppError::net_connect_failed("Invalid gRPC frame: too short".to_string()));
     }

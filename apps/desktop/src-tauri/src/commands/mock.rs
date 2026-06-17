@@ -89,7 +89,7 @@ pub struct MockRequestLog {
     pub timestamp: u64,
 }
 
-async fn match_route(
+pub async fn match_route(
     method: &str,
     path: &str,
     routes: &[MockRoute],

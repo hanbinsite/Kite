@@ -14,8 +14,14 @@ pub mod sse;
 #[cfg(test)]
 mod sse_test;
 pub mod mqtt;
+#[cfg(test)]
+mod mqtt_test;
 pub mod grpc;
+#[cfg(test)]
+mod grpc_test;
 pub mod mock;
+#[cfg(test)]
+mod mock_test;
 pub mod script;
 pub mod codegen;
 #[cfg(test)]
