@@ -213,6 +213,8 @@ function AiSection() {
   const removeProvider = useProviderStore((s) => s.removeProvider);
   const setApiKey = useProviderStore((s) => s.setApiKey);
   const testProviderConnection = useProviderStore((s) => s.testProviderConnection);
+  const listOllamaModels = useProviderStore((s) => s.listOllamaModels);
+  const ollamaModels = useProviderStore((s) => s.ollamaModels);
 
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -447,9 +449,40 @@ function AiSection() {
             />
           )}
           {newProviderType === "ollama" && (
-            <div className="flex items-center gap-2 text-[10px] text-fg-tertiary">
-              <span className="text-accent-success">●</span>
-              No API key required for local Ollama
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-[10px] text-fg-tertiary">
+                <span className="text-accent-success">●</span>
+                No API key required for local Ollama
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!newBaseUrl) return;
+                    await listOllamaModels(newBaseUrl);
+                  }}
+                  className="h-7 px-3 rounded-md border border-border-muted text-fg-secondary text-[11px] cursor-pointer hover:border-brand hover:text-brand transition-colors"
+                >
+                  Fetch Models
+                </button>
+                {ollamaModels.length > 0 && (
+                  <select
+                    value={newModel}
+                    onChange={(e) => setNewModel(e.target.value)}
+                    className="flex-1 h-8 px-3 bg-bg-input border border-border-muted rounded-md text-[12px] text-fg-primary outline-none focus:border-border-focus cursor-pointer"
+                  >
+                    <option value="">Select a model...</option>
+                    {ollamaModels.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                )}
+                {ollamaModels.length === 0 && (
+                  <span className="text-[10px] text-fg-tertiary">
+                    {newBaseUrl ? "Click Fetch Models to discover models" : "Enter base URL first"}
+                  </span>
+                )}
+              </div>
             </div>
           )}
           <div className="flex items-center gap-2">

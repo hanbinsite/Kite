@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import type { AiProviderConfig, AiStreamChunk } from "./index";
-import { listProviders, addProvider as addProviderIpc, removeProvider as removeProviderIpc, setProvider as setProviderIpc, testConnection, aiStreamChat, setApiKey as setApiKeyIpc, getApiKeyStatus, aiSaveSession, aiLoadSession, aiDeleteSession } from "./index";
+import type { AiProviderConfig, AiStreamChunk, McpToolInfo } from "./index";
+import { listProviders, addProvider as addProviderIpc, removeProvider as removeProviderIpc, setProvider as setProviderIpc, testConnection, listOllamaModels, aiStreamChat, setApiKey as setApiKeyIpc, getApiKeyStatus, aiSaveSession, aiLoadSession, aiDeleteSession, listMcpTools } from "./index";
 import type { AiMessage } from "./index";
 import type { AgentAction } from "./action-types";
 
@@ -70,6 +70,8 @@ export interface ProviderStore {
   apiKeyStatus: Record<string, boolean>;
   activeProviderId: string | null;
   isLoaded: boolean;
+  ollamaModels: string[];
+  mcpTools: McpToolInfo[];
 
   loadProviders: () => Promise<void>;
   addProvider: (config: AiProviderConfig, apiKey?: string) => Promise<void>;
@@ -78,6 +80,8 @@ export interface ProviderStore {
   testProviderConnection: (providerId: string, baseUrl: string, model: string) => Promise<string | null>;
   setApiKey: (providerId: string, apiKey: string) => Promise<void>;
   refreshApiKeyStatus: (providerId: string) => Promise<void>;
+  listOllamaModels: (baseUrl: string) => Promise<string[]>;
+  loadMcpTools: () => Promise<void>;
 }
 
 export const useProviderStore = create<ProviderStore>((set) => ({
@@ -85,6 +89,8 @@ export const useProviderStore = create<ProviderStore>((set) => ({
   apiKeyStatus: {},
   activeProviderId: null,
   isLoaded: false,
+  ollamaModels: [],
+  mcpTools: [],
 
   loadProviders: async () => {
     try {
@@ -167,6 +173,21 @@ export const useProviderStore = create<ProviderStore>((set) => ({
       set((s) => ({
         apiKeyStatus: { ...s.apiKeyStatus, [providerId]: false },
       }));
+    }
+  },
+
+  listOllamaModels: async (baseUrl) => {
+    const models = await listOllamaModels(baseUrl);
+    set({ ollamaModels: models });
+    return models;
+  },
+
+  loadMcpTools: async () => {
+    try {
+      const tools = await listMcpTools();
+      set({ mcpTools: tools });
+    } catch (e) {
+      console.error("Failed to load MCP tools:", e);
     }
   },
 }));

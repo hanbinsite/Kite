@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use api_client_lib::{AppState, commands, storage, ai};
+use api_client_lib::{AppState, commands, storage, ai, proxy};
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
 
@@ -101,12 +101,18 @@ commands::crypto::delete_vault_secret,
             ai::provider::ai_set_api_key,
             ai::provider::ai_get_api_key_status,
             ai::provider::ai_test_connection,
+            ai::provider::ai_list_ollama_models,
             ai::provider::ai_chat,
             ai::provider::ai_stream_chat,
             ai::provider::ai_chat_with_tools,
             ai::provider::ai_save_session,
             ai::provider::ai_load_session,
             ai::provider::ai_delete_session,
+            ai::mcp::list_mcp_tools,
+            ai::mcp::call_mcp_tool_command,
+            proxy::start_proxy,
+            proxy::stop_proxy,
+            proxy::get_proxy_status,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();

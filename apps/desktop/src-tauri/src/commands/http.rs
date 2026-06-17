@@ -367,11 +367,47 @@ pub(crate) fn apply_auth_to_config(
                 }
             }
             AuthConfig::None(_) => {}
-            AuthConfig::OAuth1(_) => {
-                return Err(AppError::not_implemented("OAuth 1.0a signing is not yet implemented".into()));
+            AuthConfig::OAuth1(o) => {
+                let url = extract_base_url(&config.url);
+                let auth_header = build_oauth1_header(o, &config.method, &url)?;
+                config.headers.retain(|h| h.key.to_lowercase() != "authorization");
+                config.headers.push(Header {
+                    key: "Authorization".into(),
+                    value: auth_header,
+                    disabled: false,
+                });
             }
-            AuthConfig::AwsV4(_) => {
-                return Err(AppError::not_implemented("AWS Signature v4 signing is not yet implemented".into()));
+            AuthConfig::AwsV4(a) => {
+                let body_str = config.body.as_ref()
+                    .and_then(|b| b.content.as_ref())
+                    .map(|c| c.as_str())
+                    .unwrap_or("");
+                let content_type = config.body.as_ref()
+                    .and_then(|b| b.content_type.as_ref())
+                    .map(|c| c.as_str())
+                    .unwrap_or("application/x-www-form-urlencoded");
+                let (auth_header, amz_date) =
+                    build_aws_v4_header(a, &config.method, &config.url, body_str.as_bytes(), content_type)?;
+                config.headers.retain(|h| h.key.to_lowercase() != "authorization");
+                config.headers.push(Header {
+                    key: "Authorization".into(),
+                    value: auth_header,
+                    disabled: false,
+                });
+                config.headers.retain(|h| h.key.to_lowercase() != "x-amz-date");
+                config.headers.push(Header {
+                    key: "x-amz-date".into(),
+                    value: amz_date,
+                    disabled: false,
+                });
+                if let Some(ref session_token) = a.session_token {
+                    config.headers.retain(|h| h.key.to_lowercase() != "x-amz-security-token");
+                    config.headers.push(Header {
+                        key: "x-amz-security-token".into(),
+                        value: session_token.clone(),
+                        disabled: false,
+                    });
+                }
             }
         }
     }
@@ -379,6 +415,14 @@ pub(crate) fn apply_auth_to_config(
 }
 
 use base64::Engine;
+use hmac::{Hmac, Mac};
+use sha1::Sha1;
+use sha2::{Digest, Sha256};
+use std::collections::BTreeMap;
+
+type HmacSha1 = Hmac<Sha1>;
+type HmacSha256 = Hmac<Sha256>;
+
 const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
 #[tauri::command]
@@ -827,6 +871,157 @@ pub async fn graphql_introspect(url: String, headers: Option<Vec<(String, String
     Ok(json)
 }
 
+fn percent_encode(s: &str) -> String {
+    let mut result = String::new();
+    for byte in s.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => result.push(byte as char),
+            _ => result.push_str(&format!("%{:02X}", byte)),
+        }
+    }
+    result
+}
+
+fn make_param_string(params: &BTreeMap<&str, &str>) -> String {
+    let parts: Vec<_> = params.iter()
+        .map(|(k, v)| format!("{}={}", percent_encode(k), percent_encode(v)))
+        .collect();
+    parts.join("&")
+}
+
+fn make_oauth1_signature(
+    method: &str,
+    base_url: &str,
+    params: &BTreeMap<&str, &str>,
+    consumer_secret: &str,
+    token_secret: &str,
+) -> String {
+    let signing_key = format!("{}&{}", percent_encode(consumer_secret), percent_encode(token_secret));
+    let mut mac = HmacSha1::new_from_slice(signing_key.as_bytes()).expect("HMAC key");
+    let param_string = make_param_string(params);
+    let base_string = format!("{}&{}&{}", method, percent_encode(base_url), percent_encode(&param_string));
+    mac.update(base_string.as_bytes());
+    hex::encode(mac.finalize().into_bytes())
+}
+
+fn extract_base_url(url: &str) -> String {
+    if let Ok(parsed) = reqwest::Url::parse(url) {
+        let scheme = parsed.scheme();
+        let host = parsed.host_str().unwrap_or("");
+        if let Some(port) = parsed.port() {
+            format!("{}://{}:{}", scheme, host, port)
+        } else {
+            format!("{}://{}{}", scheme, host, parsed.path())
+        }
+    } else {
+        url.to_string()
+    }
+}
+
+fn build_oauth1_header(
+    config: &OAuth1Auth,
+    method: &str,
+    url: &str,
+) -> Result<String, AppError> {
+    let nonce: String = std::iter::repeat_with(|| rand::random::<char>())
+        .filter(|c| c.is_ascii_alphanumeric())
+        .take(32)
+        .collect();
+    let timestamp = chrono::Utc::now().timestamp().to_string();
+
+    let mut params: BTreeMap<&str, &str> = BTreeMap::new();
+    params.insert("oauth_consumer_key", &config.consumer_key);
+    params.insert("oauth_nonce", &nonce);
+    params.insert("oauth_signature_method", &config.signature_method);
+    params.insert("oauth_timestamp", &timestamp);
+    params.insert("oauth_token", &config.token);
+    params.insert("oauth_version", "1.0");
+
+    let sig = make_oauth1_signature(method, url, &params, &config.consumer_secret, &config.token_secret);
+
+    let mut auth_params: Vec<_> = params.into_iter().collect();
+    auth_params.push(("oauth_signature", sig.as_str()));
+    auth_params.sort_by(|a, b| a.0.cmp(b.0));
+    let auth_parts: Vec<_> = auth_params.iter()
+        .map(|(k, v)| format!("{}=\"{}\"", percent_encode(k), percent_encode(v)))
+        .collect();
+    Ok(format!("OAuth {}", auth_parts.join(", ")))
+}
+
+fn sha256_hex(data: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(data);
+    hex::encode(hasher.finalize())
+}
+
+fn hmac_sha256(key: &[u8], msg: &str) -> String {
+    let mut mac = HmacSha256::new_from_slice(key).expect("HMAC key");
+    mac.update(msg.as_bytes());
+    hex::encode(mac.finalize().into_bytes())
+}
+
+fn hmac_sha256_as_bytes(key: &[u8], msg: &str) -> Vec<u8> {
+    let mut mac = HmacSha256::new_from_slice(key).expect("HMAC key");
+    mac.update(msg.as_bytes());
+    mac.finalize().into_bytes().to_vec()
+}
+
+fn aws_signing_key(secret: &str, date: &str, region: &str, service: &str) -> Vec<u8> {
+    let ksecret = format!("AWS4{}", secret);
+    let date_key = hmac_sha256_as_bytes(ksecret.as_bytes(), date);
+    let region_key = hmac_sha256_as_bytes(&date_key, region);
+    let service_key = hmac_sha256_as_bytes(&region_key, service);
+    hmac_sha256_as_bytes(&service_key, "aws4_request")
+}
+
+fn build_aws_v4_header(
+    config: &AwsV4Auth,
+    method: &str,
+    url: &str,
+    body: &[u8],
+    content_type: &str,
+) -> Result<(String, String), AppError> {
+    let amz_date = chrono::Utc::now().format("%Y%m%dT%H%M%SZ").to_string();
+    let date_stamp = chrono::Utc::now().format("%Y%m%d").to_string();
+    let service = &config.service;
+    let region = &config.region;
+
+    let parsed = reqwest::Url::parse(url)
+        .map_err(|e| AppError::net_invalid_url(e.to_string()))?;
+    let host = parsed.host_str().unwrap_or("");
+    let canonical_uri = if parsed.path().is_empty() { "/" } else { parsed.path() };
+    let canonical_query = parsed.query().unwrap_or("");
+
+    let payload_hash = sha256_hex(body);
+
+    let canonical_headers = format!(
+        "content-type:{}\nhost:{}\nx-amz-content-sha256:{}\nx-amz-date:{}\n",
+        content_type, host, payload_hash, amz_date
+    );
+    let signed_headers = "content-type;host;x-amz-content-sha256;x-amz-date";
+
+    let canonical_request = format!(
+        "{}\n{}\n{}\n{}\n{}\n{}",
+        method, canonical_uri, canonical_query, canonical_headers, signed_headers, payload_hash
+    );
+
+    let credential_scope = format!("{}/{}/{}/aws4_request", date_stamp, region, service);
+    let string_to_sign = format!(
+        "AWS4-HMAC-SHA256\n{}\n{}\n{}",
+        amz_date, credential_scope, sha256_hex(canonical_request.as_bytes())
+    );
+
+    let signing_key = aws_signing_key(&config.secret_access_key, &date_stamp, region, service);
+    let signature = hmac_sha256(&signing_key, &string_to_sign);
+
+    let authorization = format!(
+        "AWS4-HMAC-SHA256 Credential={}/{}, SignedHeaders={}, Signature={}",
+        config.access_key_id, credential_scope, signed_headers, signature
+    );
+
+    Ok((authorization, amz_date))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1051,7 +1246,7 @@ mod tests {
     }
 
     #[test]
-    fn test_apply_auth_oauth1_not_implemented() {
+    fn test_apply_auth_oauth1_header() {
         let mut config = HttpRequestConfig {
             id: "t1".into(),
             method: "GET".into(),
@@ -1068,13 +1263,17 @@ mod tests {
             })),
             settings: RequestSettings::default(),
         };
-        let result = apply_auth_to_config(&mut config);
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().code, "NOT_IMPLEMENTED");
+        apply_auth_to_config(&mut config).unwrap();
+        let auth_header = config.headers.iter().find(|h| h.key == "Authorization").unwrap();
+        assert!(auth_header.value.starts_with("OAuth "));
+        assert!(auth_header.value.contains("oauth_consumer_key=\"ck\""));
+        assert!(auth_header.value.contains("oauth_signature=\""));
+        assert!(auth_header.value.contains("oauth_signature_method=\"HMAC-SHA1\""));
+        assert!(auth_header.value.contains("oauth_version=\"1.0\""));
     }
 
     #[test]
-    fn test_apply_auth_awsv4_not_implemented() {
+    fn test_apply_auth_awsv4_header() {
         let mut config = HttpRequestConfig {
             id: "t1".into(),
             method: "GET".into(),
@@ -1091,9 +1290,41 @@ mod tests {
             })),
             settings: RequestSettings::default(),
         };
-        let result = apply_auth_to_config(&mut config);
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().code, "NOT_IMPLEMENTED");
+        apply_auth_to_config(&mut config).unwrap();
+        let auth_header = config.headers.iter().find(|h| h.key == "Authorization").unwrap();
+        assert!(auth_header.value.starts_with("AWS4-HMAC-SHA256 "));
+        assert!(auth_header.value.contains("Credential=ak/"));
+        assert!(auth_header.value.contains("SignedHeaders=content-type;host;x-amz-content-sha256;x-amz-date"));
+        assert!(auth_header.value.contains("Signature="));
+
+        let amz_date_header = config.headers.iter().find(|h| h.key == "x-amz-date").unwrap();
+        assert!(amz_date_header.value.ends_with("Z"));
+    }
+
+    #[test]
+    fn test_apply_auth_awsv4_with_session_token() {
+        let mut config = HttpRequestConfig {
+            id: "t1".into(),
+            method: "PUT".into(),
+            url: "https://s3.amazonaws.com/bucket/key".into(),
+            headers: vec![],
+            params: vec![],
+            body: None,
+            auth: Some(AuthConfig::AwsV4(AwsV4Auth {
+                access_key_id: "ak".into(),
+                secret_access_key: "sk".into(),
+                session_token: Some("st".into()),
+                service: "s3".into(),
+                region: "us-east-1".into(),
+            })),
+            settings: RequestSettings::default(),
+        };
+        apply_auth_to_config(&mut config).unwrap();
+        let auth_header = config.headers.iter().find(|h| h.key == "Authorization").unwrap();
+        assert!(auth_header.value.contains("/us-east-1/s3/aws4_request"));
+
+        let st_header = config.headers.iter().find(|h| h.key == "x-amz-security-token").unwrap();
+        assert_eq!(st_header.value, "st");
     }
 
     #[test]

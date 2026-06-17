@@ -4,8 +4,9 @@ import { useChatStore, useProviderStore, buildContextMessage, SLASH_COMMANDS } f
 import type { SlashCommand, AiProviderConfig } from "@api-client/core/ai";
 import { useTabStore, useUIStore } from "@api-client/core";
 import { useCollectionStore, useEnvironmentStore, useRequestStore } from "../../stores";
-import { Send, Bot, User, Loader2, X, PanelRightClose, FileText, Globe, FolderOpen, Zap, ChevronRight, Key, Copy, RotateCw } from "lucide-react";
+import { Send, Bot, User, Loader2, X, PanelRightClose, FileText, Globe, FolderOpen, Zap, ChevronRight, Key, Copy, RotateCw, Wrench } from "lucide-react";
 import { AiActionCard } from "./AiActionCard";
+import { McpToolsPanel } from "./McpToolsPanel";
 
 function escapeHtml(text: string): string {
   return text
@@ -62,6 +63,7 @@ export function AiChatPanel() {
   const [includeCollection, setIncludeCollection] = useState(true);
   const [showSlashMenu, setShowSlashMenu] = useState(false);
   const [slashFilter, setSlashFilter] = useState("");
+  const [showMcpTools, setShowMcpTools] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -187,6 +189,13 @@ export function AiChatPanel() {
           )}
         </div>
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => setShowMcpTools(!showMcpTools)}
+            className={`p-1 rounded cursor-pointer transition-colors ${showMcpTools ? "text-brand bg-brand/10" : "text-fg-tertiary hover:text-fg-primary hover:bg-bg-hover"}`}
+            title="MCP Tools"
+          >
+            <Wrench className="w-3 h-3" />
+          </button>
           {messages.length > 0 && (
             <button
               onClick={() => clearMessages(sessionId)}
@@ -220,6 +229,12 @@ export function AiChatPanel() {
               )}
             </button>
           ))}
+        </div>
+      )}
+
+      {showMcpTools && (
+        <div className="border-b border-border-default bg-bg-base px-3 py-2 max-h-[40%] overflow-y-auto">
+          <McpToolsPanel />
         </div>
       )}
 

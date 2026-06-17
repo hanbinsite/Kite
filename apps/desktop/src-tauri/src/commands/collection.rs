@@ -135,11 +135,117 @@ pub struct SavedFormDataParam {
 fn default_form_type() -> String { "text".into() }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SavedAuth {
-    #[serde(rename = "type")]
-    pub auth_type: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub config: Option<serde_json::Value>,
+#[serde(tag = "type", content = "config", rename_all = "camelCase")]
+pub enum SavedAuth {
+    #[serde(rename = "none")]
+    None,
+    #[serde(rename = "bearer")]
+    Bearer {
+        token: String,
+        #[serde(default)]
+        prefix: Option<String>,
+    },
+    #[serde(rename = "basic")]
+    Basic {
+        username: String,
+        password: String,
+    },
+    #[serde(rename = "apikey")]
+    ApiKey {
+        key: String,
+        value: String,
+        #[serde(default)]
+        add_to: Option<String>,
+    },
+    #[serde(rename = "jwt")]
+    Jwt {
+        token: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        secret: Option<String>,
+    },
+    #[serde(rename = "oauth1")]
+    OAuth1 {
+        consumer_key: String,
+        consumer_secret: String,
+        token: String,
+        token_secret: String,
+        #[serde(default)]
+        signature_method: Option<String>,
+    },
+    #[serde(rename = "oauth2")]
+    OAuth2 {
+        access_token: String,
+        #[serde(default)]
+        token_type: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        refresh_token: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        expires_in: Option<u64>,
+    },
+    #[serde(rename = "awsv4")]
+    AwsV4 {
+        access_key_id: String,
+        secret_access_key: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        session_token: Option<String>,
+        service: String,
+        region: String,
+    },
+}
+
+impl SavedAuth {
+    pub fn to_auth_config(&self) -> super::http::AuthConfig {
+        use super::http::{
+            AuthConfig, EmptyAuth, BearerAuth, BasicAuth, ApiKeyAuth,
+            JwtAuth, OAuth1Auth, OAuth2Auth, AwsV4Auth,
+        };
+        match self {
+            SavedAuth::None => AuthConfig::None(EmptyAuth {}),
+            SavedAuth::Bearer { token, prefix } => AuthConfig::Bearer(BearerAuth {
+                token: token.clone(),
+                prefix: prefix.clone().unwrap_or_else(|| "Bearer".into()),
+            }),
+            SavedAuth::Basic { username, password } => AuthConfig::Basic(BasicAuth {
+                username: username.clone(),
+                password: password.clone(),
+            }),
+            SavedAuth::ApiKey { key, value, add_to } => AuthConfig::ApiKey(ApiKeyAuth {
+                key: key.clone(),
+                value: value.clone(),
+                add_to: add_to.clone().unwrap_or_else(|| "header".into()),
+            }),
+            SavedAuth::Jwt { token, secret } => AuthConfig::Jwt(JwtAuth {
+                token: token.clone(),
+                secret: secret.clone(),
+            }),
+            SavedAuth::OAuth1 { consumer_key, consumer_secret, token, token_secret, signature_method } => {
+                AuthConfig::OAuth1(OAuth1Auth {
+                    consumer_key: consumer_key.clone(),
+                    consumer_secret: consumer_secret.clone(),
+                    token: token.clone(),
+                    token_secret: token_secret.clone(),
+                    signature_method: signature_method.clone().unwrap_or_else(|| "HMAC-SHA1".into()),
+                })
+            }
+            SavedAuth::OAuth2 { access_token, token_type, refresh_token, expires_in } => {
+                AuthConfig::OAuth2(OAuth2Auth {
+                    access_token: access_token.clone(),
+                    token_type: token_type.clone().unwrap_or_else(|| "Bearer".into()),
+                    refresh_token: refresh_token.clone(),
+                    expires_in: *expires_in,
+                })
+            }
+            SavedAuth::AwsV4 { access_key_id, secret_access_key, session_token, service, region } => {
+                AuthConfig::AwsV4(AwsV4Auth {
+                    access_key_id: access_key_id.clone(),
+                    secret_access_key: secret_access_key.clone(),
+                    session_token: session_token.clone(),
+                    service: service.clone(),
+                    region: region.clone(),
+                })
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

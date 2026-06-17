@@ -3,6 +3,7 @@ pub mod error;
 pub mod storage;
 pub mod script;
 pub mod ai;
+pub mod proxy;
 mod ts_export;
 #[cfg(test)]
 pub mod test_utils;

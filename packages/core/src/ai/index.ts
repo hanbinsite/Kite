@@ -55,10 +55,16 @@ export interface SlashCommand {
   needsResponse?: boolean;
 }
 
+export interface McpToolInfo {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+}
+
 export const SLASH_COMMANDS: SlashCommand[] = [
   { key: "explain", label: "/explain", description: "Explain current response", prompt: "Explain the current HTTP response in detail. What does the status code mean? What is the structure of the response body? Are there any potential issues?", needsResponse: true },
   { key: "fix", label: "/fix", description: "Fix request errors", prompt: "Analyze the request error. Return ONLY a ```json code block with:\n{\"type\":\"fix_error\",\"description\":\"Fix request\",\"data\":{\"suggestions\":[{\"path\":\"url\",\"issue\":\"wrong URL\",\"fix\":\"https://correct.url\"}]}}", needsResponse: true },
-  { key: "test", label: "/test", description: "Generate test scripts", prompt: "Generate pm.test() scripts. Return ONLY a ```json code block with:\n{\"type\":\"write_test\",\"description\":\"Test script\",\"data\":{\"script\":\"pm.test('status 200',function(){pm.expect(pm.response.status).to.equal(200)})\"}}" },
+  { key: "test", label: "/test", description: "Generate test scripts", prompt: "Generate JavaScript test scripts using pm.test() and pm.expect() for the current HTTP request. Include tests for: status code, response time, content-type header, and response body structure. If context mentions multiple endpoints, generate tests for all of them." },
   { key: "doc", label: "/doc", description: "Generate API documentation", prompt: "Generate API docs in Markdown. Return ONLY a ```json code block with:\n{\"type\":\"generate_doc\",\"description\":\"API docs\",\"data\":{\"markdown\":\"# Endpoint\\n\\nGET /api/users\\n\\n...\"}}" },
   { key: "mock", label: "/mock", description: "Generate mock data", prompt: "Generate mock data based on the response structure. Return ONLY a ```json code block with:\n{\"type\":\"generate_mock\",\"description\":\"Mock data\",\"data\":{\"route\":\"/api/users/:id\",\"method\":\"GET\",\"statusCode\":200,\"responseBody\":{\"id\":1,\"name\":\"John\"}}}", needsResponse: true },
   { key: "extract", label: "/extract", description: "Extract variables from response", prompt: "Extract reusable variables from the response. Return ONLY a ```json code block with:\n{\"type\":\"extract_variables\",\"description\":\"Variables\",\"data\":{\"variables\":[{\"key\":\"userId\",\"value\":\"42\",\"source\":\"$.data.id\"}]}}", needsResponse: true },
@@ -102,6 +108,11 @@ export async function testConnection(providerId: string, baseUrl: string, model:
   return invoke<{ usage: { promptTokens: number; completionTokens: number; totalTokens: number }; model: string; responseContent: string }>("ai_test_connection", { providerId, baseUrl, model });
 }
 
+export async function listOllamaModels(baseUrl: string): Promise<string[]> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<string[]>("ai_list_ollama_models", { baseUrl });
+}
+
 export async function aiChat(request: AiChatRequest): Promise<AiChatResponse> {
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke<AiChatResponse>("ai_chat", { request });
@@ -132,6 +143,16 @@ export async function aiDeleteSession(sessionId: string): Promise<void> {
   return invoke<void>("ai_delete_session", { sessionId });
 }
 
+export async function listMcpTools(): Promise<McpToolInfo[]> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<McpToolInfo[]>("list_mcp_tools");
+}
+
+export async function callMcpTool(toolName: string, args: Record<string, unknown>): Promise<string> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<string>("call_mcp_tool_command", { toolName, args });
+}
+
 export { useProviderStore, useChatStore } from "./store";
 export type { ProviderStore, ChatState } from "./store";
 export { buildContextMessage } from "./context-builder";
@@ -140,3 +161,9 @@ export { parseAgentAction, AGENT_TOOLS } from "./action-types";
 export type { CreateRequestAction, ModifyRequestAction, WriteTestAction, GenerateDocAction, FixErrorAction, ExtractVariablesAction, GenerateMockAction, ToolDefinition, AiChatWithToolsRequest, AiChatWithToolsResponse, AiToolCall } from "./action-types";
 export { chatAndParseActions } from "./action-dispatcher";
 export type { DispatchResult } from "./action-dispatcher";
+export { computeJsonDiff } from "./response-differ";
+export type { DiffResult } from "./response-differ";
+export { buildAnalysisContext } from "./collection-analyzer";
+export type { AnalysisReport } from "./collection-analyzer";
+export { formatDoc } from "./doc-generator";
+export type { DocEndpoint } from "./doc-generator";

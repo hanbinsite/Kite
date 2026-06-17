@@ -1,7 +1,7 @@
 # API Client 开发进度跟踪
 
 > 本文档记录每个任务的完成状态、阻塞项、验证结果和偏差记录。与 09/10/11/14/15 任务清单交叉引用。
-> 最后更新: 2026-05-06 | v1.9 | Phase 3: 100%, Phase 4: 33% (5/15), 集合/文件夹级配置: 100%
+> 最后更新: 2026-06-17 | v2.0 | Phase 3: 100%, Phase 4: 67% (10/15), 集合/文件夹级配置: 100%
 
 ---
 
@@ -13,9 +13,9 @@
 | Phase 2 (核心请求) | 26 | 26 | 0 | 0 | 0 | 100% |
 | Phase 2b (多协议) | 15 | 15 | 0 | 0 | 0 | 100% |
 | Phase 3 (高级功能) | 23 | 23 | 0 | 0 | 0 | 100% |
-| Phase 4 (AI 模块) | 15 | 5 | 0 | 10 | 0 | 33% |
+| Phase 4 (AI 模块) | 15 | 10 | 0 | 5 | 0 | 67% |
 | 集合/文件夹级配置 | 11 | 11 | 0 | 0 | 0 | 100% |
-| **总计** | **130** | **120** | **0** | **10** | **0** | **92%** |
+| **总计** | **130** | **125** | **0** | **5** | **0** | **96%** |
 
 ---
 
@@ -204,11 +204,11 @@
 
 | Task ID | 任务描述 | 状态 | 关键文件 | 验证结果 |
 |---------|---------|------|---------|---------|
-| P4-06 | AI Request Creation from NL | ⏳ PENDING | | |
-| P4-07 | AI Test Script Generation | ⏳ PENDING | | |
-| P4-08 | AI Documentation Generation | ⏳ PENDING | | |
-| P4-09 | AI Response Explain & Fix | ⏳ PENDING | | |
-| P4-10 | AI Action Confirmation Flow | ⏳ PENDING | | |
+| P4-06 | AI 7 Action Types + Function Calling + AI Action Dispatcher | ✅ DONE | ai/action-types.ts + ai/action-dispatcher.ts + provider.rs ai_chat_with_tools + AiActionCard.tsx | 7 action types + Zod schemas + Function Calling + tool_choice auto ✅ |
+| P4-07 | AI /create NL Request Creation | ✅ DONE | AiActionCard.tsx applyCreateRequest + /create slash command | NL create request → collection + tab. cURL import deferred. ✅ |
+| P4-08 | AI Slash Commands System | ✅ DONE | ai/index.ts + AiChatPanel.tsx | 9 slash commands (/explain /fix /test /doc /mock /extract /create /diff /analyze) + autocomplete ✅ |
+| P4-09 | AI Modify Request Actions | ✅ DONE | AiActionCard.tsx applyModifyRequest + applyPathChange | modify_request with set/add/remove ops on headers/params/body/url/method ✅ |
+| P4-10 | AI Action Confirmation Flow | ✅ DONE | AiActionCard.tsx | Apply All / Reject buttons + per-action status + store dispatch ✅ |
 
 ### Week 3: MCP + Agent Builder + Settings
 
@@ -282,6 +282,7 @@
 | 24 | 2026-05-06 | AI apiKey 存储使用明文配置文件 | 使用 Rust keyring 存储 apiKey，配置文件仅存 provider name + baseUrl + model | AGENTS.md §4.2 要求密钥不离开 Rust | ✅ keyring 跨平台安全存储 |
 | 25 | 2026-05-06 | VariableScope 5 层 (local/data/environment/collection/global) | 扩展为 7 层 (+request/folder) | 23-集合与文件夹级配置设计.md 要求 request 和 folder 层 | ✅ 与 Postman 优先级模型对齐 |
 | 26 | 2026-05-06 | SavedAuth 松散类型 { auth_type, config: Value } | 保持现有格式，前端侧完成类型转换 | 迁移到 tagged enum (V2) 延后到数据格式升级时统一处理 | ⚠️ 前端需在 IPC 边界做类型重建 |
+| 27 | 2026-06-17 | P4-07 cURL import via AI — Chat Panel 自动检测 cURL 命令 | 当前通过 /create slash command 间接支持 | 未实现自动检测剪贴板 cURL | ⚠️ 原设计要求 Chat Panel 自动检测 cURL 命令 → 降级为 slash command 手动触发 |
 
 ---
 
@@ -293,14 +294,14 @@
 
 ## 9. 下一步优先级
 
-1. **P4-06 AI Request Creation from NL** — 自然语言创建请求
-2. **P4-07 AI Test Script Generation** — AI 生成测试脚本
-3. **P4-08~P4-10** — 文档生成 + 响应解释 + Action 确认流程
-4. **P4-11~P4-15** — MCP Server + Agent Builder + Settings + E2E
+1. **P4-11 MCP Server** — Rust 后端 + Tools UI
+2. **P4-18 Ollama 本地 Provider** — 集成 Ollama API
+3. **P4-15~P4-17 Agent Builder + AI Settings + E2E**
+4. **OAuth1/AWSv4 签名实现** — 补全之前 pass-through 的签名逻辑
 5. **SavedAuth V2 迁移** — 将 collection.rs::SavedAuth 统一为 tagged enum 与 http.rs::AuthConfig 一致
 
 ---
 
-*文档版本: v1.9*
+*文档版本: v2.0*
 *创建时间: 2026-05-03*
-*最后更新: 2026-05-06*
+*最后更新: 2026-06-17*

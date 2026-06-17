@@ -1,3 +1,4 @@
+use crate::ai::local;
 use crate::error::AppError;
 use crate::emit_warn;
 use reqwest::Client;
@@ -337,6 +338,18 @@ pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base
     let providers = load_providers_cached(&app)?;
     let provider = providers.iter().find(|p| p.id == provider_id);
 
+    let is_ollama = provider.is_some_and(|p| p.provider_type == "ollama");
+
+    if is_ollama {
+        let models = local::list_ollama_models(&base_url).await?;
+        let count = models.len();
+        return Ok(AiTestResult {
+            usage: AiUsage { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+            model: "ollama".into(),
+            response_content: format!("Ollama connected: {} model{} found", count, if count == 1 { "" } else { "s" }),
+        });
+    }
+
     let client = Client::new();
     let url = format!("{}/v1/chat/completions", base_url.trim_end_matches('/'));
 
@@ -408,19 +421,34 @@ pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base
 }
 
 #[tauri::command]
+pub async fn ai_list_ollama_models(base_url: String) -> Result<Vec<String>, AppError> {
+    local::list_ollama_models(&base_url).await
+}
+
+#[tauri::command]
 pub async fn ai_chat(app: tauri::AppHandle, request: AiChatRequest) -> Result<AiChatResponse, AppError> {
     let providers = load_providers_cached(&app)?;
     let provider = providers.iter().find(|p| p.id == request.provider_id)
         .ok_or(AppError::storage_not_found(format!("Provider '{}' not found", request.provider_id)))?;
 
+    let messages_json: Vec<serde_json::Value> = request.messages.iter().map(|m| {
+        serde_json::json!({"role": m.role, "content": m.content})
+    }).collect();
+
+    if provider.provider_type == "ollama" {
+        let content = local::ollama_chat(&provider.base_url, &provider.model, &messages_json).await?;
+        return Ok(AiChatResponse {
+            id: uuid::Uuid::new_v4().to_string(),
+            content,
+            model: provider.model.clone(),
+            usage: AiUsage::default(),
+        });
+    }
+
     let api_key = get_api_key(&app, &provider.id)?;
 
     let client = Client::new();
     let url = format!("{}/v1/chat/completions", provider.base_url.trim_end_matches('/'));
-
-    let messages_json: Vec<serde_json::Value> = request.messages.iter().map(|m| {
-        serde_json::json!({"role": m.role, "content": m.content})
-    }).collect();
 
     let body = serde_json::json!({
         "model": provider.model,
@@ -469,14 +497,80 @@ pub async fn ai_stream_chat(app: tauri::AppHandle, request: AiChatRequest) -> Re
     let provider = providers.iter().find(|p| p.id == request.provider_id)
         .ok_or(AppError::storage_not_found(format!("Provider '{}' not found", request.provider_id)))?;
 
+    let messages_json: Vec<serde_json::Value> = request.messages.iter().map(|m| {
+        serde_json::json!({"role": m.role, "content": m.content})
+    }).collect();
+
+    let session_id = request.session_id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+
+    if provider.provider_type == "ollama" {
+        let resp = local::ollama_stream_chat(&provider.base_url, &provider.model, &messages_json).await?;
+        let mut full_content = String::new();
+        let mut line_buf = String::new();
+        let mut stream = resp.bytes_stream();
+
+        while let Some(chunk_result) = stream.next().await {
+            let chunk = chunk_result.map_err(|e| AppError::internal(format!("Stream read error: {}", e)))?;
+            line_buf.push_str(&String::from_utf8_lossy(&chunk));
+
+            while let Some(newline_pos) = line_buf.find('\n') {
+                let line = line_buf[..newline_pos].trim().to_string();
+                line_buf = line_buf[newline_pos + 1..].to_string();
+
+                if line.is_empty() {
+                    continue;
+                }
+
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&line) {
+                    if let Some(delta) = json["message"]["content"].as_str() {
+                        full_content.push_str(delta);
+                        emit_warn(&app, "ai-stream-chunk", AiStreamChunk {
+                            session_id: session_id.clone(),
+                            delta: delta.to_string(),
+                            done: false,
+                        });
+                    }
+                    if json["done"].as_bool().unwrap_or(false) {
+                        emit_warn(&app, "ai-stream-chunk", AiStreamChunk {
+                            session_id: session_id.clone(),
+                            delta: String::new(),
+                            done: true,
+                        });
+                        return Ok(full_content);
+                    }
+                }
+            }
+        }
+
+        if !line_buf.trim().is_empty() {
+            let line = line_buf.trim();
+            if !line.is_empty() {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
+                    if let Some(delta) = json["message"]["content"].as_str() {
+                        full_content.push_str(delta);
+                        emit_warn(&app, "ai-stream-chunk", AiStreamChunk {
+                            session_id: session_id.clone(),
+                            delta: delta.to_string(),
+                            done: false,
+                        });
+                    }
+                }
+            }
+        }
+
+        emit_warn(&app, "ai-stream-chunk", AiStreamChunk {
+            session_id: session_id.clone(),
+            delta: String::new(),
+            done: true,
+        });
+
+        return Ok(full_content);
+    }
+
     let api_key = get_api_key(&app, &provider.id)?;
 
     let client = Client::new();
     let url = format!("{}/v1/chat/completions", provider.base_url.trim_end_matches('/'));
-
-    let messages_json: Vec<serde_json::Value> = request.messages.iter().map(|m| {
-        serde_json::json!({"role": m.role, "content": m.content})
-    }).collect();
 
     let body = serde_json::json!({
         "model": provider.model,
@@ -502,7 +596,6 @@ pub async fn ai_stream_chat(app: tauri::AppHandle, request: AiChatRequest) -> Re
         return Err(AppError::net_auth_failed(format!("AI stream failed {}: {}", status, text)));
     }
 
-    let session_id = request.session_id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
     let mut full_content = String::new();
     let mut line_buf = String::new();
     let mut stream = resp.bytes_stream();
