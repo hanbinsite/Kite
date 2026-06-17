@@ -188,8 +188,7 @@ mod integration_tests {
             .mount(&server)
             .await;
 
-        let mut settings = RequestSettings::default();
-        settings.timeout_ms = 100;
+        let settings = RequestSettings { timeout_ms: 100, ..Default::default() };
         let mut config = test_config();
         config.url = format!("{}/slow", server.uri());
         config.settings = settings;
@@ -213,8 +212,7 @@ mod integration_tests {
             .mount(&server)
             .await;
 
-        let mut settings = RequestSettings::default();
-        settings.follow_redirects = false;
+        let settings = RequestSettings { follow_redirects: false, ..Default::default() };
         let config = HttpRequestConfig {
             id: "t".into(),
             method: "GET".into(),
@@ -523,8 +521,7 @@ mod integration_tests {
 
     #[tokio::test]
     async fn test_proxy_config_applied() {
-        let mut settings = RequestSettings::default();
-        settings.proxy_url = Some("http://127.0.0.1:19998".into());
+        let settings = RequestSettings { proxy_url: Some("http://127.0.0.1:19998".into()), ..Default::default() };
         let client = build_client(&settings);
         assert!(client.is_ok());
     }

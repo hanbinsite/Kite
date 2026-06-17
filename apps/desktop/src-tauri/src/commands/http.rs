@@ -816,24 +816,21 @@ mod tests {
 
     #[test]
     fn test_build_client_no_redirects() {
-        let mut settings = RequestSettings::default();
-        settings.follow_redirects = false;
+        let settings = RequestSettings { follow_redirects: false, ..Default::default() };
         let client = build_client(&settings);
         assert!(client.is_ok());
     }
 
     #[test]
     fn test_build_client_no_ssl_verify() {
-        let mut settings = RequestSettings::default();
-        settings.verify_ssl = false;
+        let settings = RequestSettings { verify_ssl: false, ..Default::default() };
         let client = build_client(&settings);
         assert!(client.is_ok());
     }
 
     #[test]
     fn test_build_client_custom_timeout() {
-        let mut settings = RequestSettings::default();
-        settings.timeout_ms = 5000;
+        let settings = RequestSettings { timeout_ms: 5000, ..Default::default() };
         let client = build_client(&settings);
         assert!(client.is_ok());
     }

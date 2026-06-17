@@ -290,9 +290,13 @@ pub async fn list_vault_secrets(app: tauri::AppHandle) -> Result<Vec<VaultSecret
 }
 
 #[cfg(test)]
+fn contains_path_traversal(name: &str) -> bool {
+    name.contains('/') || name.contains('\\') || name.contains("..")
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Mutex;
 
     fn reset_vault() {
         let mut vk = VAULT_KEY.lock().unwrap();
@@ -411,7 +415,7 @@ mod tests {
     #[test]
     fn test_lock_vault_scenario() {
         reset_vault();
-        let mut key = [42u8; 32];
+        let key = [42u8; 32];
         {
             let mut vk = VAULT_KEY.lock().unwrap();
             *vk = Some((key, std::time::Instant::now()));
@@ -425,9 +429,4 @@ mod tests {
         }
         assert!(VAULT_KEY.lock().unwrap().is_none());
     }
-}
-
-#[allow(dead_code)]
-fn contains_path_traversal(name: &str) -> bool {
-    name.contains('/') || name.contains('\\') || name.contains("..")
 }
