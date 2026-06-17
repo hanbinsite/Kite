@@ -1,8 +1,10 @@
-// TODO: Implement virtualization for large JSON using @tanstack/react-virtual
+// Virtualization for large JSON using @tanstack/react-virtual
 const MAX_RENDER_DEPTH = 8;
+const VIRTUALIZATION_THRESHOLD = 200;
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 interface JsonNodeProps {
   keyName: string | null;
@@ -108,6 +110,106 @@ function JsonValue({ value }: { value: unknown }) {
     return <span className="text-fg-secondary">{String(value)}</span>;
 }
 
+interface FlatRow {
+  depth: number;
+  keyName: string | null;
+  value: unknown;
+  path: string;
+  isObject: boolean;
+  isArray: boolean;
+  collapsed: boolean;
+  count: number;
+  bracketOpen: string;
+  bracketClose: string;
+}
+
+function flattenJson(
+  value: unknown,
+  depth: number,
+  path: string,
+  keyName: string | null,
+  defaultCollapsed: number,
+  rows: FlatRow[],
+) {
+  const isObject = value !== null && typeof value === "object";
+  const isArray = Array.isArray(value);
+  const collapsed = depth >= Math.min(defaultCollapsed, MAX_RENDER_DEPTH);
+
+  if (!isObject) {
+    rows.push({ depth, keyName, value, path, isObject: false, isArray: false, collapsed: false, count: 0, bracketOpen: "", bracketClose: "" });
+    return;
+  }
+
+  const entries = isArray ? (value as unknown[]).map((v, i) => [String(i), v] as const) : Object.entries(value as Record<string, unknown>);
+  const bracketOpen = isArray ? "[" : "{";
+  const bracketClose = isArray ? "]" : "}";
+
+  if (collapsed) {
+    rows.push({ depth, keyName, value, path, isObject: true, isArray, collapsed: true, count: entries.length, bracketOpen, bracketClose });
+    return;
+  }
+
+  rows.push({ depth, keyName, value, path, isObject: true, isArray, collapsed: false, count: entries.length, bracketOpen, bracketClose });
+  for (const [k, v] of entries) {
+    const childPath = isArray ? `${path}[${k}]` : `${path}.${k}`;
+    flattenJson(v, depth + 1, childPath, isArray ? null : k, defaultCollapsed, rows);
+  }
+  rows.push({ depth, keyName: null, value: null, path, isObject: false, isArray: false, collapsed: false, count: 0, bracketOpen: "", bracketClose });
+}
+
+function FlatRow({ row }: { row: FlatRow }) {
+  if (!row.isObject) {
+    if (row.keyName === null && row.value === null && row.bracketClose) {
+      return (
+        <div className="json-line font-mono text-[12px] leading-[18px] pl-[calc(var(--depth)*16px)]" style={{ "--depth": row.depth } as React.CSSProperties}>
+          <span className="ml-[16px] text-fg-tertiary">{row.bracketClose}</span>
+        </div>
+      );
+    }
+    return (
+      <div className="json-line flex items-start font-mono text-[12px] leading-[18px] pl-[calc(var(--depth)*16px)]" style={{ "--depth": row.depth } as React.CSSProperties}>
+        {row.keyName !== null && (
+          <>
+            <span className="json-key text-method-get">&quot;{row.keyName}&quot;</span>
+            <span className="text-fg-secondary">: </span>
+          </>
+        )}
+        <JsonValue value={row.value} />
+      </div>
+    );
+  }
+
+  if (row.collapsed) {
+    return (
+      <div className="json-line flex items-start font-mono text-[12px] leading-[18px] pl-[calc(var(--depth)*16px)]" style={{ "--depth": row.depth } as React.CSSProperties}>
+        <span className="w-[16px] h-[18px] flex items-center justify-center text-fg-tertiary shrink-0">▶</span>
+        {row.keyName !== null && (
+          <>
+            <span className="json-key text-method-get">&quot;{row.keyName}&quot;</span>
+            <span className="text-fg-secondary">: </span>
+          </>
+        )}
+        <span className="text-fg-tertiary">{row.bracketOpen}</span>
+        <span className="text-fg-tertiary ml-1">{row.count} {row.isArray ? "items" : "keys"}</span>
+        <span className="text-fg-tertiary ml-1">{row.bracketClose}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="json-line flex items-start font-mono text-[12px] leading-[18px] pl-[calc(var(--depth)*16px)]" style={{ "--depth": row.depth } as React.CSSProperties}>
+      <span className="w-[16px] h-[18px] flex items-center justify-center text-fg-tertiary shrink-0">▼</span>
+      {row.keyName !== null && (
+        <>
+          <span className="json-key text-method-get">&quot;{row.keyName}&quot;</span>
+          <span className="text-fg-secondary">: </span>
+        </>
+      )}
+      <span className="text-fg-tertiary">{row.bracketOpen}</span>
+    </div>
+  );
+}
+
 interface JsonViewerProps {
     data: string;
     defaultCollapsed?: number;
@@ -164,6 +266,24 @@ export function JsonViewer({ data, defaultCollapsed = 4 }: JsonViewerProps) {
         }
     }, [jsonPath, parsed]);
 
+    const flatRows = useMemo(() => {
+        if (!filteredValue) return [];
+        const rows: FlatRow[] = [];
+        flattenJson(filteredValue, 0, "$", null, defaultCollapsed, rows);
+        return rows;
+    }, [filteredValue, defaultCollapsed]);
+
+    const useVirtual = flatRows.length > VIRTUALIZATION_THRESHOLD;
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    const virtualizer = useVirtualizer({
+        count: useVirtual ? flatRows.length : 0,
+        getScrollElement: () => scrollRef.current,
+        estimateSize: () => 18,
+        overscan: 20,
+        enabled: useVirtual,
+    });
+
     if (parsed === null) {
         return (
             <div className="p-3 font-mono text-[12px] text-fg-secondary whitespace-pre-wrap break-all">
@@ -196,16 +316,35 @@ export function JsonViewer({ data, defaultCollapsed = 4 }: JsonViewerProps) {
                     {copied ? t("common.copied") : t("common.copy")}
                 </button>
             </div>
-            <div className="flex-1 overflow-auto p-3">
-      <JsonNode
-        keyName={null}
-        value={filteredValue}
-        depth={0}
-        defaultCollapsed={defaultCollapsed}
-        path="$"
-        onPathClick={handlePathClick}
-        searchTerm={searchTerm}
-      />
+            <div className="flex-1 overflow-auto p-3" ref={scrollRef}>
+      {useVirtual ? (
+        <div style={{ height: virtualizer.getTotalSize(), width: "100%", position: "relative" }}>
+          {virtualizer.getVirtualItems().map((virtualRow) => (
+            <div
+              key={virtualRow.key}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
+            >
+              <FlatRow row={flatRows[virtualRow.index]!} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <JsonNode
+          keyName={null}
+          value={filteredValue}
+          depth={0}
+          defaultCollapsed={defaultCollapsed}
+          path="$"
+          onPathClick={handlePathClick}
+          searchTerm={searchTerm}
+        />
+      )}
             </div>
         </div>
     );

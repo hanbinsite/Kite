@@ -88,6 +88,8 @@ export interface RunnerConfig {
   persistVariables: boolean;
   requests: RunnerRequestConfig[];
   dataRows?: Record<string, string>[];
+  preRunScript?: string;
+  postRunScript?: string;
 }
 
 export type RunnerStatus = "idle" | "running" | "completed" | "cancelled" | "error";
@@ -163,6 +165,18 @@ export const useRunnerStore = create<RunnerStore>()(
 
         const hasDataRows = config.dataRows && config.dataRows.length > 0;
         const totalIterations = hasDataRows ? config.dataRows!.length : config.iterationCount;
+
+        if (config.preRunScript) {
+          try {
+            const preRunContext: ScriptContext = {
+              environment: { ...variablesToRecord(envStore.globals), ...(config.environmentId ? variablesToRecord(envStore.environments.find((e) => e.id === config.environmentId)?.variables ?? []) : {}) },
+              globals: variablesToRecord(envStore.globals),
+            };
+            await executeScript({ code: config.preRunScript, context: preRunContext });
+          } catch (e) {
+            console.error("Pre-run script error:", e);
+          }
+        }
 
         for (let i = 0; i < totalIterations; i++) {
           if (abortController.signal.aborted) break;
@@ -385,6 +399,18 @@ export const useRunnerStore = create<RunnerStore>()(
 
           if (config.delayMs > 0 && i < config.iterationCount - 1) {
             await new Promise((resolve) => setTimeout(resolve, config.delayMs));
+          }
+        }
+
+        if (config.postRunScript) {
+          try {
+            const postRunContext: ScriptContext = {
+              environment: { ...variablesToRecord(envStore.globals), ...persistedVars },
+              globals: variablesToRecord(envStore.globals),
+            };
+            await executeScript({ code: config.postRunScript, context: postRunContext });
+          } catch (e) {
+            console.error("Post-run script error:", e);
           }
         }
 

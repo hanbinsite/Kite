@@ -323,6 +323,7 @@ const deleteRequest = useCollectionStore((s) => s.deleteRequest);
   const escapeCancelled = useRef(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [newMenuOpen, setNewMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -578,12 +579,50 @@ const commitEdit = () => {
           placeholder={t("common.search")}
           className="flex-1 bg-transparent text-sm text-fg-primary placeholder:text-fg-tertiary outline-none"
         />
-        <button
-          onClick={() => openTab({ name: t("sidebar.newRequest"), method: "GET", url: "" })}
-          className="p-1 hover:bg-bg-hover rounded transition-colors"
-        >
-          <Plus className="w-4 h-4 text-fg-secondary" />
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => setNewMenuOpen(!newMenuOpen)}
+            className="p-1 hover:bg-bg-hover rounded transition-colors"
+            title={t("sidebar.newRequest")}
+          >
+            <Plus className="w-4 h-4 text-fg-secondary" />
+          </button>
+          {newMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setNewMenuOpen(false)} />
+              <div className="absolute right-0 top-full mt-1 z-50 w-[180px] bg-bg-elevated border border-border-muted rounded-md shadow-lg py-1">
+                <button
+                  onClick={() => { openTab({ name: t("sidebar.newRequest"), method: "GET", url: "" }); setNewMenuOpen(false); }}
+                  className="w-full px-3 py-1.5 text-left text-[13px] text-fg-primary hover:bg-bg-hover flex items-center gap-2"
+                >
+                  <span className="text-method-get font-mono text-[10px] w-8">GET</span>
+                  {t("sidebar.newRequest")}
+                </button>
+                <div className="my-1 border-t border-border-muted" />
+                <button onClick={() => { openTab({ name: "WebSocket", method: "GET", url: "ws://localhost:8080", protocol: "websocket" }); setNewMenuOpen(false); }} className="w-full px-3 py-1.5 text-left text-[13px] text-fg-primary hover:bg-bg-hover flex items-center gap-2">
+                  <span className="text-brand font-mono text-[10px] w-8">WS</span>
+                  WebSocket
+                </button>
+                <button onClick={() => { openTab({ name: "SSE", method: "GET", url: "https://example.com/events", protocol: "sse" }); setNewMenuOpen(false); }} className="w-full px-3 py-1.5 text-left text-[13px] text-fg-primary hover:bg-bg-hover flex items-center gap-2">
+                  <span className="text-brand font-mono text-[10px] w-8">SSE</span>
+                  Server-Sent Events
+                </button>
+                <button onClick={() => { openTab({ name: "MQTT", method: "GET", url: "mqtt://localhost:1883", protocol: "mqtt" }); setNewMenuOpen(false); }} className="w-full px-3 py-1.5 text-left text-[13px] text-fg-primary hover:bg-bg-hover flex items-center gap-2">
+                  <span className="text-brand font-mono text-[10px] w-8">MQTT</span>
+                  MQTT
+                </button>
+                <button onClick={() => { openTab({ name: "gRPC", method: "POST", url: "http://localhost:50051", protocol: "grpc" }); setNewMenuOpen(false); }} className="w-full px-3 py-1.5 text-left text-[13px] text-fg-primary hover:bg-bg-hover flex items-center gap-2">
+                  <span className="text-brand font-mono text-[10px] w-8">gRPC</span>
+                  gRPC
+                </button>
+                <button onClick={() => { openTab({ name: "Mock Server", method: "GET", url: "", protocol: "mock" }); setNewMenuOpen(false); }} className="w-full px-3 py-1.5 text-left text-[13px] text-fg-primary hover:bg-bg-hover flex items-center gap-2">
+                  <span className="text-brand font-mono text-[10px] w-8">MOCK</span>
+                  Mock Server
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">

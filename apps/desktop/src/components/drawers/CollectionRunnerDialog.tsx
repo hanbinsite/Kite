@@ -68,6 +68,9 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
   const [dataRows, setDataRows] = useState<Record<string, string>[] | undefined>();
   const [dataFileName, setDataFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [preRunScript, setPreRunScript] = useState("");
+  const [postRunScript, setPostRunScript] = useState("");
+  const [showScripts, setShowScripts] = useState(false);
   const [expandedIterations, setExpandedIterations] = useState<Set<number>>(new Set());
 
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -133,6 +136,8 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
         delayMs,
         persistVariables,
         dataRows,
+        preRunScript: preRunScript || undefined,
+        postRunScript: postRunScript || undefined,
         requests,
       });
     } catch (e) {
@@ -299,8 +304,39 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
               >
                 <Play className="w-3 h-3" /> {t("runner.run")}
               </button>
+)}
+            </div>
+            <button
+              onClick={() => setShowScripts(!showScripts)}
+              className={`h-7 px-2 rounded-md text-xs font-medium cursor-pointer transition-colors flex items-center gap-1 ${showScripts ? "text-brand bg-brand/10" : "text-fg-tertiary hover:bg-bg-hover"}`}
+            >
+              {showScripts ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+              Scripts
+            </button>
+            {showScripts && (
+              <div className="col-span-full grid grid-cols-2 gap-2 pb-2">
+                <div>
+                  <label className="text-[10px] text-fg-tertiary font-medium">Pre-run Script</label>
+                  <textarea
+                    value={preRunScript}
+                    onChange={(e) => setPreRunScript(e.target.value)}
+                    disabled={isRunning}
+                    placeholder="// Runs once before all iterations"
+                    className="w-full h-20 px-2 py-1 bg-bg-input border border-border-muted rounded-md text-[11px] font-mono text-fg-primary outline-none focus:border-border-focus resize-none disabled:opacity-50"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-fg-tertiary font-medium">Post-run Script</label>
+                  <textarea
+                    value={postRunScript}
+                    onChange={(e) => setPostRunScript(e.target.value)}
+                    disabled={isRunning}
+                    placeholder="// Runs once after all iterations"
+                    className="w-full h-20 px-2 py-1 bg-bg-input border border-border-muted rounded-md text-[11px] font-mono text-fg-primary outline-none focus:border-border-focus resize-none disabled:opacity-50"
+                  />
+                </div>
+              </div>
             )}
-          </div>
 
           {result && (
             <div className="flex-1 overflow-auto">

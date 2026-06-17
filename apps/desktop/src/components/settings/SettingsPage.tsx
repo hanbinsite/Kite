@@ -407,7 +407,13 @@ function AiSection() {
           <div className="flex items-center gap-2">
             <select
               value={newProviderType}
-              onChange={(e) => setNewProviderType(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setNewProviderType(val);
+                if (val === "ollama" && !newBaseUrl) {
+                  setNewBaseUrl("http://localhost:11434");
+                }
+              }}
               className="flex-1 h-8 px-3 bg-bg-input border border-border-muted rounded-md text-[12px] text-fg-primary outline-none focus:border-border-focus cursor-pointer"
             >
               <option value="openai-compatible">OpenAI Compatible</option>
@@ -431,13 +437,21 @@ function AiSection() {
             placeholder={t("ai.baseUrlPlaceholder")}
             className="w-full h-8 px-3 bg-bg-input border border-border-muted rounded-md text-[12px] text-fg-primary font-mono outline-none focus:border-border-focus placeholder:text-fg-tertiary"
           />
-          <input
-            type="password"
-            value={newApiKey}
-            onChange={(e) => setNewApiKey(e.target.value)}
-            placeholder={t("ai.apiKeyPlaceholder")}
-            className="w-full h-8 px-3 bg-bg-input border border-border-muted rounded-md text-[12px] text-fg-primary font-mono outline-none focus:border-border-focus placeholder:text-fg-tertiary"
-          />
+          {newProviderType !== "ollama" && (
+            <input
+              type="password"
+              value={newApiKey}
+              onChange={(e) => setNewApiKey(e.target.value)}
+              placeholder={t("ai.apiKeyPlaceholder")}
+              className="w-full h-8 px-3 bg-bg-input border border-border-muted rounded-md text-[12px] text-fg-primary font-mono outline-none focus:border-border-focus placeholder:text-fg-tertiary"
+            />
+          )}
+          {newProviderType === "ollama" && (
+            <div className="flex items-center gap-2 text-[10px] text-fg-tertiary">
+              <span className="text-accent-success">●</span>
+              No API key required for local Ollama
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <button
               onClick={handleAddOrEdit}

@@ -10,3 +10,4 @@ export { useGrpcStore, initGrpcEventListener, destroyGrpcEventListener } from ".
 export { useMockStore, initMockEventListener, destroyMockEventListener } from "./mock-store";
 export { useCookieStore } from "./cookie-store";
 export { useRunnerStore } from "./runner-store";
+export { useMonitorStore } from "./monitor-store";

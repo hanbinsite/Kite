@@ -8,10 +8,11 @@ import { CommandPalette, type CommandItem } from "./components/command-palette";
 import { SettingsPage } from "./components/settings";
 import { CodeSnippetDrawer, CollectionRunnerDialog, ImportDialog, ExportDialog, VariableInspector } from "./components/drawers";
 import { useUIStore, useTabStore } from "@api-client/core";
-import { Plus, Settings, FolderOpen, Code2, Terminal, Play, Upload, Download, Variable, Bot } from "lucide-react";
+import { Plus, Settings, FolderOpen, Code2, Terminal, Play, Upload, Download, Variable, Bot, Activity } from "lucide-react";
 import { useTheme, useKeyboardShortcuts, useAutoSave, useSaveShortcut } from "./hooks";
 import { useRequestStore, initWsEventListener, initSseEventListener, initMqttEventListener, initGrpcEventListener, initMockEventListener, useCollectionStore } from "./stores";
 import { registerVariableCompletionProvider } from "./stores/variable-completion-provider";
+import { ApiMonitorDialog } from "./components/drawers/ApiMonitorDialog";
 import { useWsStore } from "./stores/websocket-store";
 import { useSseStore } from "./stores/sse-store";
 import { useMqttStore } from "./stores/mqtt-store";
@@ -28,6 +29,7 @@ export function App() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isCodeDrawerOpen, setIsCodeDrawerOpen] = useState(false);
   const [isRunnerOpen, setIsRunnerOpen] = useState(false);
+  const [isMonitorOpen, setIsMonitorOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isVariableInspectorOpen, setIsVariableInspectorOpen] = useState(false);
@@ -168,6 +170,41 @@ export function App() {
       shortcut: formatShortcut("Cmd+N"),
     },
     {
+      id: "new-websocket",
+      label: "New WebSocket",
+      category: "action",
+      icon: <Plus className="w-4 h-4" />,
+      action: () => openTab({ name: "WebSocket", method: "GET", url: "ws://localhost:8080", protocol: "websocket" }),
+    },
+    {
+      id: "new-sse",
+      label: "New SSE",
+      category: "action",
+      icon: <Plus className="w-4 h-4" />,
+      action: () => openTab({ name: "SSE", method: "GET", url: "https://example.com/events", protocol: "sse" }),
+    },
+    {
+      id: "new-mqtt",
+      label: "New MQTT",
+      category: "action",
+      icon: <Plus className="w-4 h-4" />,
+      action: () => openTab({ name: "MQTT", method: "GET", url: "mqtt://localhost:1883", protocol: "mqtt" }),
+    },
+    {
+      id: "new-grpc",
+      label: "New gRPC",
+      category: "action",
+      icon: <Plus className="w-4 h-4" />,
+      action: () => openTab({ name: "gRPC", method: "POST", url: "http://localhost:50051", protocol: "grpc" }),
+    },
+    {
+      id: "new-mock",
+      label: "New Mock Server",
+      category: "action",
+      icon: <Plus className="w-4 h-4" />,
+      action: () => openTab({ name: "Mock Server", method: "GET", url: "", protocol: "mock" }),
+    },
+    {
       id: "toggle-sidebar",
       label: t("commandPalette.actions.toggleSidebar"),
       category: "action",
@@ -197,6 +234,13 @@ export function App() {
       category: "action",
       icon: <Play className="w-4 h-4" />,
       action: () => setIsRunnerOpen(true),
+    },
+    {
+      id: "api-monitor",
+      label: "API Monitor",
+      category: "action",
+      icon: <Activity className="w-4 h-4" />,
+      action: () => setIsMonitorOpen(true),
     },
     {
       id: "import",
@@ -265,6 +309,7 @@ export function App() {
       <SettingsPage />
       <CodeSnippetDrawer isOpen={isCodeDrawerOpen} onClose={() => setIsCodeDrawerOpen(false)} />
       <CollectionRunnerDialog isOpen={isRunnerOpen} onClose={() => setIsRunnerOpen(false)} />
+      <ApiMonitorDialog open={isMonitorOpen} onOpenChange={setIsMonitorOpen} />
       <ImportDialog isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} />
       <ExportDialog isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} />
       <VariableInspector isOpen={isVariableInspectorOpen} onClose={() => setIsVariableInspectorOpen(false)} />
