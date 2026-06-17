@@ -1,5 +1,98 @@
 import { useState } from "react";
 import type { CreateRequestAction, ModifyRequestAction, WriteTestAction, FixErrorAction, ExtractVariablesAction, GenerateMockAction, AgentAction } from "@api-client/core/ai";
+import type { BodyConfig, AuthConfig, Header, QueryParam, BodyMode } from "@api-client/types";
+
+interface ModifyContext {
+  headers: Header[];
+  params: QueryParam[];
+  body: BodyConfig | null;
+  auth: AuthConfig | null;
+  change: { path: string; op: string; value?: unknown };
+  setUrl: (v: string) => void;
+  setMethod: (v: string) => void;
+}
+
+function setByPath(obj: Record<string, unknown>, path: string[], value: unknown): void {
+  for (let i = 0; i < path.length - 1; i++) {
+    const key = path[i]!;
+    if (!(key in obj) || typeof obj[key] !== "object" || obj[key] === null) {
+      obj[key] = {};
+    }
+    obj = obj[key] as Record<string, unknown>;
+  }
+  obj[path[path.length - 1]!] = value;
+}
+
+function applyPathChange(ctx: ModifyContext): void {
+  const { headers, params, change, setUrl, setMethod } = ctx;
+  const { path, op, value } = change;
+  const parts = path.split(".");
+
+  if (parts.length >= 2 && parts[0] === "headers") {
+    const idx = parseInt(parts[1]!, 10);
+    if (!isNaN(idx)) {
+      if (op === "remove") {
+        headers.splice(idx, 1);
+      } else if (op === "set" && idx < headers.length) {
+        if (parts.length === 3 && (parts[2] === "key" || parts[2] === "value")) {
+          (headers[idx] as unknown as Record<string, unknown>)[parts[2]] = value;
+        } else {
+          Object.assign(headers[idx]!, value as object);
+        }
+      } else if (op === "add") {
+        const newHeader = value as Record<string, unknown> ?? {};
+        headers.push({ key: String(newHeader.key ?? ""), value: String(newHeader.value ?? ""), disabled: false });
+      }
+    }
+    return;
+  }
+
+  if (parts.length >= 2 && parts[0] === "params") {
+    const idx = parseInt(parts[1]!, 10);
+    if (!isNaN(idx)) {
+      if (op === "remove") {
+        params.splice(idx, 1);
+      } else if (op === "set" && idx < params.length) {
+        if (parts.length === 3 && (parts[2] === "key" || parts[2] === "value")) {
+          (params[idx] as unknown as Record<string, unknown>)[parts[2]] = value;
+        } else {
+          Object.assign(params[idx]!, value as object);
+        }
+      } else if (op === "add") {
+        const newParam = value as Record<string, unknown> ?? {};
+        params.push({ key: String(newParam.key ?? ""), value: String(newParam.value ?? ""), disabled: false });
+      }
+    }
+    return;
+  }
+
+  if (parts[0] === "body") {
+    if (ctx.body && parts.length >= 2) {
+      if (parts[1] === "mode") {
+        if (op === "set") ctx.body.mode = value as BodyMode;
+      } else if (parts[1] === "content") {
+        if (op === "set" && ctx.body.mode === "raw" && ctx.body.raw) {
+          ctx.body.raw.content = String(value ?? "");
+        }
+      } else if (parts[1] === "graphql" && parts.length >= 3) {
+        if (ctx.body.graphql) {
+          setByPath(ctx.body.graphql as unknown as Record<string, unknown>, parts.slice(2), value);
+        }
+      }
+    }
+    return;
+  }
+
+  if (parts[0] === "auth") {
+    return;
+  }
+
+  if (parts.length === 1) {
+    if (parts[0] === "url" && op === "set") setUrl(String(value ?? ""));
+    if (parts[0] === "method" && op === "set") setMethod(String(value ?? ""));
+    return;
+  }
+}
 
 interface AiActionCardProps {
   actions: AgentAction[];
@@ -139,14 +232,116 @@ async function applyWriteTest(action: WriteTestAction): Promise<string> {
 }
 
 async function applyModifyRequest(action: ModifyRequestAction): Promise<string> {
+  const { useRequestStore } = await import("@/stores/request-store");
+  const { useTabStore } = await import("@api-client/core");
+  const tabId = useTabStore.getState().activeTabId;
+  if (!tabId) return "No active tab to modify.";
+
+  const store = useRequestStore.getState();
+  const requestData = store.requestDataMap[tabId];
+  if (!requestData) return "No request data found for active tab.";
+
   const changes = action.data.changes;
-  const results = changes.map((c) => `${c.op} ${c.path}${c.value !== undefined ? ` → ${JSON.stringify(c.value)}` : ""}`);
-  return results.length > 0 ? results.join("\n") : "No changes detected.";
+  const applied: string[] = [];
+  const headers = [...requestData.headers];
+  const params = [...requestData.params];
+  let body: BodyConfig | null = requestData.body ? { ...requestData.body } : null;
+  let auth: AuthConfig | null = requestData.auth ? { ...requestData.auth } : null;
+  let urlChanged: string | null = null;
+  let methodChanged: string | null = null;
+
+  for (const change of changes) {
+    try {
+      applyPathChange({ headers, params, body, auth, change, setUrl: (v) => { urlChanged = v; }, setMethod: (v) => { methodChanged = v; } });
+      applied.push(`${change.op} ${change.path}${change.value !== undefined ? ` → ${JSON.stringify(change.value)}` : ""}`);
+    } catch {
+      applied.push(`${change.op} ${change.path}: failed`);
+    }
+  }
+
+  if (headers !== requestData.headers) store.setRequestHeaders(headers);
+  if (params !== requestData.params) store.setRequestParams(params);
+  if (body && JSON.stringify(body) !== JSON.stringify(requestData.body)) store.setRequestBody(body);
+  if (auth && JSON.stringify(auth) !== JSON.stringify(requestData.auth)) store.setRequestAuth(auth);
+  if (urlChanged || methodChanged) {
+    useTabStore.getState().updateTab(tabId, {
+      url: urlChanged ?? useTabStore.getState().tabs.find((t) => t.id === tabId)?.url,
+      method: (methodChanged ?? useTabStore.getState().tabs.find((t) => t.id === tabId)?.method) as string,
+    });
+  }
+
+  return applied.length > 0 ? applied.join("\n") : "No changes detected.";
 }
 
 async function applyFixError(action: FixErrorAction): Promise<string> {
+  const { useRequestStore } = await import("@/stores/request-store");
+  const { useTabStore } = await import("@api-client/core");
+  const tabId = useTabStore.getState().activeTabId;
+  if (!tabId) return "No active tab.";
+
+  const store = useRequestStore.getState();
+  const requestData = store.requestDataMap[tabId];
+  if (!requestData) return "No request data found.";
+
   const suggestions = action.data.suggestions;
-  return suggestions.map((s) => `${s.path}: ${s.fix} (review and apply manually)`).join("\n");
+  const applied: string[] = [];
+  const manual: string[] = [];
+  const headers = [...requestData.headers];
+  const params = [...requestData.params];
+  let body: BodyConfig | null = requestData.body ? { ...requestData.body } : null;
+  let auth: AuthConfig | null = requestData.auth ? { ...requestData.auth } : null;
+  let urlChanged: string | null = null;
+  let methodChanged: string | null = null;
+
+  const knownPaths = new Set([
+    "url", "method", "headers", "params", "body", "body.mode", "body.content",
+    "body.graphql.query", "body.graphql.variables", "auth", "settings.timeoutMs",
+    "settings.followRedirects", "settings.verifySsl",
+  ]);
+
+  for (const s of suggestions) {
+    const pathKey = s.path.split(".").slice(0, 2).join(".");
+    if (knownPaths.has(s.path) || knownPaths.has(pathKey)) {
+      try {
+        applyPathChange({
+          headers, params, body, auth,
+          change: { path: s.path, op: "set", value: parseFixValue(s.fix) },
+          setUrl: (v) => { urlChanged = v; },
+          setMethod: (v) => { methodChanged = v; },
+        });
+        applied.push(`${s.path}: ${s.fix}`);
+      } catch {
+        manual.push(`${s.path}: ${s.fix} (apply failed, review manually)`);
+      }
+    } else {
+      manual.push(`${s.path}: ${s.fix} (review and apply manually)`);
+    }
+  }
+
+  if (applied.length > 0) {
+    if (headers !== requestData.headers) store.setRequestHeaders(headers);
+    if (params !== requestData.params) store.setRequestParams(params);
+    if (body && JSON.stringify(body) !== JSON.stringify(requestData.body)) store.setRequestBody(body);
+    if (auth && JSON.stringify(auth) !== JSON.stringify(requestData.auth)) store.setRequestAuth(auth);
+    if (urlChanged || methodChanged) {
+      useTabStore.getState().updateTab(tabId, {
+        url: urlChanged ?? useTabStore.getState().tabs.find((t) => t.id === tabId)?.url,
+        method: (methodChanged ?? useTabStore.getState().tabs.find((t) => t.id === tabId)?.method) as string,
+      });
+    }
+  }
+
+  const result: string[] = [];
+  if (applied.length > 0) result.push(`Auto-applied ${applied.length} fix(es):\n${applied.join("\n")}`);
+  if (manual.length > 0) result.push(`Manual ${manual.length} suggestion(s):\n${manual.join("\n")}`);
+  return result.length > 0 ? result.join("\n\n") : "No fixes to apply.";
+}
+
+function parseFixValue(fix: string): unknown {
+  if (fix.startsWith("{") || fix.startsWith("[")) {
+    try { return JSON.parse(fix); } catch { /* fall through */ }
+  }
+  return fix;
 }
 
 async function applyExtractVariables(action: ExtractVariablesAction): Promise<string> {
