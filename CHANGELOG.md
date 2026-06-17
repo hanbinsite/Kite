@@ -1,5 +1,37 @@
 # Changelog
 
+## v0.0.4 (2026-06-17)
+
+### UX Improvements
+- **GraphQL Introspection UI**: "Introspect Schema" button in GraphQL body editor with collapsible schema viewer
+- **Tab Persistence**: Tabs are now saved to localStorage and restored on app restart
+- **History Full-Text Search**: Sidebar history search now queries all stored entries via backend `searchHistoryEntries` (300ms debounce, up to 100 results)
+- **Monaco Variable Autocomplete**: ScriptEditor now provides `{{variable}}` completion suggestions from active environment/collection/global variables
+
+### Import/Export
+- **OpenAPI 3.0 Import**: Full parser for OpenAPI/Swagger specs — extracts paths, methods, parameters, request bodies, security schemes, and server URLs
+
+### Stability
+- **Error Boundary**: Already present from `@api-client/ui` — prevents white-screen crashes with reload button
+- **Offline Graceful Degradion**: AI panel and GraphQL introspection show friendly error messages on network failure
+
+---
+
+## v0.0.3 (2026-06-17)
+
+### Features
+- **AI Action Dispatch**: All 7 action types fully wired (create_request, modify_request, write_test, fix_error, extract_variables, generate_mock, generate_doc)
+- **Ollama Local SLM**: Native API support (test/list/chat/stream) replacing NOT_IMPLEMENTED stub
+- **API Key Storage**: Migrated from JSON file to system keyring with legacy migration
+- **Keyboard Shortcuts**: Ctrl+R resend, Ctrl+/ focus URL bar, Ctrl+Shift+N new collection, Ctrl+1-9 tab switch
+- **Response Diff**: JSON line-by-line diff viewer comparing current vs previous response
+- **Variable Autocomplete**: CodeMirror `{{}}` trigger with env/collection/global variable completion
+- **GraphQL Introspection**: Rust command + IPC wrapper for schema introspection
+- **Collection Runner**: CSV/JSON data-driven testing support
+- **Memory**: previousResponses cleanup on tab close
+
+---
+
 ## v0.0.2 (2026-06-17)
 
 ### AI Module (Phase 4)

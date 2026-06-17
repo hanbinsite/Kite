@@ -1,6 +1,7 @@
 import { useState, lazy, Suspense, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Sparkles } from "lucide-react";
+import type * as MonacoType from "monaco-editor";
 
 const MonacoEditor = lazy(() =>
   import("@monaco-editor/react").then((mod) => ({ default: mod.default }))
@@ -126,6 +127,44 @@ export function ScriptEditor({ value, onChange, placeholder }: ScriptEditorProps
     editorRef.current = editor;
   }, []);
 
+  const handleBeforeMount = useCallback((monaco: typeof MonacoType) => {
+    monaco.languages.registerCompletionItemProvider("javascript", {
+      triggerCharacters: ["{"],
+      provideCompletionItems: (model, position) => {
+        const textUntilPosition = model.getValueInRange({
+          startLineNumber: position.lineNumber,
+          startColumn: 1,
+          endLineNumber: position.lineNumber,
+          endColumn: position.column,
+        });
+
+        const match = textUntilPosition.match(/\{\{[^}]*$/);
+        if (!match) return { suggestions: [] };
+
+        const envStore = (window as unknown as Record<string, unknown>)["__envStore"] as { getActiveVariables: () => Record<string, string> } | undefined;
+        const variables = envStore?.getActiveVariables() ?? {};
+
+        const word = model.getWordUntilPosition(position);
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn,
+        };
+
+        return {
+          suggestions: Object.entries(variables).map(([key, val]) => ({
+            label: `{{${key}}}`,
+            kind: monaco.languages.CompletionItemKind.Variable,
+            insertText: `{{${key}}}`,
+            detail: val,
+            range,
+          })),
+        };
+      },
+    });
+  }, []);
+
   useEffect(() => {
     return () => {
       editorRef.current?.dispose?.();
@@ -170,6 +209,7 @@ export function ScriptEditor({ value, onChange, placeholder }: ScriptEditorProps
             value={value}
             onChange={(v) => onChange(v ?? "")}
             onMount={handleEditorMount}
+            beforeMount={handleBeforeMount}
             options={{
               fontSize: 12,
               fontFamily: "'JetBrains Mono', 'Cascadia Code', monospace",

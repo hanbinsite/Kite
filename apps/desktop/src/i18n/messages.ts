@@ -149,6 +149,8 @@ export const messages = {
       clickOrDrop: "Click or drop a file",
       graphqlQuery: "Write your GraphQL query here...",
       graphqlVariables: "Query variables (JSON)...",
+      introspect: "Introspect Schema",
+      viewSchema: "Schema",
     },
     auth: {
       noAuth: "No Auth",
@@ -716,6 +718,8 @@ export const messages = {
       clickOrDrop: "点击或拖放文件",
       graphqlQuery: "在此编写 GraphQL 查询...",
       graphqlVariables: "查询变量（JSON）...",
+      introspect: "内省 Schema",
+      viewSchema: "Schema",
     },
     auth: {
       noAuth: "无认证",

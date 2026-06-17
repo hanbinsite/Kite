@@ -16,7 +16,7 @@ import {
 import { useUIStore, useTabStore, type Tab } from "@api-client/core";
 import { useRequestStore } from "../../stores/request-store";
 import { useCollectionStore, type CollectionTreeNode } from "../../stores/collection-store";
-import { queryHistoryEntries, getCollection, type IpcCollectionItem } from "@api-client/core/http";
+import { queryHistoryEntries, searchHistoryEntries, getCollection, type IpcCollectionItem } from "@api-client/core/http";
 import type { HistoryEntry } from "@api-client/core/http";
 import type { Header, QueryParam, BodyConfig, AuthConfig, RequestSettings, RawLanguage } from "@api-client/types";
 import { ThemeToggle } from "./ThemeToggle";
@@ -347,8 +347,18 @@ const deleteRequest = useCollectionStore((s) => s.deleteRequest);
     loadCollections().catch((e) => {
       console.error("Failed to load collections:", e);
     });
-    queryHistoryEntries(50).then(setHistoryEntries).catch((e) => console.error('Failed to query history entries:', e));
   }, [historyRefreshCounter]);
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      queryHistoryEntries(50).then(setHistoryEntries).catch((e) => console.error('Failed to query history entries:', e));
+      return;
+    }
+    const timer = setTimeout(() => {
+      searchHistoryEntries(searchQuery, 100).then(setHistoryEntries).catch((e) => console.error('Failed to search history:', e));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, historyRefreshCounter]);
 
   useEffect(() => {
     if (editingId && editInputRef.current) {
@@ -707,9 +717,7 @@ const commitEdit = () => {
 
       <SidebarSection title={t("sidebar.history")}>
         {(() => {
-          const filteredHistory = searchQuery
-            ? historyEntries.filter((e) => e.url.toLowerCase().includes(searchQuery.toLowerCase()) || e.method.toLowerCase().includes(searchQuery.toLowerCase()))
-            : historyEntries;
+          const filteredHistory = historyEntries;
         return filteredHistory.length === 0 ? (
           <div className="px-3 py-2 text-[13px] text-fg-tertiary">{t("sidebar.noHistory")}</div>
         ) : (

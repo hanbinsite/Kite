@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useTranslation } from "react-i18next";
 import { KeyValueEditor, type KeyValue } from "../request/KeyValueEditor";
@@ -9,7 +9,9 @@ import { AUTH_TYPES } from "./AuthForm";
 import { createAuthConfig } from "../../utils/auth";
 import { useRequestStore } from "../../stores";
 import { useTabIndicator } from "../../hooks/useTabIndicator";
+import { graphqlIntrospect } from "@api-client/core/http";
 import type { BodyConfig, AuthConfig, BodyMode, RawLanguage, Header, QueryParam, FormDataParam } from "@api-client/types";
+import { Database, Loader2, ChevronDown, ChevronRight } from "lucide-react";
 
 const REQUEST_TABS = [
     { id: "params", labelKey: "request.params" },
@@ -151,6 +153,28 @@ export function RequestPanel() {
   const [graphqlQuery, setGraphqlQuery] = useState(() => storeBody?.graphql?.query ?? "");
   const [graphqlVariables, setGraphqlVariables] = useState(() => storeBody?.graphql?.variables ?? "");
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
+  const [gqlIntrospecting, setGqlIntrospecting] = useState(false);
+  const [gqlSchema, setGqlSchema] = useState<string | null>(null);
+  const [gqlSchemaError, setGqlSchemaError] = useState<string | null>(null);
+  const [showGqlSchema, setShowGqlSchema] = useState(false);
+
+  const handleIntrospect = useCallback(async () => {
+    const tabStore = (await import("@api-client/core")).useTabStore.getState();
+    const tab = tabStore.tabs.find((t) => t.id === currentTabId);
+    if (!tab?.url) { setGqlSchemaError("URL is required for introspection"); return; }
+
+    setGqlIntrospecting(true);
+    setGqlSchemaError(null);
+    try {
+      const result = await graphqlIntrospect(tab.url);
+      setGqlSchema(JSON.stringify(result, null, 2));
+      setShowGqlSchema(true);
+    } catch (e) {
+      setGqlSchemaError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setGqlIntrospecting(false);
+    }
+  }, [currentTabId]);
 
   useEffect(() => {
     const tabId = useRequestStore.getState().currentTabId;
@@ -708,22 +732,53 @@ placeholder={t("auth.tokenTypePlaceholder")}
         )}
 
                             {bodyConfig.mode === "graphql" && (
-                                <div className="graphql-editor grid grid-cols-2 h-full">
-                                    <div className="graphql-editor-query border-r border-border-muted overflow-hidden">
-                                        <InlineEditor
-                                            value={graphqlQuery}
-                                            language="javascript"
-                                            onChange={handleGraphqlQueryChange}
-                                            placeholder={t("body.graphqlQuery")}
-                                        />
+                                <div className="flex flex-col h-full">
+                                    <div className="flex items-center gap-2 h-[28px] px-3 border-b border-border-muted shrink-0">
+                                        <button
+                                            onClick={handleIntrospect}
+                                            disabled={gqlIntrospecting}
+                                            className="flex items-center gap-1 h-[22px] px-2 rounded-[4px] text-[10px] font-medium text-brand hover:bg-brand/10 cursor-pointer transition-colors disabled:opacity-50"
+                                        >
+                                            {gqlIntrospecting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Database className="w-3 h-3" />}
+                                            {t("body.introspect") || "Introspect Schema"}
+                                        </button>
+                                        {gqlSchemaError && (
+                                            <span className="text-[10px] text-accent-danger truncate max-w-[200px]">{gqlSchemaError}</span>
+                                        )}
+                                        {gqlSchema && (
+                                            <button
+                                                onClick={() => setShowGqlSchema(!showGqlSchema)}
+                                                className="flex items-center gap-1 h-[22px] px-2 rounded-[4px] text-[10px] font-medium text-fg-secondary hover:bg-bg-hover cursor-pointer transition-colors"
+                                            >
+                                                {showGqlSchema ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                                                {t("body.viewSchema") || "Schema"}
+                                            </button>
+                                        )}
                                     </div>
-                                    <div className="overflow-hidden">
-                                        <InlineEditor
-                                            value={graphqlVariables}
-                                            language="json"
-                                            onChange={handleGraphqlVariablesChange}
-                                            placeholder={t("body.graphqlVariables")}
-                                        />
+                                    {showGqlSchema && gqlSchema && (
+                                        <div className="h-[160px] border-b border-border-muted overflow-auto bg-bg-base shrink-0">
+                                            <pre className="font-mono text-[10px] text-fg-secondary p-2 whitespace-pre-wrap">
+                                                {gqlSchema.slice(0, 5000)}
+                                            </pre>
+                                        </div>
+                                    )}
+                                    <div className="graphql-editor grid grid-cols-2 flex-1 overflow-hidden">
+                                        <div className="graphql-editor-query border-r border-border-muted overflow-hidden">
+                                            <InlineEditor
+                                                value={graphqlQuery}
+                                                language="javascript"
+                                                onChange={handleGraphqlQueryChange}
+                                                placeholder={t("body.graphqlQuery")}
+                                            />
+                                        </div>
+                                        <div className="overflow-hidden">
+                                            <InlineEditor
+                                                value={graphqlVariables}
+                                                language="json"
+                                                onChange={handleGraphqlVariablesChange}
+                                                placeholder={t("body.graphqlVariables")}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             )}

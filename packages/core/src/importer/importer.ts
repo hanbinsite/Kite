@@ -3,6 +3,7 @@ import { detectFormat } from "./detect";
 import { parseCurl } from "./curl";
 import { parsePostman } from "./postman";
 import { parseHar } from "./har";
+import { parseOpenApi } from "./openapi";
 
 export function importCollection(content: string): ImportResult {
   const format = detectFormat(content);
@@ -14,12 +15,14 @@ export function importCollection(content: string): ImportResult {
       return parsePostman(content);
     case "har":
       return parseHar(content);
+    case "openapi":
+      return parseOpenApi(content);
     default:
       return {
         format: "unknown" as ImportFormat,
         collectionName: "Unknown Import",
         requests: [],
-        errors: ["Unable to detect import format. Supported formats: cURL, Postman Collection v2.x, HAR 1.2"],
+        errors: ["Unable to detect import format. Supported formats: cURL, Postman Collection v2.x, HAR 1.2, OpenAPI 3.0"],
       };
   }
 }

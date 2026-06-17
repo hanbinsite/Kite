@@ -39,9 +39,11 @@ interface TabStoreImpl extends TabStore {
   closeAllTabs: () => void;
   setActiveTab: (id: string) => void;
   updateTab: (id: string, updates: Partial<Tab>) => void;
+  saveTabs: () => void;
+  restoreTabs: () => void;
 }
 
-export const useTabStore = create<TabStoreImpl>()((set) => ({
+export const useTabStore = create<TabStoreImpl>()((set, get) => ({
   tabs: [],
   activeTabId: null,
 
@@ -106,4 +108,27 @@ export const useTabStore = create<TabStoreImpl>()((set) => ({
     set((state) => ({
       tabs: state.tabs.map((t) => (t.id === id ? { ...t, ...updates } : t)),
     })),
+
+  saveTabs: () => {
+    const { tabs, activeTabId } = get();
+    try {
+      const serializable = tabs.map(({ response: _response, ...rest }) => rest);
+      localStorage.setItem("kite-tabs", JSON.stringify({ tabs: serializable, activeTabId }));
+    } catch {
+      // localStorage may be unavailable (SSR/private mode)
+    }
+  },
+
+  restoreTabs: () => {
+    try {
+      const saved = localStorage.getItem("kite-tabs");
+      if (!saved) return;
+      const { tabs, activeTabId } = JSON.parse(saved) as { tabs: Tab[]; activeTabId: string | null };
+      if (Array.isArray(tabs) && tabs.length > 0) {
+        set({ tabs, activeTabId });
+      }
+    } catch {
+      // corrupt data, ignore
+    }
+  },
 }));

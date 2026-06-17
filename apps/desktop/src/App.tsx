@@ -43,6 +43,7 @@ export function App() {
     useProviderStore.getState().loadProviders();
     useEnvironmentStore.getState().loadFromDisk();
     registerVariableCompletionProvider();
+    useTabStore.getState().restoreTabs();
   }, []);
 
   useEffect(() => {
@@ -59,6 +60,11 @@ export function App() {
   const removeTabData = useRequestStore((s) => s.removeTabData);
   const sendRequest = useRequestStore((s) => s.sendRequest);
   const activeTab = useTabStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
+
+  const allTabs = useTabStore((s) => s.tabs);
+  useEffect(() => {
+    useTabStore.getState().saveTabs();
+  }, [allTabs, activeTabId]);
 
   useKeyboardShortcuts([
     { shortcut: "cmd+w", handler: () => {
