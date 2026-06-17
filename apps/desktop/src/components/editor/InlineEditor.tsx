@@ -5,7 +5,7 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirro
 import { syntaxHighlighting, defaultHighlightStyle, bracketMatching, foldGutter, foldKeymap, indentOnInput } from "@codemirror/language";
 import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 import { lintKeymap } from "@codemirror/lint";
-import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
+import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap, type CompletionContext } from "@codemirror/autocomplete";
 import { json } from "@codemirror/lang-json";
 import { javascript } from "@codemirror/lang-javascript";
 import { html } from "@codemirror/lang-html";
@@ -14,6 +14,36 @@ import { css } from "@codemirror/lang-css";
 import { oneDark } from "@codemirror/theme-one-dark";
 import type { Extension } from "@codemirror/state";
 import type { RawLanguage } from "@api-client/types";
+
+function variableCompletionSource(context: CompletionContext) {
+  const word = context.matchBefore(/\{\{[^}]*$/);
+  if (!word) return null;
+
+  const filter = word.text.slice(2).toLowerCase();
+  const envStore = (window as unknown as Record<string, unknown>)["__envStore"] as { getActiveVariables: () => Record<string, string> } | undefined;
+  const variables = envStore?.getActiveVariables() ?? {};
+
+  const from = word.from;
+  const to = context.pos;
+
+  return {
+    from,
+    to,
+    options: Object.entries(variables)
+      .filter(([key]) => !filter || key.toLowerCase().includes(filter.toLowerCase()))
+      .map(([key, value]) => ({
+        label: `{{${key}}}`,
+        detail: value,
+        type: "variable" as const,
+        boost: key.toLowerCase().startsWith(filter) ? 2 : 1,
+      })),
+    validFor: /^\{\{[^}]*$/,
+  };
+}
+
+const variableAutocomplete = autocompletion({
+  override: [variableCompletionSource],
+});
 const languageExtensions: Record<string, () => unknown> = {
     json: json,
     javascript: javascript,
@@ -33,7 +63,7 @@ const baseExtensions = [
     indentOnInput(),
     syntaxHighlighting(defaultHighlightStyle),
     foldGutter(),
-    autocompletion(),
+    variableAutocomplete,
     highlightSelectionMatches(),
     history(),
     keymap.of([

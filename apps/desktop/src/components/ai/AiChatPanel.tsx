@@ -45,8 +45,6 @@ export function AiChatPanel() {
   const sendSlashCommand = useChatStore((s) => s.sendSlashCommand);
   const clearMessages = useChatStore((s) => s.clearMessages);
   const loadSession = useChatStore((s) => s.loadSession);
-  const applyPendingActions = useChatStore((s) => s.applyPendingActions);
-  const rejectPendingActions = useChatStore((s) => s.rejectPendingActions);
 
   const providers = useProviderStore((s) => s.providers);
   const activeProviderId = useProviderStore((s) => s.activeProviderId);
@@ -128,6 +126,15 @@ export function AiChatPanel() {
     setInput("");
     sendSlashCommand(sessionId, activeProviderId, `/${cmd.key}`, buildContextMsgs());
   }, [activeProviderId, loading, sessionId, sendSlashCommand, buildContextMsgs]);
+
+  const handleActionApply = useCallback((resultMessage: string) => {
+    useChatStore.getState().applyPendingActions(sessionId);
+    useChatStore.getState().addMessage(sessionId, { role: "assistant", content: resultMessage });
+  }, [sessionId]);
+
+  const handleActionReject = useCallback(() => {
+    useChatStore.getState().rejectPendingActions(sessionId);
+  }, [sessionId]);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
@@ -277,8 +284,8 @@ export function AiChatPanel() {
         {pendingActions.length > 0 && (
           <AiActionCard
             actions={pendingActions}
-            onApply={() => applyPendingActions(sessionId)}
-            onReject={() => rejectPendingActions(sessionId)}
+            onApply={handleActionApply}
+            onReject={handleActionReject}
           />
         )}
         {loading && !isStreaming && (

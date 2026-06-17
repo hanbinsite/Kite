@@ -64,6 +64,7 @@ export function UrlBar() {
   const [saveState, setSaveState] = useState<"idle" | "saved" | "error">("idle");
   const inputRef = useRef<HTMLInputElement>(null);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
+  const urlBarFocusCounter = useUIStore((s) => s.urlBarFocusCounter);
   const activeTabId = useTabStore((s) => s.activeTabId);
   const activeTab = useTabStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
   const updateTab = useTabStore((s) => s.updateTab);
@@ -99,6 +100,13 @@ const setUrl = useCallback(
     setUrlError(null);
     setSendState("idle");
   }, [activeTabId]);
+
+  useEffect(() => {
+    if (urlBarFocusCounter > 0) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [urlBarFocusCounter]);
 
   const handleSend = async () => {
     if (!url.trim() || !activeTabId) return;

@@ -15,6 +15,7 @@ export interface UIState {
   consoleOpen: boolean;
   aiPanelOpen: boolean;
   bottomPanelTab: "response" | "ai";
+  urlBarFocusCounter: number;
 }
 
 export interface UIActions {
@@ -31,6 +32,7 @@ export interface UIActions {
   toggleAiPanel: () => void;
   setAiPanelOpen: (open: boolean) => void;
   setBottomPanelTab: (tab: "response" | "ai") => void;
+  focusUrlBar: () => void;
 }
 
 export type UIStore = UIState & UIActions;
@@ -66,6 +68,7 @@ export const useUIStore = create<UIStoreImpl>()((set) => ({
   consoleOpen: false,
   aiPanelOpen: false,
   bottomPanelTab: "response",
+  urlBarFocusCounter: 0,
 
   setTheme: (theme) => { localStorage.setItem("theme", theme); set({ theme }); },
   setLanguage: (language) => { localStorage.setItem("language", language); set({ language }); },
@@ -87,4 +90,5 @@ export const useUIStore = create<UIStoreImpl>()((set) => ({
   toggleAiPanel: () => set((state) => ({ aiPanelOpen: !state.aiPanelOpen, bottomPanelTab: "ai" })),
   setAiPanelOpen: (open) => set({ aiPanelOpen: open }),
   setBottomPanelTab: (tab) => set({ bottomPanelTab: tab }),
+  focusUrlBar: () => set((s) => ({ urlBarFocusCounter: s.urlBarFocusCounter + 1 })),
 }));

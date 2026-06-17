@@ -265,6 +265,10 @@ export async function deleteEnvironment(environmentId: string): Promise<void> {
     return invoke<void>("delete_environment", { environmentId });
 }
 
+export async function graphqlIntrospect(url: string, headers?: [string, string][]): Promise<unknown> {
+  return invoke<unknown>("graphql_introspect", { url, headers: headers ?? null });
+}
+
 export { useUIStore } from "../navigation";
 export type { UIStore, Theme } from "../navigation";
 

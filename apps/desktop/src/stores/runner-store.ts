@@ -87,6 +87,7 @@ export interface RunnerConfig {
   delayMs: number;
   persistVariables: boolean;
   requests: RunnerRequestConfig[];
+  dataRows?: Record<string, string>[];
 }
 
 export type RunnerStatus = "idle" | "running" | "completed" | "cancelled" | "error";
@@ -140,7 +141,7 @@ export const useRunnerStore = create<RunnerStore>()(
         startTime: Date.now(),
         endTime: 0,
         duration: 0,
-        totalRequests: config.requests.length * config.iterationCount,
+        totalRequests: config.requests.length * (config.dataRows?.length || config.iterationCount),
         passedRequests: 0,
         failedRequests: 0,
         iterations: [],
@@ -160,7 +161,10 @@ export const useRunnerStore = create<RunnerStore>()(
         const envStore = (await import("./environment-store")).useEnvironmentStore.getState();
         let persistedVars: Record<string, string> = {};
 
-        for (let i = 0; i < config.iterationCount; i++) {
+        const hasDataRows = config.dataRows && config.dataRows.length > 0;
+        const totalIterations = hasDataRows ? config.dataRows!.length : config.iterationCount;
+
+        for (let i = 0; i < totalIterations; i++) {
           if (abortController.signal.aborted) break;
 
           set((state) => { state.currentIteration = i; state.currentRequestIndex = 0; });
@@ -168,8 +172,10 @@ export const useRunnerStore = create<RunnerStore>()(
           const iterationResult: RunnerIterationResult = {
             iteration: i,
             requests: [],
-            variables: { ...persistedVars },
+            variables: { ...persistedVars, ...(hasDataRows ? config.dataRows![i] ?? {} : {}) },
           };
+
+          const dataRowVars = hasDataRows ? (config.dataRows![i] ?? {}) : {};
 
           const envScopes: VariableScope = {
             global: variablesToRecord(envStore.globals),
@@ -204,7 +210,7 @@ export const useRunnerStore = create<RunnerStore>()(
 
             const resolver = new VariableResolver({
               ...envScopes,
-              environment: { ...(envScopes.environment ?? {}), ...persistedVars },
+              environment: { ...(envScopes.environment ?? {}), ...persistedVars, ...dataRowVars },
               collection: Object.keys(collectionVars).length > 0 ? collectionVars : undefined,
               folder: Object.keys(folderVars).length > 0 ? folderVars : undefined,
             });

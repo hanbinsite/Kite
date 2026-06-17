@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useTabStore, useUIStore } from "@api-client/core";
 import { useChatStore, useProviderStore, buildContextMessage } from "@api-client/core/ai";
@@ -10,8 +10,9 @@ import { useTabIndicator } from "../../hooks/useTabIndicator";
 import { ConsolePanel } from "../console/ConsolePanel";
 import { TestsTab } from "../response/TestsTab";
 import { ScriptErrorCard } from "../response/ScriptErrorCard";
+import { DiffViewer } from "../response/DiffViewer";
 import type { ResponseHeader, Cookie } from "@api-client/types";
-import { Clock, HardDrive, ArrowDownToLine, Maximize2, Columns2, Zap, AlertTriangle, RefreshCw, Search, Copy, Brain, Wrench } from "lucide-react";
+import { Clock, HardDrive, ArrowDownToLine, Maximize2, Columns2, Zap, AlertTriangle, RefreshCw, Search, Copy, Brain, Wrench, GitCompare } from "lucide-react";
 
 const RESPONSE_TABS = (t: (key: string) => string) => [
   { id: "body", label: t("response.body") },
@@ -45,6 +46,14 @@ export function ResponsePanel() {
   const isLoading = useRequestStore(useShallow((s) => activeTabId ? !!s.loadingTabs[activeTabId] : false));
   const error = useRequestStore(useShallow((s) => activeTabId ? s.errors[activeTabId] : undefined));
   const requestDataMap = useRequestStore((s) => s.requestDataMap);
+  const previousResponses = useRequestStore((s) => s.previousResponses);
+
+  const hasPrevious = !!(previousResponses[activeTabId ?? ""]);
+  const [showDiff, setShowDiff] = useState(false);
+
+  useEffect(() => {
+    if (!hasPrevious) setShowDiff(false);
+  }, [hasPrevious]);
 
   const responseTabs = RESPONSE_TABS(t);
   const [tabRefs, indicatorStyle] = useTabIndicator<ResponseTabId>(activeTab);
@@ -173,6 +182,16 @@ checked={!(requestDataMap[activeTabId ?? ""]?.settings.verifySsl)}
                         {response.status >= 400 ? <Wrench size={12} /> : <Brain size={12} />}
                 {response.status >= 400 ? t("response.fix") : t("response.explain")}
                     </button>
+                    {previousResponses[activeTabId ?? ""] && (
+                      <button
+                        onClick={() => setShowDiff(!showDiff)}
+                        className={`response-bar-btn h-6 px-2 rounded-[4px] flex items-center gap-1 text-[10px] font-medium cursor-pointer transition-all duration-50 ${showDiff ? "text-brand bg-brand/10" : "text-fg-tertiary hover:bg-bg-hover hover:text-fg-secondary"}`}
+                        title={t("response.diff")}
+                      >
+                        <GitCompare size={12} />
+                        {t("response.diff")}
+                      </button>
+                    )}
                     <button
                       onClick={() => useUIStore.getState().setSplitRatio(useUIStore.getState().splitRatio > 0.7 ? 0.5 : 0.85)}
                       className="response-bar-btn w-6 h-6 rounded-[4px] flex items-center justify-center text-fg-tertiary cursor-pointer hover:bg-bg-hover hover:text-fg-secondary transition-all duration-50"
@@ -319,6 +338,11 @@ checked={!(requestDataMap[activeTabId ?? ""]?.settings.verifySsl)}
                     </div>
                 )}
 
+                {activeTab === "body" && showDiff && hasPrevious && (
+                  <div className="flex-1 overflow-auto">
+                    <DiffViewer previous={previousResponses[activeTabId!]!} current={response!.body} />
+                  </div>
+                )}
                 {activeTab === "headers" && (
                     <ResponseHeadersTab headers={response.headers} />
                 )}

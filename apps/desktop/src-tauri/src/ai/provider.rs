@@ -195,27 +195,51 @@ fn api_keys_file(app: &tauri::AppHandle) -> Result<PathBuf, AppError> {
     Ok(data_dir.join("ai-api-keys.json"))
 }
 
+fn get_keyring_entry() -> Result<keyring::Entry, AppError> {
+    keyring::Entry::new("api-client", "ai-api-keys")
+        .map_err(|e| AppError::vault_keyring_failed(format!("Keyring access failed: {}", e)))
+}
+
 fn load_api_keys(app: &tauri::AppHandle) -> Result<std::collections::HashMap<String, String>, AppError> {
+    let entry = get_keyring_entry()?;
+    match entry.get_password() {
+        Ok(json_str) => {
+            serde_json::from_str(&json_str)
+                .map_err(|e| AppError::storage_parse_failed(format!("Failed to parse keys: {}", e)))
+        }
+        Err(keyring::Error::NoEntry) => {
+            migrate_keys_from_json(app)
+        }
+        Err(e) => Err(AppError::vault_keyring_failed(format!("Keyring read failed: {}", e))),
+    }
+}
+
+fn migrate_keys_from_json(app: &tauri::AppHandle) -> Result<std::collections::HashMap<String, String>, AppError> {
     let path = api_keys_file(app)?;
     if !path.exists() {
         return Ok(std::collections::HashMap::new());
     }
     let content = std::fs::read_to_string(&path)
-        .map_err(|e| AppError::storage_read_failed(format!("Failed to read keys: {}", e)))?;
-    serde_json::from_str(&content)
-        .map_err(|e| AppError::storage_parse_failed(format!("Failed to parse keys: {}", e)))
+        .map_err(|e| AppError::storage_read_failed(format!("Failed to read legacy keys: {}", e)))?;
+    let keys: std::collections::HashMap<String, String> = serde_json::from_str(&content)
+        .map_err(|e| AppError::storage_parse_failed(format!("Failed to parse legacy keys: {}", e)))?;
+
+    let json_str = serde_json::to_string(&keys)
+        .map_err(|e| AppError::internal(format!("Failed to serialize keys: {}", e)))?;
+    let entry = get_keyring_entry()?;
+    entry.set_password(&json_str)
+        .map_err(|e| AppError::vault_keyring_failed(format!("Keyring write failed: {}", e)))?;
+
+    let _ = std::fs::remove_file(&path);
+    Ok(keys)
 }
 
-fn save_api_keys(app: &tauri::AppHandle, keys: &std::collections::HashMap<String, String>) -> Result<(), AppError> {
-    let path = api_keys_file(app)?;
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| AppError::storage_write_failed(format!("Failed to create dir: {}", e)))?;
-    }
-    let content = serde_json::to_string_pretty(keys)
+fn save_api_keys(_app: &tauri::AppHandle, keys: &std::collections::HashMap<String, String>) -> Result<(), AppError> {
+    let json_str = serde_json::to_string(keys)
         .map_err(|e| AppError::internal(format!("Failed to serialize keys: {}", e)))?;
-    std::fs::write(&path, content)
-        .map_err(|e| AppError::storage_write_failed(format!("Failed to write keys: {}", e)))?;
+    let entry = get_keyring_entry()?;
+    entry.set_password(&json_str)
+        .map_err(|e| AppError::vault_keyring_failed(format!("Keyring write failed: {}", e)))?;
     Ok(())
 }
 
@@ -228,7 +252,9 @@ fn get_api_key(app: &tauri::AppHandle, provider_id: &str) -> Result<String, AppE
 
 fn delete_api_key(app: &tauri::AppHandle, provider_id: &str) -> Result<(), AppError> {
     let mut keys = load_api_keys(app)?;
-    keys.remove(provider_id);
+    if keys.remove(provider_id).is_none() {
+        return Ok(());
+    }
     save_api_keys(app, &keys)
 }
 

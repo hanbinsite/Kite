@@ -11,6 +11,7 @@ import { useUIStore, useTabStore } from "@api-client/core";
 import { Plus, Settings, FolderOpen, Code2, Terminal, Play, Upload, Download, Variable, Bot } from "lucide-react";
 import { useTheme, useKeyboardShortcuts, useAutoSave, useSaveShortcut } from "./hooks";
 import { useRequestStore, initWsEventListener, initSseEventListener, initMqttEventListener, initGrpcEventListener, initMockEventListener, useCollectionStore } from "./stores";
+import { registerVariableCompletionProvider } from "./stores/variable-completion-provider";
 import { useWsStore } from "./stores/websocket-store";
 import { useSseStore } from "./stores/sse-store";
 import { useMqttStore } from "./stores/mqtt-store";
@@ -41,6 +42,7 @@ export function App() {
     initMockEventListener();
     useProviderStore.getState().loadProviders();
     useEnvironmentStore.getState().loadFromDisk();
+    registerVariableCompletionProvider();
   }, []);
 
   useEffect(() => {
@@ -49,6 +51,7 @@ export function App() {
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const toggleConsole = useUIStore((s) => s.toggleConsole);
   const toggleAiPanel = useUIStore((s) => s.toggleAiPanel);
+  const focusUrlBar = useUIStore((s) => s.focusUrlBar);
   const setBottomPanelTab = useUIStore((s) => s.setBottomPanelTab);
   const openTab = useTabStore((s) => s.openTab);
   const closeTab = useTabStore((s) => s.closeTab);
@@ -100,10 +103,33 @@ export function App() {
         e.preventDefault();
         toggleAiPanel();
       }
+      if (e.key.toLowerCase() === "r" && isMeta && !e.shiftKey) {
+        e.preventDefault();
+        if (activeTabId && activeTab?.url) {
+          sendRequest(activeTabId, (activeTab.method ?? "GET") as "GET", activeTab.url);
+        }
+      }
+      if (e.key === "/" && isMeta && !e.shiftKey) {
+        e.preventDefault();
+        focusUrlBar();
+      }
+      if (e.key.toLowerCase() === "n" && isMeta && e.shiftKey) {
+        e.preventDefault();
+        const colId = `col-${Date.now()}`;
+        useCollectionStore.getState().addCollection(colId, "New Collection");
+      }
+      if (isMeta && !e.shiftKey && !e.altKey && /^[1-9]$/.test(e.key)) {
+        e.preventDefault();
+        const idx = parseInt(e.key) - 1;
+        const tabs = useTabStore.getState().tabs;
+        if (tabs[idx]) {
+          useTabStore.getState().setActiveTab(tabs[idx]!.id);
+        }
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [toggleSidebar, openTab, toggleConsole, toggleAiPanel, t]);
+  }, [toggleSidebar, openTab, toggleConsole, toggleAiPanel, focusUrlBar, activeTabId, activeTab, sendRequest, t]);
 
   const collections = useCollectionStore((s) => s.collections);
 
@@ -194,6 +220,30 @@ export function App() {
       icon: <Bot className="w-4 h-4" />,
       action: () => { setBottomPanelTab("ai"); toggleAiPanel(); },
       shortcut: formatShortcut("Cmd+Shift+L"),
+    },
+    {
+      id: "resend-request",
+      label: t("commandPalette.actions.resendRequest"),
+      category: "action",
+      icon: <Play className="w-4 h-4" />,
+      action: () => { if (activeTabId && activeTab?.url) { sendRequest(activeTabId, (activeTab.method ?? "GET") as "GET", activeTab.url); } },
+      shortcut: formatShortcut("Cmd+R"),
+    },
+    {
+      id: "focus-url-bar",
+      label: t("commandPalette.actions.focusUrlBar"),
+      category: "action",
+      icon: <Settings className="w-4 h-4" />,
+      action: () => focusUrlBar(),
+      shortcut: formatShortcut("Cmd+/"),
+    },
+    {
+      id: "new-collection",
+      label: t("commandPalette.actions.newCollection"),
+      category: "action",
+      icon: <FolderOpen className="w-4 h-4" />,
+      action: () => useCollectionStore.getState().addCollection(`col-${Date.now()}`, "New Collection"),
+      shortcut: formatShortcut("Cmd+Shift+N"),
     },
     ...collectionItems,
   ];

@@ -793,6 +793,40 @@ fn parse_cookie_expires(s: &str) -> Result<chrono::DateTime<chrono::Utc>, Box<dy
     Err(format!("Cannot parse cookie date: {}", s).into())
 }
 
+#[tauri::command]
+pub async fn graphql_introspect(url: String, headers: Option<Vec<(String, String)>>) -> Result<serde_json::Value, AppError> {
+    let client = Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .map_err(|e| AppError::safe_net_error("build client", e))?;
+
+    let introspection_query = r#"query IntrospectionQuery { __schema { queryType { name } mutationType { name } subscriptionType { name } types { kind name description fields(includeDeprecated: true) { name description args { name description type { name kind ofType { name kind } } } type { name kind ofType { name kind ofType { name kind } } } } inputFields { name description type { name kind ofType { name kind } } } } } }"#;
+
+    let body = serde_json::json!({ "query": introspection_query });
+
+    let mut req = client.post(&url).json(&body);
+
+    if let Some(h) = &headers {
+        for (k, v) in h {
+            req = req.header(k.as_str(), v.as_str());
+        }
+    }
+
+    let resp = req.send().await
+        .map_err(|e| AppError::safe_net_error("GraphQL introspection", e))?;
+
+    let status = resp.status();
+    if !status.is_success() {
+        let text = resp.text().await.unwrap_or_default();
+        return Err(AppError::net_auth_failed(format!("GraphQL endpoint returned {}: {}", status.as_u16(), &text[..200.min(text.len())])));
+    }
+
+    let json: serde_json::Value = resp.json().await
+        .map_err(|e| AppError::internal(format!("Failed to parse introspection response: {}", e)))?;
+
+    Ok(json)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

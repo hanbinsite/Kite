@@ -1,6 +1,6 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { X, Play, Square, ChevronRight, ChevronDown, Check, X as XIcon, Minus } from "lucide-react";
+import { X, Play, Square, ChevronRight, ChevronDown, Check, X as XIcon, Minus, Upload } from "lucide-react";
 import { useRunnerStore, type RunnerRequestResult, type RunnerIterationResult } from "../../stores/runner-store";
 import { useCollectionStore } from "../../stores/collection-store";
 import { useEnvironmentStore } from "../../stores/environment-store";
@@ -65,7 +65,48 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
   const [iterationCount, setIterationCount] = useState(1);
   const [delayMs, setDelayMs] = useState(0);
   const [persistVariables, setPersistVariables] = useState(false);
+  const [dataRows, setDataRows] = useState<Record<string, string>[] | undefined>();
+  const [dataFileName, setDataFileName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [expandedIterations, setExpandedIterations] = useState<Set<number>>(new Set());
+
+  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setDataFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = reader.result as string;
+      try {
+        if (file.name.endsWith(".json")) {
+          const parsed = JSON.parse(text);
+          const rows = Array.isArray(parsed) ? parsed : [parsed];
+          setDataRows(rows as Record<string, string>[]);
+        } else {
+          const lines = text.split("\n").filter((l) => l.trim());
+          if (lines.length < 2) { setDataRows([]); return; }
+          const headers = lines[0]!.split(",").map((h) => h.trim());
+          const rows = lines.slice(1).map((line) => {
+            const values = line.split(",").map((v) => v.trim());
+            const row: Record<string, string> = {};
+            headers.forEach((h, i) => { if (h) row[h] = values[i] ?? ""; });
+            return row;
+          });
+          setDataRows(rows);
+        }
+      } catch {
+        setDataRows([]);
+        setDataFileName("Error parsing file");
+      }
+    };
+    reader.readAsText(file);
+  }, []);
+
+  const clearDataFile = useCallback(() => {
+    setDataRows(undefined);
+    setDataFileName(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, []);
 
   const handleRun = useCallback(async () => {
     if (!selectedCollectionId) return;
@@ -91,6 +132,7 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
         iterationCount,
         delayMs,
         persistVariables,
+        dataRows,
         requests,
       });
     } catch (e) {
@@ -214,6 +256,33 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
               />
 {t("runner.persist")}
             </label>
+            <div className="flex items-center gap-1.5 text-xs">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.json"
+                onChange={handleFileUpload}
+                disabled={isRunning}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isRunning}
+                className="h-7 px-2 bg-bg-input border border-border-default rounded-md text-fg-secondary hover:text-fg-primary disabled:opacity-50 cursor-pointer flex items-center gap-1 transition-colors"
+              >
+                <Upload className="w-3 h-3" />
+                {t("runner.dataFile") || "Data (CSV/JSON)"}
+              </button>
+              {dataFileName && (
+                <span className="flex items-center gap-1 text-fg-tertiary">
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent-success" />
+                  {dataFileName}
+                  <button onClick={clearDataFile} className="hover:text-accent-danger transition-colors">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+            </div>
             <div className="flex-1" />
             {isRunning ? (
               <button

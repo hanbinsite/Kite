@@ -56,7 +56,7 @@ api-client/
 │       │   ├── main.rs            # Rust 入口 + AppState
 │       │   ├── commands/          # Tauri commands
 │       │   │   ├── http.rs        # HTTP 请求 (reqwest)
-│       │   │   ├── grpc.rs        # gRPC (reqwest HTTP/1.1, 非 tonic HTTP/2)
+│   │   │   ├── grpc.rs        # gRPC (tonic HTTP/2 + prost-reflect)
 │       │   │   ├── websocket.rs   # WebSocket (tokio-tungstenite)
 │       │   │   ├── file_ops.rs    # 文件操作
 │       │   │   ├── crypto.rs      # Vault 加密 (argon2 + aes-gcm)
@@ -153,9 +153,9 @@ api-client/
 11. **Vault 加密使用随机 nonce** — AES-256-GCM 每次加密生成随机 12 字节 nonce，不用静态 nonce
 12. **Vault secret 名校验** — `delete_vault_secret` 校验 name 不含路径分隔符
 13. **OAuth1/AwsV4 未实现** — 选择此认证类型时返回 `NOT_IMPLEMENTED` 错误
-14. **gRPC 当前用 HTTP/1.1** — 使用 reqwest 而非 tonic/h2，无法对接标准 gRPC 服务器
+14. **gRPC 使用 tonic HTTP/2** — 通过 `tonic::transport::Endpoint` 连接，支持 HTTP/2 + protobuf
 15. **响应体大小限制 10MB** — `http.rs` 检查响应体大小，超限返回 `NET_BODY_TOO_LARGE`
-16. **AI API key 不经 IPC 传输** — `ai_set_api_key` 直接写入 keyring，`ai_get_api_key_status` 只返回 hasKey bool，不返回 key 值
+16. **AI API key 通过系统 keyring 存储** — `ai_set_api_key` 写入 keyring，`ai_get_api_key_status` 只返回 hasKey bool，不返回 key 值
 17. **AI streaming 按 sessionId 过滤** — 前端 `listen("ai-stream-chunk")` 必须检查 `chunk.sessionId === sessionId`，避免跨 Tab 干扰
 18. **AI 对话自动持久化** — 每次 streaming 完成后调用 `saveSession`，Tab 切换时调用 `loadSession`，存储到 `{app_data}/ai-sessions/{tabId}.json`
 19. **SSE 行必须缓冲** — `ai_stream_chat` 使用 `line_buf` 累积至 `\n` 再解析，TCP chunk 可能截断 SSE 行
@@ -259,7 +259,7 @@ api-client/
 - **不要使用 Axios** — HTTP 请求全部通过 Rust reqwest 发送
 - **不要使用 React Router** — 使用 Zustand NavigationStore
 - **不要使用 vm2 / isolated-vm** — 脚本在 Rust rquickjs 执行
-- **不要使用 @improbable-eng/grpc-web** — gRPC 通过 Rust reqwest（当前为 HTTP/1.1，非 tonic HTTP/2）
+- **不要使用 @improbable-eng/grpc-web** — gRPC 通过 Rust tonic HTTP/2 发送
 - **不要使用 ws 库** — WebSocket 通过 Rust tokio-tungstenite
 - **不要使用 @apollo/client** — 使用 graphql-request
 - **不要在 IPC 中传递密钥** — Vault keyring 存 argon2id 派生密钥（非明文密码），密钥不经过 IPC

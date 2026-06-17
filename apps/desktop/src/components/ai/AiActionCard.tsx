@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { CreateRequestAction, ModifyRequestAction, WriteTestAction, FixErrorAction, ExtractVariablesAction, AgentAction } from "@api-client/core/ai";
+import type { CreateRequestAction, ModifyRequestAction, WriteTestAction, FixErrorAction, ExtractVariablesAction, GenerateMockAction, AgentAction } from "@api-client/core/ai";
 
 interface AiActionCardProps {
   actions: AgentAction[];
@@ -88,6 +88,10 @@ async function applyAction(action: AgentAction): Promise<string> {
       return applyFixError(action as FixErrorAction);
     case "extract_variables":
       return applyExtractVariables(action as ExtractVariablesAction);
+    case "generate_mock":
+      return applyGenerateMock(action as GenerateMockAction);
+    case "generate_doc":
+      return `Documentation generated (${String((action.data as { markdown?: string }).markdown ?? "").length} chars).`;
     default:
       return `${action.type}: action received. Manual configuration needed.`;
   }
@@ -122,16 +126,27 @@ async function applyCreateRequest(action: CreateRequestAction): Promise<string> 
 }
 
 async function applyWriteTest(action: WriteTestAction): Promise<string> {
-  return `Test script generated (${action.data.script.length} chars). Paste into Script editor to use.`;
+  const { useRequestStore } = await import("@/stores/request-store");
+  const script = action.data.script;
+
+  const tabs = (await import("@api-client/core")).useTabStore.getState();
+  const activeTabId = tabs.activeTabId;
+  if (activeTabId) {
+    useRequestStore.getState().setRequestScripts({ postResponse: script });
+  }
+
+  return `Test script applied (${script.length} chars). Will run after the next response.`;
 }
 
 async function applyModifyRequest(action: ModifyRequestAction): Promise<string> {
   const changes = action.data.changes;
-  return changes.map((c) => `${c.op} ${c.path}`).join(", ");
+  const results = changes.map((c) => `${c.op} ${c.path}${c.value !== undefined ? ` → ${JSON.stringify(c.value)}` : ""}`);
+  return results.length > 0 ? results.join("\n") : "No changes detected.";
 }
 
 async function applyFixError(action: FixErrorAction): Promise<string> {
-  return action.data.suggestions.map((s) => `${s.path}: ${s.fix}`).join("\n");
+  const suggestions = action.data.suggestions;
+  return suggestions.map((s) => `${s.path}: ${s.fix} (review and apply manually)`).join("\n");
 }
 
 async function applyExtractVariables(action: ExtractVariablesAction): Promise<string> {
@@ -141,6 +156,28 @@ async function applyExtractVariables(action: ExtractVariablesAction): Promise<st
   }
   const names = action.data.variables.map((v) => v.key).join(", ");
   return `Added to globals: ${names}`;
+}
+
+async function applyGenerateMock(action: GenerateMockAction): Promise<string> {
+  const { useMockStore } = await import("@/stores/mock-store");
+  const mockStore = useMockStore.getState();
+
+  const routeId = `mock-${Date.now()}`;
+  const responseBody = typeof action.data.responseBody === "string"
+    ? action.data.responseBody
+    : JSON.stringify(action.data.responseBody, null, 2);
+
+  mockStore.addRoute({
+    id: routeId,
+    method: action.data.method,
+    path: action.data.route,
+    status: action.data.statusCode,
+    headers: (action.data.headers ?? []).map((h) => ({ key: h.key, value: h.value })),
+    body: responseBody,
+    delayMs: 0,
+  });
+
+  return `Mock route added: ${action.data.method} ${action.data.route} → ${action.data.statusCode}`;
 }
 
 function renderPreview(action: AgentAction) {

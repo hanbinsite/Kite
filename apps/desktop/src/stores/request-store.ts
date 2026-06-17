@@ -142,6 +142,7 @@ export interface RequestState {
   currentTabId: string | null;
   dirtyTabs: Record<string, boolean>;
   historyRefreshCounter: number;
+  previousResponses: Record<string, string>;
 }
 
 export interface RequestActions {
@@ -278,6 +279,7 @@ export const useRequestStore = create<RequestStore>()(
   currentTabId: null,
   dirtyTabs: {},
   historyRefreshCounter: 0,
+  previousResponses: {},
 
   setTabLoading: (tabId, loading) =>
     set((state) => {
@@ -290,6 +292,10 @@ export const useRequestStore = create<RequestStore>()(
 
     setResponse: (tabId, response) =>
       set((state) => {
+        const existing = state.responses[tabId];
+        if (existing?.body) {
+          state.previousResponses[tabId] = existing.body;
+        }
         state.responses[tabId] = response;
         state.historyRefreshCounter++;
       }),
@@ -307,6 +313,7 @@ export const useRequestStore = create<RequestStore>()(
     clearResponse: (tabId) =>
       set((state) => {
         delete state.responses[tabId];
+        delete state.previousResponses[tabId];
       }),
 
     switchTab: (tabId) =>
@@ -324,6 +331,7 @@ export const useRequestStore = create<RequestStore>()(
         delete state.testResults[tabId];
         delete state.dirtyTabs[tabId];
         delete state.errors[tabId];
+        delete state.previousResponses[tabId];
       }),
 
     setRequestHeaders: (headers) =>
