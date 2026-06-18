@@ -19,13 +19,15 @@
     "./cookie": "./src/cookie/index.ts",
     "./script": "./src/script/index.ts",
     "./codegen": "./src/codegen/index.ts",
-    "./ai": "./src/ai/index.ts"
+    "./ai": "./src/ai/index.ts",
+    "./graphql": "./src/graphql/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@api-client/types": "workspace:*",
+    "@codemirror/autocomplete": "^6.0.0",
     "@tauri-apps/api": "^2.0.0",
     "zustand": "^5.0.0"
   },

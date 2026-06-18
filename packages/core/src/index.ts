@@ -67,3 +67,6 @@ export {
   collectionVariablesToRecord,
 } from "./collection";
 export type { ScriptChainEntry } from "./collection";
+
+export { parseIntrospectionSchema, getTypeFields, getRootQueryFields, getRootMutationFields, getEnumValues, graphqlCompletionSource, typeRefToString } from "./graphql";
+export type { GraphQLSchemaInfo, GqlType, GqlField, GqlArg, GqlFieldType } from "./graphql";

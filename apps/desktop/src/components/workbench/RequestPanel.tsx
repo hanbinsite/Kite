@@ -10,7 +10,9 @@ import { createAuthConfig } from "../../utils/auth";
 import { useRequestStore } from "../../stores";
 import { useTabIndicator } from "../../hooks/useTabIndicator";
 import { graphqlIntrospect } from "@api-client/core/http";
+import { parseIntrospectionSchema, graphqlCompletionSource, getRootQueryFields, getRootMutationFields, typeRefToString } from "@api-client/core";
 import type { BodyConfig, AuthConfig, BodyMode, RawLanguage, Header, QueryParam, FormDataParam } from "@api-client/types";
+import type { GraphQLSchemaInfo } from "@api-client/core";
 import { Database, Loader2, ChevronDown, ChevronRight } from "lucide-react";
 
 const REQUEST_TABS = [
@@ -154,7 +156,7 @@ export function RequestPanel() {
   const [graphqlVariables, setGraphqlVariables] = useState(() => storeBody?.graphql?.variables ?? "");
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
   const [gqlIntrospecting, setGqlIntrospecting] = useState(false);
-  const [gqlSchema, setGqlSchema] = useState<string | null>(null);
+  const [gqlSchema, setGqlSchema] = useState<GraphQLSchemaInfo | null>(null);
   const [gqlSchemaError, setGqlSchemaError] = useState<string | null>(null);
   const [showGqlSchema, setShowGqlSchema] = useState(false);
 
@@ -167,7 +169,8 @@ export function RequestPanel() {
     setGqlSchemaError(null);
     try {
       const result = await graphqlIntrospect(tab.url);
-      setGqlSchema(JSON.stringify(result, null, 2));
+      const schema = parseIntrospectionSchema(result);
+      setGqlSchema(schema);
       setShowGqlSchema(true);
     } catch (e) {
       setGqlSchemaError(e instanceof Error ? e.message : String(e));
@@ -242,6 +245,50 @@ export function RequestPanel() {
             graphql: { query, variables: graphqlVariables },
         });
     };
+
+    function SchemaTree({ schema, onInsertField }: { schema: GraphQLSchemaInfo; onInsertField: (name: string) => void }) {
+        const queryFields = getRootQueryFields(schema);
+        const mutationFields = getRootMutationFields(schema);
+
+        return (
+            <div className="h-[160px] border-b border-border-muted overflow-auto bg-bg-base shrink-0">
+                <div className="font-mono text-[10px] text-fg-secondary p-2">
+                    {queryFields.length > 0 && (
+                        <div className="mb-1">
+                            <span className="text-[11px] font-semibold text-fg-primary">Query</span>
+                            {queryFields.map((f) => (
+                                <div
+                                    key={f.name}
+                                    className="flex items-center gap-1 pl-2 py-0.5 cursor-pointer hover:bg-bg-hover rounded"
+                                    onClick={() => onInsertField(f.name)}
+                                >
+                                    <span className="text-brand">{f.name}</span>
+                                    <span className="text-fg-tertiary">: {typeRefToString(f.type)}</span>
+                                    {f.description && <span className="text-fg-tertiary/50">— {f.description}</span>}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    {mutationFields.length > 0 && (
+                        <div>
+                            <span className="text-[11px] font-semibold text-fg-primary">Mutation</span>
+                            {mutationFields.map((f) => (
+                                <div
+                                    key={f.name}
+                                    className="flex items-center gap-1 pl-2 py-0.5 cursor-pointer hover:bg-bg-hover rounded"
+                                    onClick={() => onInsertField(f.name)}
+                                >
+                                    <span className="text-brand">{f.name}</span>
+                                    <span className="text-fg-tertiary">: {typeRefToString(f.type)}</span>
+                                    {f.description && <span className="text-fg-tertiary/50">— {f.description}</span>}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     const handleGraphqlVariablesChange = (variables: string) => {
         setGraphqlVariables(variables);
@@ -756,11 +803,17 @@ placeholder={t("auth.tokenTypePlaceholder")}
                                         )}
                                     </div>
                                     {showGqlSchema && gqlSchema && (
-                                        <div className="h-[160px] border-b border-border-muted overflow-auto bg-bg-base shrink-0">
-                                            <pre className="font-mono text-[10px] text-fg-secondary p-2 whitespace-pre-wrap">
-                                                {gqlSchema.slice(0, 5000)}
-                                            </pre>
-                                        </div>
+                                        <SchemaTree
+                                            schema={gqlSchema}
+                                            onInsertField={(fieldName) => {
+                                                setGraphqlQuery((prev) => prev + "\n  " + fieldName);
+                                                const updated: BodyConfig = {
+                                                    mode: "graphql",
+                                                    graphql: { query: graphqlQuery + "\n  " + fieldName, variables: graphqlVariables },
+                                                };
+                                                setRequestBody(updated);
+                                            }}
+                                        />
                                     )}
                                     <div className="graphql-editor grid grid-cols-2 flex-1 overflow-hidden">
                                         <div className="graphql-editor-query border-r border-border-muted overflow-hidden">
@@ -769,6 +822,7 @@ placeholder={t("auth.tokenTypePlaceholder")}
                                                 language="javascript"
                                                 onChange={handleGraphqlQueryChange}
                                                 placeholder={t("body.graphqlQuery")}
+                                                completionSource={gqlSchema ? graphqlCompletionSource(gqlSchema) : undefined}
                                             />
                                         </div>
                                         <div className="overflow-hidden">

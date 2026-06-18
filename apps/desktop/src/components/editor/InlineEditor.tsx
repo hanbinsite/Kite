@@ -5,7 +5,7 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirro
 import { syntaxHighlighting, defaultHighlightStyle, bracketMatching, foldGutter, foldKeymap, indentOnInput } from "@codemirror/language";
 import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 import { lintKeymap } from "@codemirror/lint";
-import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap, type CompletionContext } from "@codemirror/autocomplete";
+import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap, type CompletionContext, type CompletionSource } from "@codemirror/autocomplete";
 import { json } from "@codemirror/lang-json";
 import { javascript } from "@codemirror/lang-javascript";
 import { html } from "@codemirror/lang-html";
@@ -108,9 +108,10 @@ interface InlineEditorProps {
     onChange: (value: string) => void;
     placeholder?: string;
     readOnly?: boolean;
+    completionSource?: CompletionSource;
 }
 
-export function InlineEditor({ value, language, onChange, placeholder, readOnly }: InlineEditorProps) {
+export function InlineEditor({ value, language, onChange, placeholder, readOnly, completionSource }: InlineEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -129,6 +130,9 @@ export function InlineEditor({ value, language, onChange, placeholder, readOnly 
         }
       }),
     ];
+    if (completionSource) {
+      extensions.push(autocompletion({ override: [completionSource] }));
+    }
     if (readOnly) extensions.push(EditorState.readOnly.of(true));
     if (placeholder) extensions.push(cmPlaceholder(placeholder));
 
@@ -148,7 +152,7 @@ export function InlineEditor({ value, language, onChange, placeholder, readOnly 
       view.destroy();
       viewRef.current = null;
     };
-  }, [language, readOnly, placeholder]);
+  }, [language, readOnly, placeholder, completionSource]);
 
     useEffect(() => {
         const view = viewRef.current;
