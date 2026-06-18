@@ -99,7 +99,7 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
         }
       } catch {
         setDataRows([]);
-        setDataFileName("Error parsing file");
+        setDataFileName(t("runner.errorParsingFile"));
       }
     };
     reader.readAsText(file);
@@ -276,7 +276,7 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
                 className="h-7 px-2 bg-bg-input border border-border-default rounded-md text-fg-secondary hover:text-fg-primary disabled:opacity-50 cursor-pointer flex items-center gap-1 transition-colors"
               >
                 <Upload className="w-3 h-3" />
-                {t("runner.dataFile") || "Data (CSV/JSON)"}
+                {t("runner.dataFile")}
               </button>
               {dataFileName && (
                 <span className="flex items-center gap-1 text-fg-tertiary">
@@ -311,27 +311,27 @@ export function CollectionRunnerDialog({ isOpen, onClose }: CollectionRunnerDial
               className={`h-7 px-2 rounded-md text-xs font-medium cursor-pointer transition-colors flex items-center gap-1 ${showScripts ? "text-brand bg-brand/10" : "text-fg-tertiary hover:bg-bg-hover"}`}
             >
               {showScripts ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-              Scripts
+{t("runner.scripts")}
             </button>
             {showScripts && (
               <div className="col-span-full grid grid-cols-2 gap-2 pb-2">
                 <div>
-                  <label className="text-[10px] text-fg-tertiary font-medium">Pre-run Script</label>
+                  <label className="text-[10px] text-fg-tertiary font-medium">{t("runner.preRunScript")}</label>
                   <textarea
                     value={preRunScript}
                     onChange={(e) => setPreRunScript(e.target.value)}
                     disabled={isRunning}
-                    placeholder="// Runs once before all iterations"
+                    placeholder={t("runner.preRunPlaceholder")}
                     className="w-full h-20 px-2 py-1 bg-bg-input border border-border-muted rounded-md text-[11px] font-mono text-fg-primary outline-none focus:border-border-focus resize-none disabled:opacity-50"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] text-fg-tertiary font-medium">Post-run Script</label>
+                  <label className="text-[10px] text-fg-tertiary font-medium">{t("runner.postRunScript")}</label>
                   <textarea
                     value={postRunScript}
                     onChange={(e) => setPostRunScript(e.target.value)}
                     disabled={isRunning}
-                    placeholder="// Runs once after all iterations"
+                    placeholder={t("runner.postRunPlaceholder")}
                     className="w-full h-20 px-2 py-1 bg-bg-input border border-border-muted rounded-md text-[11px] font-mono text-fg-primary outline-none focus:border-border-focus resize-none disabled:opacity-50"
                   />
                 </div>
@@ -472,6 +472,7 @@ function RequestResultRow({
   isSelected: boolean;
   onSelect: () => void;
 }) {
+  const { t } = useTranslation();
   const [showError, setShowError] = useState(false);
   const statusIcon = result.status === "success"
     ? <Check className="w-3.5 h-3.5 text-accent-success" />
@@ -500,7 +501,7 @@ function RequestResultRow({
                 onClick={(e) => { e.stopPropagation(); setShowError(!showError); }}
                 className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-accent-danger/15 text-accent-danger hover:bg-accent-danger/25 cursor-pointer"
               >
-                Error
+{t("runner.error")}
               </button>
             )}
           </div>

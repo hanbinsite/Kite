@@ -11,7 +11,7 @@ export type {
 export type { Collection, CollectionItem } from "@api-client/types";
 export type { Environment, Variable } from "@api-client/types";
 
-export { VariableResolver, resolveVariables, variablesToRecord } from "./environment";
+export { VariableResolver, resolveVariables, variablesToRecord, resolveEnvironmentVariables } from "./environment";
 export type { VariableScope, ResolvedHierarchy, ResolvedHierarchyFolder } from "./environment";
 
 export { useUIStore, useTabStore } from "./navigation";

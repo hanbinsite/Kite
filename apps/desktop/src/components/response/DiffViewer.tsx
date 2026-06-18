@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 interface DiffLine {
   type: "added" | "removed" | "unchanged";
@@ -61,6 +62,7 @@ interface DiffViewerProps {
 }
 
 export function DiffViewer({ previous, current }: DiffViewerProps) {
+  const { t } = useTranslation();
   const prevFormatted = useMemo(() => formatJson(previous), [previous]);
   const currFormatted = useMemo(() => formatJson(current), [current]);
   const isBothJson = useMemo(() => {
@@ -91,8 +93,8 @@ export function DiffViewer({ previous, current }: DiffViewerProps) {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-3 h-[28px] px-3 border-b border-border-muted shrink-0 text-[10px]">
-        <span className="text-accent-success">+{addedCount} added</span>
-        <span className="text-accent-danger">-{removedCount} removed</span>
+        <span className="text-accent-success">+{addedCount} {t("response.added")}</span>
+        <span className="text-accent-danger">-{removedCount} {t("response.removed")}</span>
       </div>
       <div className="flex-1 overflow-auto font-mono text-[11px] leading-[1.6]">
         {diff.map((line, i) => (

@@ -167,12 +167,12 @@ mod integration_tests {
         let config = HttpRequestConfig {
             id: "t".into(),
             method: "GET".into(),
-            url: "http://127.0.0.1:19999/nonexistent".into(),
+            url: "http://203.0.113.1:19999/nonexistent".into(),
             headers: vec![],
             params: vec![],
             body: None,
             auth: None,
-            settings: RequestSettings::default(),
+            settings: RequestSettings { timeout_ms: 500, ..Default::default() },
         };
         let client = build_client(&config.settings).unwrap();
         let result = client.get(&config.url).send().await;

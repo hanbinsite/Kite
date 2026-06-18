@@ -19,8 +19,11 @@ pub mod mqtt;
 #[cfg(test)]
 mod mqtt_test;
 pub mod grpc;
+pub mod grpc_stub;
 #[cfg(test)]
 mod grpc_test;
+#[cfg(test)]
+mod grpc_integration_test;
 pub mod mock;
 #[cfg(test)]
 mod mock_test;

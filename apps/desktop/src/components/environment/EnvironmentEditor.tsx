@@ -49,6 +49,7 @@ function ensureEmptyRow(items: KeyValue[]): KeyValue[] {
 export function EnvironmentEditor({ environmentId, isOpen, onClose }: EnvironmentEditorProps) {
   const { t } = useTranslation();
   const environment = useEnvironmentStore((s) => s.environments.find((e) => e.id === environmentId));
+  const allEnvironments = useEnvironmentStore((s) => s.environments);
   const updateEnvironment = useEnvironmentStore((s) => s.updateEnvironment);
   const persistEnvironment = useEnvironmentStore((s) => s.persistEnvironment);
 
@@ -56,6 +57,7 @@ export function EnvironmentEditor({ environmentId, isOpen, onClose }: Environmen
   const [envType, setEnvType] = useState<"dev" | "staging" | "production" | undefined>(undefined);
   const [variables, setVariables] = useState<KeyValue[]>([]);
   const [nameError, setNameError] = useState("");
+  const [parentId, setParentId] = useState<string>("");
 
   useEffect(() => {
     if (environment && isOpen) {
@@ -63,6 +65,7 @@ export function EnvironmentEditor({ environmentId, isOpen, onClose }: Environmen
       setEnvType(environment.envType);
       setVariables(ensureEmptyRow(variablesToKv(environment.variables)));
       setNameError("");
+      setParentId(environment.parent_id ?? "");
     }
   }, [environment, isOpen]);
 
@@ -78,6 +81,7 @@ export function EnvironmentEditor({ environmentId, isOpen, onClose }: Environmen
       name: name.trim(),
       envType,
       variables: kvToVariables(variables),
+      parent_id: parentId || undefined,
     });
 
     // 持���化
@@ -169,12 +173,33 @@ export function EnvironmentEditor({ environmentId, isOpen, onClose }: Environmen
                 </div>
               </div>
 
+              {/* Parent Environment */}
+              <div className="flex flex-col gap-2">
+                <label className="font-sans text-[11px] font-semibold text-fg-secondary">
+                  Inherits from
+                </label>
+                <select
+                  value={parentId}
+                  onChange={(e) => setParentId(e.target.value)}
+                  className="w-full h-[32px] px-3 bg-bg-input border border-border-muted rounded-md font-sans text-[13px] text-fg-primary cursor-pointer outline-none focus:border-border-focus"
+                >
+                  <option value="">None</option>
+                  {allEnvironments
+                    .filter((e) => e.id !== environmentId)
+                    .map((e) => (
+                      <option key={e.id} value={e.id}>
+                        {e.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
               {/* Variables */}
               <div className="flex flex-col gap-2">
                 <label className="font-sans text-[11px] font-semibold text-fg-secondary">
                   {t("settings.environments.variablesLabel")}
                 </label>
-                <div className="border border-border-muted rounded-md overflow-hidden h-[280px]">
+                <div className="border border-border-muted rounded-md overflow-hidden h-[240px]">
                   <KeyValueEditor
                     items={variables}
                     onChange={handleVariablesChange}

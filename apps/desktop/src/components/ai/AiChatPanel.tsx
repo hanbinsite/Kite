@@ -192,7 +192,7 @@ export function AiChatPanel() {
           <button
             onClick={() => setShowMcpTools(!showMcpTools)}
             className={`p-1 rounded cursor-pointer transition-colors ${showMcpTools ? "text-brand bg-brand/10" : "text-fg-tertiary hover:text-fg-primary hover:bg-bg-hover"}`}
-            title="MCP Tools"
+            title={t("ai.mcpTools")}
           >
             <Wrench className="w-3 h-3" />
           </button>
@@ -277,7 +277,7 @@ export function AiChatPanel() {
               <button
                 onClick={() => navigator.clipboard.writeText(msg.content)}
                 className="p-0.5 rounded hover:bg-bg-hover text-fg-tertiary hover:text-fg-primary transition-colors cursor-pointer"
-                title="Copy"
+                title={t("ai.copy")}
               >
                 <Copy className="w-3 h-3" />
               </button>
@@ -285,7 +285,7 @@ export function AiChatPanel() {
                 <button
                   onClick={() => { setInput(""); if (activeProviderId) useChatStore.getState().sendMessage(sessionId, activeProviderId, { role: "user", content: "Please retry the previous action. Return a valid JSON action in a ```json code block." }, buildContextMsgs()); }}
                   className="p-0.5 rounded hover:bg-bg-hover text-fg-tertiary hover:text-fg-primary transition-colors cursor-pointer"
-                  title="Retry"
+                  title={t("ai.retry")}
                 >
                   <RotateCw className="w-3 h-3" />
                 </button>

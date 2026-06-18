@@ -228,4 +228,5 @@ export interface Environment {
   variables: Variable[];
   isActive: boolean;
   envType?: "dev" | "staging" | "production";
+  parent_id?: string;
 }

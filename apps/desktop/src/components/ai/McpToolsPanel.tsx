@@ -2,14 +2,16 @@ import { useState } from "react";
 import { Wrench, ChevronDown, ChevronRight, Loader2, Play, Code, AlertCircle } from "lucide-react";
 import { useProviderStore, callMcpTool } from "@api-client/core/ai";
 import type { McpToolInfo } from "@api-client/core/ai";
+import { useTranslation } from "react-i18next";
 
 function SchemaParams({ schema }: { schema: Record<string, unknown> }) {
+  const { t } = useTranslation();
   const properties = (schema.properties ?? {}) as Record<string, { type?: string; description?: string }>;
   const required = (schema.required ?? []) as string[];
   const entries = Object.entries(properties);
 
   if (entries.length === 0) {
-    return <span className="text-[10px] text-fg-tertiary italic">No parameters</span>;
+    return <span className="text-[10px] text-fg-tertiary italic">{t("ai.noParameters")}</span>;
   }
 
   return (
@@ -34,6 +36,7 @@ function SchemaParams({ schema }: { schema: Record<string, unknown> }) {
 }
 
 function ToolCard({ tool }: { tool: McpToolInfo }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [showRunner, setShowRunner] = useState(false);
   const [args, setArgs] = useState("{}");
@@ -80,7 +83,7 @@ function ToolCard({ tool }: { tool: McpToolInfo }) {
             if (!expanded) setExpanded(true);
           }}
           className="p-1 rounded hover:bg-bg-active text-fg-tertiary hover:text-brand transition-colors cursor-pointer"
-          title="Run tool"
+          title={t("ai.runTool")}
         >
           <Play className="w-3 h-3" />
         </button>
@@ -89,13 +92,13 @@ function ToolCard({ tool }: { tool: McpToolInfo }) {
       {expanded && (
         <div className="px-3 pb-2 space-y-2 border-t border-border-default pt-2">
           <div>
-            <div className="text-[9px] text-fg-tertiary uppercase tracking-wider mb-1">Parameters</div>
+            <div className="text-[9px] text-fg-tertiary uppercase tracking-wider mb-1">{t("ai.parameters")}</div>
             <SchemaParams schema={tool.inputSchema} />
           </div>
 
           {showRunner && (
             <div className="space-y-2">
-              <div className="text-[9px] text-fg-tertiary uppercase tracking-wider">Arguments (JSON)</div>
+              <div className="text-[9px] text-fg-tertiary uppercase tracking-wider">{t("ai.argumentsJson")}</div>
               <textarea
                 value={args}
                 onChange={(e) => setArgs(e.target.value)}
@@ -113,7 +116,7 @@ function ToolCard({ tool }: { tool: McpToolInfo }) {
                 ) : (
                   <Play className="w-3 h-3" />
                 )}
-                Run
+{t("ai.run")}
               </button>
 
               {error && (
@@ -137,6 +140,7 @@ function ToolCard({ tool }: { tool: McpToolInfo }) {
 }
 
 export function McpToolsPanel() {
+  const { t } = useTranslation();
   const mcpTools = useProviderStore((s) => s.mcpTools);
   const loadMcpTools = useProviderStore((s) => s.loadMcpTools);
   const [loading, setLoading] = useState(false);
@@ -152,7 +156,7 @@ export function McpToolsPanel() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <Wrench className="w-3.5 h-3.5 text-brand" />
-          <span className="text-[11px] font-semibold text-fg-primary">MCP Tools</span>
+          <span className="text-[11px] font-semibold text-fg-primary">{t("ai.mcpTools")}</span>
           {mcpTools.length > 0 && (
             <span className="text-[10px] text-fg-tertiary">({mcpTools.length})</span>
           )}
@@ -161,7 +165,7 @@ export function McpToolsPanel() {
           onClick={handleRefresh}
           disabled={loading}
           className="p-1 rounded hover:bg-bg-hover text-fg-tertiary hover:text-fg-primary transition-colors cursor-pointer disabled:opacity-50"
-          title="Refresh tools"
+          title={t("ai.refreshTools")}
         >
           <Loader2 className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
         </button>
@@ -169,7 +173,7 @@ export function McpToolsPanel() {
 
       {mcpTools.length === 0 ? (
         <div className="text-[10px] text-fg-tertiary text-center py-4">
-          No MCP tools loaded. Click refresh to load built-in tools (create_request, send_request, etc.).
+          {t("ai.noMcpTools")}
         </div>
       ) : (
         <div className="space-y-1">

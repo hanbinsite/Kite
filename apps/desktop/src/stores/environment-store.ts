@@ -38,6 +38,7 @@ function toIpcEnv(env: Environment): IpcEnvironmentFile {
     name: env.name,
     variables: env.variables.map((v) => ({ key: v.key, value: v.value, enabled: v.enabled })),
     env_type: env.envType,
+    parent_id: env.parent_id,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -186,6 +187,7 @@ export const useEnvironmentStore = create<EnvironmentStore>()(
         variables: file.variables.map((v) => ({ key: v.key, value: v.value, enabled: v.enabled })),
         isActive: false,
         envType: (file.env_type as Environment["envType"]) ?? undefined,
+        parent_id: file.parent_id,
       });
           } catch {
             // skip broken env files

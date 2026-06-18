@@ -1,4 +1,5 @@
 import type { Variable } from "./types";
+import type { Environment } from "@api-client/types";
 
 export interface VariableScope {
     local?: Record<string, string>;
@@ -140,4 +141,30 @@ export function variablesToRecord(variables: Variable[]): Record<string, string>
         }
     }
     return record;
+}
+
+const MAX_INHERITANCE_DEPTH = 10;
+
+export function resolveEnvironmentVariables(
+    envId: string,
+    allEnvs: Environment[],
+    visited: Set<string> = new Set(),
+    depth: number = 0,
+): Record<string, string> {
+    if (depth > MAX_INHERITANCE_DEPTH) return {};
+    if (visited.has(envId)) return {};
+
+    const env = allEnvs.find((e) => e.id === envId);
+    if (!env) return {};
+
+    visited.add(envId);
+
+    let parentVars: Record<string, string> = {};
+    if (env.parent_id && env.parent_id !== envId) {
+        parentVars = resolveEnvironmentVariables(env.parent_id, allEnvs, visited, depth + 1);
+    }
+
+    const ownVars = variablesToRecord(env.variables);
+
+    return { ...parentVars, ...ownVars };
 }

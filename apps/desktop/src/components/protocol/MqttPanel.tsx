@@ -9,9 +9,9 @@ interface MqttPanelProps {
 }
 
 const QOS_OPTIONS = [
-  { value: 0, label: "0 - At most once" },
-  { value: 1, label: "1 - At least once" },
-  { value: 2, label: "2 - Exactly once" },
+  { value: 0, label: "mqtt.qos0" },
+  { value: 1, label: "mqtt.qos1" },
+  { value: 2, label: "mqtt.qos2" },
 ];
 
 function StatusDot({ status }: { status: MqttConnectionStatus }) {
@@ -143,7 +143,7 @@ export function MqttPanel({ connectionId }: MqttPanelProps) {
               onChange={(e) => setSubQos(Number(e.target.value))}
               className="h-[24px] px-1 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary outline-none"
             >
-              {QOS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {QOS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
             </select>
           </div>
           <div className="flex items-center gap-2">
@@ -168,7 +168,7 @@ export function MqttPanel({ connectionId }: MqttPanelProps) {
               onChange={(e) => setPubQos(Number(e.target.value))}
               className="h-[24px] px-1 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary outline-none"
             >
-              {QOS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {QOS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
             </select>
             <button
               onClick={handlePublish}
@@ -182,13 +182,13 @@ export function MqttPanel({ connectionId }: MqttPanelProps) {
           {subscriptions.length > 0 && (
             <div className="flex items-center gap-1 flex-wrap">
               <span className="font-sans text-[10px] text-fg-tertiary">{t("mqtt.subs")}</span>
-              {subscriptions.map((t) => (
-                <span key={t} className="inline-flex items-center gap-0.5 font-mono text-[10px] px-1.5 py-0.5 bg-method-mqtt/10 text-method-mqtt rounded">
-                  {t}
+              {subscriptions.map((sub) => (
+                <span key={sub} className="inline-flex items-center gap-0.5 font-mono text-[10px] px-1.5 py-0.5 bg-method-mqtt/10 text-method-mqtt rounded">
+                  {sub}
                   <button
-              onClick={(e) => { e.preventDefault(); unsubscribe(connectionId, t); }}
+              onClick={(e) => { e.preventDefault(); unsubscribe(connectionId, sub); }}
               className="inline-flex items-center justify-center w-3 h-3 rounded-sm hover:bg-method-mqtt/20 text-method-mqtt/70 hover:text-method-mqtt cursor-pointer transition-colors"
-              title={`Unsubscribe ${t}`}
+              title={t("mqtt.unsubscribe") + " " + sub}
                   >
                     <X size={8} />
                   </button>

@@ -4,7 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { sendHttpRequest, cancelHttpRequest, downloadHttpResponse, insertHistoryEntry } from "@api-client/core/http";
 import { buildIpcAuth as buildIpcAuthUtil } from "@api-client/core/http";
 import { markStart, markEnd, VariableResolver, variablesToRecord, handleError,
-  getCollectionVariables, getFolderVariables, mergeHeaders, resolveAuth, collectPreRequestChain, collectPostResponseChain } from "@api-client/core";
+  getCollectionVariables, getFolderVariables, mergeHeaders, resolveAuth, collectPreRequestChain, collectPostResponseChain, resolveEnvironmentVariables } from "@api-client/core";
 import type { VariableScope } from "@api-client/core";
 import type { IpcHttpRequestConfig, IpcBodyConfig, IpcRequestSettings, IpcAuthConfig } from "@api-client/core/http";
 import { executeScript, type ScriptResult, type ScriptContext } from "@api-client/core/script";
@@ -426,7 +426,7 @@ export const useRequestStore = create<RequestStore>()(
       const folderVars = hierarchy ? getFolderVariables(hierarchy) : {};
 
       const envScopeVars = envStore.activeEnvironmentId
-        ? variablesToRecord(envStore.environments.find((e) => e.id === envStore.activeEnvironmentId)?.variables ?? [])
+        ? resolveEnvironmentVariables(envStore.activeEnvironmentId, envStore.environments)
         : undefined;
 
       const envScopes: VariableScope = {
@@ -620,7 +620,7 @@ export const useRequestStore = create<RequestStore>()(
         const folderVars = hierarchy ? getFolderVariables(hierarchy) : {};
 
         const envScopeVars = envStore.activeEnvironmentId
-          ? variablesToRecord(envStore.environments.find((e) => e.id === envStore.activeEnvironmentId)?.variables ?? [])
+          ? resolveEnvironmentVariables(envStore.activeEnvironmentId, envStore.environments)
           : undefined;
 
         const envScopes: VariableScope = {

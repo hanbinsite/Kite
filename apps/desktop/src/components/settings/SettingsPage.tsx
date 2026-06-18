@@ -337,7 +337,7 @@ function AiSection() {
                   <button
                     onClick={() => startEdit(p)}
                     className="h-6 w-6 flex items-center justify-center rounded hover:bg-bg-hover text-fg-tertiary hover:text-brand cursor-pointer transition-colors"
-                    title="Edit"
+                    title={t("common.edit")}
                   >
                     <Pencil className="w-3 h-3" />
                   </button>
@@ -352,7 +352,7 @@ function AiSection() {
                   <button
                     onClick={() => removeProvider(p.id)}
                     className="h-6 w-6 flex items-center justify-center rounded hover:bg-bg-hover text-fg-tertiary hover:text-accent-danger cursor-pointer transition-colors"
-                    title="Delete"
+                    title={t("common.delete")}
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
@@ -360,11 +360,11 @@ function AiSection() {
               </div>
               <div className="space-y-1 text-[11px]">
                 <div className="flex items-center gap-2">
-                  <span className="text-fg-tertiary shrink-0 w-[50px]">Model</span>
+                  <span className="text-fg-tertiary shrink-0 w-[50px]">{t("settings.ai.model")}</span>
                   <span className="font-mono text-fg-secondary">{p.model}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-fg-tertiary shrink-0 w-[50px]">URL</span>
+                  <span className="text-fg-tertiary shrink-0 w-[50px]">{t("settings.ai.url")}</span>
                   <span className="font-mono text-fg-secondary truncate">{p.baseUrl}</span>
                 </div>
               </div>
@@ -452,7 +452,7 @@ function AiSection() {
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-[10px] text-fg-tertiary">
                 <span className="text-accent-success">●</span>
-                No API key required for local Ollama
+                {t("settings.ai.noApiKeyOllama")}
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -463,7 +463,7 @@ function AiSection() {
                   }}
                   className="h-7 px-3 rounded-md border border-border-muted text-fg-secondary text-[11px] cursor-pointer hover:border-brand hover:text-brand transition-colors"
                 >
-                  Fetch Models
+{t("settings.ai.fetchModels")}
                 </button>
                 {ollamaModels.length > 0 && (
                   <select
@@ -471,7 +471,7 @@ function AiSection() {
                     onChange={(e) => setNewModel(e.target.value)}
                     className="flex-1 h-8 px-3 bg-bg-input border border-border-muted rounded-md text-[12px] text-fg-primary outline-none focus:border-border-focus cursor-pointer"
                   >
-                    <option value="">Select a model...</option>
+                    <option value="">{t("settings.ai.selectModel")}</option>
                     {ollamaModels.map((m) => (
                       <option key={m} value={m}>{m}</option>
                     ))}
@@ -479,7 +479,7 @@ function AiSection() {
                 )}
                 {ollamaModels.length === 0 && (
                   <span className="text-[10px] text-fg-tertiary">
-                    {newBaseUrl ? "Click Fetch Models to discover models" : "Enter base URL first"}
+                    {newBaseUrl ? t("settings.ai.clickFetchModels") : t("settings.ai.enterBaseUrl")}
                   </span>
                 )}
               </div>
@@ -523,26 +523,27 @@ function AiSection() {
 }
 
 function TestResultDialog({ providerName, result, onClose }: { providerName: string; result: string; onClose: () => void }) {
+  const { t } = useTranslation();
   const isSuccess = result.startsWith("Connected");
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div className="bg-bg-surface border border-border-default rounded-lg shadow-2xl w-[400px] max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 py-3 border-b border-border-default">
-          <span className="font-sans text-[13px] font-semibold text-fg-primary">Test Connection</span>
+          <span className="font-sans text-[13px] font-semibold text-fg-primary">{t("settings.ai.testConnection")}</span>
           <button onClick={onClose} className="p-1 rounded hover:bg-bg-hover text-fg-tertiary hover:text-fg-primary cursor-pointer transition-colors">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
         <div className="px-4 py-4 space-y-3">
           <div className="flex items-center gap-2">
-            <span className="text-[12px] text-fg-secondary">Provider:</span>
+            <span className="text-[12px] text-fg-secondary">{t("settings.ai.providerLabel")}</span>
             <span className="text-[12px] text-fg-primary font-medium">{providerName}</span>
           </div>
           <div className={`p-3 rounded-md border ${isSuccess ? "bg-accent-success/10 border-accent-success/20" : "bg-accent-danger/10 border-accent-danger/20"}`}>
             <div className="flex items-center gap-2 mb-1">
               <div className={`w-2 h-2 rounded-full ${isSuccess ? "bg-accent-success" : "bg-accent-danger"}`} />
               <span className={`text-[12px] font-medium ${isSuccess ? "text-accent-success" : "text-accent-danger"}`}>
-                {isSuccess ? "Connection Successful" : "Connection Failed"}
+                {isSuccess ? t("settings.ai.connectionSuccess") : t("settings.ai.connectionFailed")}
               </span>
             </div>
             <p className="text-[11px] text-fg-secondary whitespace-pre-wrap">{result}</p>
@@ -550,7 +551,7 @@ function TestResultDialog({ providerName, result, onClose }: { providerName: str
         </div>
         <div className="px-4 py-3 border-t border-border-default flex justify-end">
           <button onClick={onClose} className="h-8 px-4 rounded-md bg-fg-primary/10 text-fg-primary text-[12px] font-medium cursor-pointer hover:bg-fg-primary/20 transition-colors">
-            Close
+            {t("common.close")}
           </button>
         </div>
       </div>

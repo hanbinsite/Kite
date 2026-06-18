@@ -7,6 +7,8 @@ pub mod proxy;
 mod ts_export;
 #[cfg(test)]
 pub mod test_utils;
+#[cfg(test)]
+mod crypto_integration_test;
 
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Runtime};

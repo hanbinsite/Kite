@@ -613,23 +613,23 @@ const commitEdit = () => {
                 <div className="my-1 border-t border-border-muted" />
                 <button onClick={() => { openTab({ name: "WebSocket", method: "GET", url: "ws://localhost:8080", protocol: "websocket" }); setNewMenuOpen(false); }} className="w-full px-3 py-1.5 text-left text-[13px] text-fg-primary hover:bg-bg-hover flex items-center gap-2">
                   <span className="text-brand font-mono text-[10px] w-8">WS</span>
-                  WebSocket
+{t("sidebar.webSocket")}
                 </button>
                 <button onClick={() => { openTab({ name: "SSE", method: "GET", url: "https://example.com/events", protocol: "sse" }); setNewMenuOpen(false); }} className="w-full px-3 py-1.5 text-left text-[13px] text-fg-primary hover:bg-bg-hover flex items-center gap-2">
                   <span className="text-brand font-mono text-[10px] w-8">SSE</span>
-                  Server-Sent Events
+                  {t("sidebar.sse")}
                 </button>
                 <button onClick={() => { openTab({ name: "MQTT", method: "GET", url: "mqtt://localhost:1883", protocol: "mqtt" }); setNewMenuOpen(false); }} className="w-full px-3 py-1.5 text-left text-[13px] text-fg-primary hover:bg-bg-hover flex items-center gap-2">
                   <span className="text-brand font-mono text-[10px] w-8">MQTT</span>
-                  MQTT
+                  {t("sidebar.mqtt")}
                 </button>
                 <button onClick={() => { openTab({ name: "gRPC", method: "POST", url: "http://localhost:50051", protocol: "grpc" }); setNewMenuOpen(false); }} className="w-full px-3 py-1.5 text-left text-[13px] text-fg-primary hover:bg-bg-hover flex items-center gap-2">
                   <span className="text-brand font-mono text-[10px] w-8">gRPC</span>
-                  gRPC
+                  {t("sidebar.grpc")}
                 </button>
                 <button onClick={() => { openTab({ name: "Mock Server", method: "GET", url: "", protocol: "mock" }); setNewMenuOpen(false); }} className="w-full px-3 py-1.5 text-left text-[13px] text-fg-primary hover:bg-bg-hover flex items-center gap-2">
                   <span className="text-brand font-mono text-[10px] w-8">MOCK</span>
-                  Mock Server
+                  {t("sidebar.mockServer")}
                 </button>
               </div>
             </>

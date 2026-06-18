@@ -242,6 +242,7 @@ export interface IpcEnvironmentFile {
   name: string;
   variables: { key: string; value: string; enabled: boolean }[];
   env_type?: string;
+  parent_id?: string;
   created_at: string;
   updated_at: string;
 }

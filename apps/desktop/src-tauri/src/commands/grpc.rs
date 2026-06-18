@@ -190,6 +190,33 @@ pub async fn send_grpc_request(
     let grpc_path = format!("/{}/{}", config.service_name, config.method_name);
     let grpc_body = encode_grpc_message(&dynamic_msg);
 
+    // Phase 2: Try stub-based execution first
+    if let Ok(Some(stub_response_bytes)) = crate::commands::grpc_stub::try_stub_call(
+        &config.url,
+        &config.service_name,
+        &config.method_name,
+        &grpc_body,
+    ).await {
+        let time_ms = start.elapsed().as_millis() as u64;
+        let body = match DynamicMessage::decode(method.output().clone(), stub_response_bytes.as_slice()) {
+            Ok(msg) => dynamic_msg_to_json(&msg),
+            Err(_) => String::from_utf8_lossy(&stub_response_bytes).to_string(),
+        };
+        let _ = app.emit("grpc-response", serde_json::json!({
+            "requestId": config.request_id,
+            "status": "success",
+            "path": "stub",
+        }));
+        return Ok(GrpcResponse {
+            request_id: config.request_id,
+            status: "ok".to_string(),
+            headers: Vec::new(),
+            body,
+            time_ms,
+        });
+    }
+    // Fall through to dynamic path
+
     // Use tonic Channel for HTTP/2 transport
     let mut channel = create_grpc_channel(&config.url, config.timeout_ms).await?;
 

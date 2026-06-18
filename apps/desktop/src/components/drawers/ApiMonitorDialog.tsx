@@ -50,7 +50,7 @@ export function ApiMonitorDialog({ open, onOpenChange }: ApiMonitorDialogProps) 
           <div className="flex items-center justify-between h-[40px] px-4 border-b border-border-muted shrink-0">
             <div className="flex items-center gap-2">
               <Activity className="w-4 h-4 text-brand" />
-              <Dialog.Title className="text-sm font-semibold text-fg-primary">{t("monitor.title") || "API Monitor"}</Dialog.Title>
+              <Dialog.Title className="text-sm font-semibold text-fg-primary">{t("monitor.title")}</Dialog.Title>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -58,7 +58,7 @@ export function ApiMonitorDialog({ open, onOpenChange }: ApiMonitorDialogProps) 
                 className="flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium text-brand hover:bg-brand/10 cursor-pointer transition-colors"
               >
                 <Plus className="w-3 h-3" />
-                {t("monitor.addCurrent") || "Add Current"}
+                {t("monitor.addCurrent")}
               </button>
               <Dialog.Close asChild>
                 <button className="p-1 hover:bg-bg-hover rounded cursor-pointer">
@@ -72,7 +72,7 @@ export function ApiMonitorDialog({ open, onOpenChange }: ApiMonitorDialogProps) 
             {monitors.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-fg-tertiary text-sm gap-2">
                 <Activity className="w-8 h-8 opacity-30" />
-                <p>{t("monitor.empty") || "No monitors. Add a request to start monitoring."}</p>
+                <p>{t("monitor.empty")}</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -95,7 +95,7 @@ export function ApiMonitorDialog({ open, onOpenChange }: ApiMonitorDialogProps) 
                           }`}
                         >
                           {m.enabled ? <Square className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-                          {m.enabled ? "Stop" : "Start"}
+                          {m.enabled ? t("monitor.stop") : t("monitor.start")}
                         </button>
                         <button
                           onClick={() => removeMonitor(m.id)}
@@ -105,13 +105,13 @@ export function ApiMonitorDialog({ open, onOpenChange }: ApiMonitorDialogProps) 
                         </button>
                       </div>
                       <div className="flex items-center gap-3 text-[10px] text-fg-tertiary">
-                        <span>Interval: {(m.intervalMs / 1000).toFixed(0)}s</span>
-                        <span>Checks: {mResults.length}</span>
-                        <span className="text-accent-success">Pass: {successCount}</span>
-                        <span className="text-accent-danger">Fail: {mResults.length - successCount}</span>
+                        <span>{t("monitor.interval")} {(m.intervalMs / 1000).toFixed(0)}s</span>
+                        <span>{t("monitor.checks")} {mResults.length}</span>
+                        <span className="text-accent-success">{t("monitor.pass")} {successCount}</span>
+                        <span className="text-accent-danger">{t("monitor.fail")} {mResults.length - successCount}</span>
                         {lastResult && (
                           <span className={lastResult.success ? "text-accent-success" : "text-accent-danger"}>
-                            Last: {lastResult.status || "ERR"} ({lastResult.duration}ms)
+                            {t("monitor.last")} {lastResult.status || t("monitor.err")} ({lastResult.duration}ms)
                           </span>
                         )}
                       </div>
