@@ -2526,6 +2526,7 @@ dependencies = [
  "hyper-util",
  "jsonwebtoken",
  "keyring",
+ "open",
  "prost",
  "prost-reflect",
  "prost-types",
@@ -2560,6 +2561,7 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "ts-rs",
+ "url",
  "uuid",
  "wiremock",
 ]

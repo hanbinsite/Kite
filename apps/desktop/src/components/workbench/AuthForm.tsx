@@ -1,6 +1,13 @@
 import { useTranslation } from "react-i18next";
 import type { AuthConfig } from "@api-client/types";
 import { createAuthConfig } from "../../utils/auth";
+import { useState, useRef, useEffect } from "react";
+import { listen } from "@tauri-apps/api/event";
+import {
+  startOAuth2Flow,
+  exchangeOAuth2Token,
+} from "@api-client/core";
+import type { OAuth2CallbackPayload } from "@api-client/core";
 
 interface AuthFormProps {
   authConfig: AuthConfig;
@@ -115,7 +122,87 @@ function renderAuthFields(auth: AuthConfig, onChange: (auth: AuthConfig) => void
       );
     }
     case "oauth2": {
-      const config = auth.config as { accessToken: string; tokenType: string };
+      const config = auth.config as {
+        accessToken: string;
+        tokenType: string;
+        refreshToken?: string;
+        authorizationUrl?: string;
+        tokenUrl?: string;
+        clientId?: string;
+        clientSecret?: string;
+        scope?: string;
+        redirectUri?: string;
+      };
+      const [showFlowDialog, setShowFlowDialog] = useState(false);
+      const [flowStatus, setFlowStatus] = useState<"idle" | "waiting" | "success" | "error">("idle");
+      const [flowError, setFlowError] = useState("");
+      const listenerRef = useRef<(() => void) | null>(null);
+
+      useEffect(() => {
+        return () => {
+          if (listenerRef.current) listenerRef.current();
+        };
+      }, []);
+
+      const handleStartFlow = async () => {
+        if (!config.authorizationUrl || !config.tokenUrl || !config.clientId) return;
+        setFlowStatus("waiting");
+        setFlowError("");
+
+        try {
+          const result = await startOAuth2Flow({
+            authorizationUrl: config.authorizationUrl,
+            tokenUrl: config.tokenUrl,
+            clientId: config.clientId,
+            clientSecret: config.clientSecret,
+            scope: config.scope,
+            redirectUri: config.redirectUri,
+          });
+
+          const codeVerifierLocal = result.codeVerifier;
+
+          const unlisten = await listen<OAuth2CallbackPayload>("oauth-callback", async (event) => {
+            const { code, success, error } = event.payload;
+            if (!success || !code) {
+              setFlowStatus("error");
+              setFlowError(error ?? "Authorization failed");
+              return;
+            }
+
+            try {
+              const tokenResult = await exchangeOAuth2Token({
+                tokenUrl: config.tokenUrl!,
+                clientId: config.clientId!,
+                clientSecret: config.clientSecret,
+                code,
+                codeVerifier: codeVerifierLocal,
+                redirectUri: config.redirectUri,
+              });
+
+              onChange({
+                type: "oauth2",
+                config: {
+                  ...config,
+                  accessToken: tokenResult.accessToken,
+                  tokenType: tokenResult.tokenType ?? config.tokenType,
+                  refreshToken: tokenResult.refreshToken ?? config.refreshToken,
+                },
+              });
+              setFlowStatus("success");
+            } catch (e: unknown) {
+              const err = e as { detail?: string; message?: string };
+              setFlowStatus("error");
+              setFlowError(err?.detail ?? err?.message ?? "Token exchange failed");
+            }
+          });
+          listenerRef.current = unlisten;
+        } catch (e: unknown) {
+          const err = e as { detail?: string; message?: string };
+          setFlowStatus("error");
+          setFlowError(err?.detail ?? err?.message ?? "Failed to start OAuth flow");
+        }
+      };
+
       return (
         <>
           <div className="auth-field flex flex-col gap-[6px]">
@@ -138,6 +225,129 @@ function renderAuthFields(auth: AuthConfig, onChange: (auth: AuthConfig) => void
               className="auth-field-input w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans"
             />
           </div>
+          <div className="auth-field flex flex-col gap-[6px]">
+            <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.refreshToken")}</label>
+            <input
+              type="password"
+              value={config.refreshToken ?? ""}
+              onChange={(e) => onChange({ type: "oauth2", config: { ...config, refreshToken: e.target.value } })}
+              placeholder={t("auth.refreshTokenPlaceholder")}
+              className="auth-field-input password w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus placeholder:text-fg-tertiary placeholder:font-sans pr-[36px]"
+            />
+          </div>
+
+          <div className="auth-field flex flex-col gap-[6px] pt-1">
+            <button
+              type="button"
+              onClick={() => setShowFlowDialog(true)}
+              className="oauth-get-token-btn h-[32px] px-3 bg-brand text-white rounded-md font-sans text-[12px] font-medium hover:bg-brand/80 transition-colors"
+            >
+              {t("auth.oauth2GetToken")}
+            </button>
+          </div>
+
+          {showFlowDialog && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+              <div className="oauth-flow-dialog w-[480px] max-h-[80vh] bg-bg-surface border border-border-muted rounded-lg p-5 flex flex-col gap-3 overflow-y-auto">
+                <div className="flex items-center justify-between">
+                  <span className="font-sans text-[13px] font-semibold text-fg-primary">{t("auth.oauth2GetToken")}</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowFlowDialog(false)}
+                    className="text-fg-tertiary hover:text-fg-primary text-[16px] leading-none"
+                  >
+                    &times;
+                  </button>
+                </div>
+
+                <div className="auth-field flex flex-col gap-[6px]">
+                  <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.oauth2AuthUrl")}</label>
+                  <input
+                    type="text"
+                    value={config.authorizationUrl ?? ""}
+                    onChange={(e) => onChange({ type: "oauth2", config: { ...config, authorizationUrl: e.target.value } })}
+                    placeholder="https://example.com/oauth/authorize"
+                    className="auth-field-input w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus"
+                  />
+                </div>
+                <div className="auth-field flex flex-col gap-[6px]">
+                  <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.oauth2TokenUrl")}</label>
+                  <input
+                    type="text"
+                    value={config.tokenUrl ?? ""}
+                    onChange={(e) => onChange({ type: "oauth2", config: { ...config, tokenUrl: e.target.value } })}
+                    placeholder="https://example.com/oauth/token"
+                    className="auth-field-input w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus"
+                  />
+                </div>
+                <div className="auth-field flex flex-col gap-[6px]">
+                  <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.oauth2ClientId")}</label>
+                  <input
+                    type="text"
+                    value={config.clientId ?? ""}
+                    onChange={(e) => onChange({ type: "oauth2", config: { ...config, clientId: e.target.value } })}
+                    placeholder={t("auth.oauth2ClientIdPlaceholder")}
+                    className="auth-field-input w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus"
+                  />
+                </div>
+                <div className="auth-field flex flex-col gap-[6px]">
+                  <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.oauth2ClientSecret")}</label>
+                  <input
+                    type="password"
+                    value={config.clientSecret ?? ""}
+                    onChange={(e) => onChange({ type: "oauth2", config: { ...config, clientSecret: e.target.value } })}
+                    placeholder={t("auth.optionalPlaceholder")}
+                    className="auth-field-input password w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus pr-[36px]"
+                  />
+                </div>
+                <div className="auth-field flex flex-col gap-[6px]">
+                  <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.scope")}</label>
+                  <input
+                    type="text"
+                    value={config.scope ?? ""}
+                    onChange={(e) => onChange({ type: "oauth2", config: { ...config, scope: e.target.value } })}
+                    placeholder="openid profile email"
+                    className="auth-field-input w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus"
+                  />
+                </div>
+                <div className="auth-field flex flex-col gap-[6px]">
+                  <label className="auth-field-label font-sans text-[11px] font-semibold text-fg-secondary">{t("auth.oauth2RedirectUri")}</label>
+                  <input
+                    type="text"
+                    value={config.redirectUri ?? "http://localhost:16111/callback"}
+                    onChange={(e) => onChange({ type: "oauth2", config: { ...config, redirectUri: e.target.value } })}
+                    placeholder="http://localhost:16111/callback"
+                    className="auth-field-input w-full h-[32px] px-[10px] bg-bg-input border border-border-muted rounded-md font-mono text-[12px] text-fg-primary outline-none focus:border-border-focus"
+                  />
+                </div>
+
+                {flowStatus === "idle" && (
+                  <button
+                    type="button"
+                    onClick={handleStartFlow}
+                    className="oauth-authorize-btn h-[36px] px-4 bg-brand text-white rounded-md font-sans text-[13px] font-medium hover:bg-brand/80 transition-colors"
+                  >
+                    {t("auth.oauth2Authorize")}
+                  </button>
+                )}
+                {flowStatus === "waiting" && (
+                  <div className="oauth-flow-status font-sans text-[12px] text-accent-info bg-accent-info/8 p-2 rounded-md text-center">
+                    {t("auth.oauth2WaitingCallback")}
+                  </div>
+                )}
+                {flowStatus === "success" && (
+                  <div className="oauth-flow-status font-sans text-[12px] text-accent-success bg-accent-success/8 p-2 rounded-md text-center">
+                    {t("auth.oauth2Success")}
+                  </div>
+                )}
+                {flowStatus === "error" && (
+                  <div className="oauth-flow-status font-sans text-[12px] text-accent-danger bg-accent-danger/8 p-2 rounded-md">
+                    {flowError}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </>
       );
     }

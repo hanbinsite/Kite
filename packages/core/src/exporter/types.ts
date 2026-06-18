@@ -10,6 +10,8 @@ export interface ExportRequest {
   name: string;
   method: string;
   url: string;
+  description?: string;
+  folderGroup?: string;
   headers: { key: string; value: string; disabled: boolean }[];
   params: { key: string; value: string; disabled: boolean }[];
   body?: {
@@ -28,8 +30,15 @@ export interface ExportRequest {
   };
 }
 
+export interface ExportFolder {
+  name: string;
+  description?: string;
+  items: ExportRequest[];
+}
+
 export interface ExportCollection {
   name: string;
   requests: ExportRequest[];
+  folders?: ExportFolder[];
   variables?: { key: string; value: string }[];
 }

@@ -58,6 +58,8 @@ aes-gcm = "0.10"
 keyring = "3"
 ts-rs = "10"
 jsonwebtoken = "9"
+open = "5"
+url = "2"
 
 [dev-dependencies]
 tempfile = "3"

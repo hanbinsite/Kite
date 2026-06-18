@@ -36,6 +36,17 @@ export type { ImportResult, ImportRequest, ImportFormat } from "./importer";
 export { exportCollection, toPostmanCollection, toCurlCommands, toHar } from "./exporter";
 export type { ExportFormat, ExportOptions, ExportRequest, ExportCollection } from "./exporter";
 
+export {
+  startOAuth2Flow,
+  exchangeOAuth2Token,
+} from "./http";
+export type {
+  OAuth2FlowConfig,
+  OAuth2StartResult,
+  OAuth2TokenResult,
+  OAuth2CallbackPayload,
+} from "./http";
+
 export type {
   AiProviderConfig,
   AiChatRequest,

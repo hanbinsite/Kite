@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { X, Plus, Loader2 } from "lucide-react";
 import { useTabStore } from "@api-client/core";
-import { useRequestStore, useWsStore, useSseStore, useMqttStore } from "../../stores";
+import { useRequestStore, useWsStore, useSseStore, useMqttStore, useGrpcStore } from "../../stores";
 import { modKeyLabel } from "../../utils/platform";
 import { EnvSelector } from "../url-bar/EnvSelector";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
@@ -21,6 +21,7 @@ export function TabBar() {
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; tabId: string } | null>(null);
   const [confirmClose, setConfirmClose] = useState<{ tabId: string; source: "close" | "closeOthers" | "closeAll" } | null>(null);
+  const [confirmActiveConnection, setConfirmActiveConnection] = useState<{ tabId: string; source: "close" | "closeOthers" | "closeAll" } | null>(null);
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -28,6 +29,18 @@ export function TabBar() {
     window.addEventListener("click", close);
     return () => window.removeEventListener("click", close);
   }, [contextMenu]);
+
+  const hasActiveConnection = (tabId: string) => {
+    const wsStore = useWsStore.getState();
+    const sseStore = useSseStore.getState();
+    const mqttStore = useMqttStore.getState();
+    const grpcStore = useGrpcStore.getState();
+    const wsActive = wsStore.connections[tabId]?.status === "connected" || wsStore.connections[tabId]?.status === "connecting";
+    const sseActive = sseStore.connections[tabId]?.status === "connected" || sseStore.connections[tabId]?.status === "connecting";
+    const mqttActive = mqttStore.connections[tabId]?.status === "connected" || mqttStore.connections[tabId]?.status === "connecting";
+    const grpcActive = grpcStore.requests[tabId]?.loading;
+    return wsActive || sseActive || mqttActive || grpcActive;
+  };
 
   const forceCloseTab = (tabId: string) => {
     useWsStore.getState().disconnect(tabId);
@@ -40,9 +53,26 @@ export function TabBar() {
   const handleCloseTab = (tabId: string) => {
     if (dirtyTabs[tabId]) {
       setConfirmClose({ tabId, source: "close" });
+    } else if (hasActiveConnection(tabId)) {
+      setConfirmActiveConnection({ tabId, source: "close" });
     } else {
       forceCloseTab(tabId);
     }
+  };
+
+  const handleConfirmConnectionClose = () => {
+    if (!confirmActiveConnection) return;
+    const { tabId, source } = confirmActiveConnection;
+    if (source === "close") {
+      forceCloseTab(tabId);
+    } else if (source === "closeOthers") {
+      for (const tab of tabs) {
+        if (tab.id !== tabId) forceCloseTab(tab.id);
+      }
+    } else {
+      for (const tab of tabs) forceCloseTab(tab.id);
+    }
+    setConfirmActiveConnection(null);
   };
 
   const handleConfirmClose = () => {
@@ -93,8 +123,11 @@ export function TabBar() {
 
   const closeOtherTabs = (keepTabId: string) => {
     const hasDirty = tabs.some((t) => t.id !== keepTabId && dirtyTabs[t.id]);
+    const hasActiveConnections = tabs.some((t) => t.id !== keepTabId && hasActiveConnection(t.id));
     if (hasDirty) {
       setConfirmClose({ tabId: keepTabId, source: "closeOthers" });
+    } else if (hasActiveConnections) {
+      setConfirmActiveConnection({ tabId: keepTabId, source: "closeOthers" });
     } else {
       for (const tab of tabs) {
         if (tab.id !== keepTabId) forceCloseTab(tab.id);
@@ -104,8 +137,11 @@ export function TabBar() {
 
   const closeAllTabs = () => {
     const hasDirty = tabs.some((t) => dirtyTabs[t.id]);
+    const hasActiveConnections = tabs.some((t) => hasActiveConnection(t.id));
     if (hasDirty) {
       setConfirmClose({ tabId: tabs[0]?.id ?? "", source: "closeAll" });
+    } else if (hasActiveConnections) {
+      setConfirmActiveConnection({ tabId: tabs[0]?.id ?? "", source: "closeAll" });
     } else {
       for (const tab of tabs) forceCloseTab(tab.id);
     }
@@ -185,6 +221,17 @@ export function TabBar() {
         onConfirm={handleConfirmClose}
         onCancel={() => setConfirmClose(null)}
         onSecondary={handleSaveAndClose}
+      />
+      <ConfirmDialog
+        open={confirmActiveConnection !== null}
+        onOpenChange={(open) => { if (!open) setConfirmActiveConnection(null); }}
+        title={t("tabs.activeConnections")}
+        description={t("tabs.activeConnectionsMessage")}
+        confirmLabel={t("tabs.forceClose")}
+        cancelLabel={t("common.cancel")}
+        variant="warning"
+        onConfirm={handleConfirmConnectionClose}
+        onCancel={() => setConfirmActiveConnection(null)}
       />
     </div>
   );

@@ -175,6 +175,12 @@ export const useRunnerStore = create<RunnerStore>()(
             await executeScript({ code: config.preRunScript, context: preRunContext });
           } catch (e) {
             console.error("Pre-run script error:", e);
+            set((state) => {
+              if (state.result) {
+                state.result.failedRequests = state.result.totalRequests;
+              }
+              state.status = "error";
+            });
           }
         }
 
@@ -411,6 +417,12 @@ export const useRunnerStore = create<RunnerStore>()(
             await executeScript({ code: config.postRunScript, context: postRunContext });
           } catch (e) {
             console.error("Post-run script error:", e);
+            set((state) => {
+              if (state.result) {
+                state.result.failedRequests = state.result.totalRequests;
+              }
+              state.status = "error";
+            });
           }
         }
 

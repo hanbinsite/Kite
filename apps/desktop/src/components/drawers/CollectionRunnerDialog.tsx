@@ -472,39 +472,61 @@ function RequestResultRow({
   isSelected: boolean;
   onSelect: () => void;
 }) {
+  const [showError, setShowError] = useState(false);
   const statusIcon = result.status === "success"
     ? <Check className="w-3.5 h-3.5 text-accent-success" />
     : result.status === "failure"
       ? <XIcon className="w-3.5 h-3.5 text-accent-danger" />
       : <Minus className="w-3.5 h-3.5 text-fg-tertiary" />;
 
+  const hasError = result.error != null && result.error !== "";
+
   return (
-    <tr
-      className={`h-8 text-[11px] text-fg-secondary cursor-pointer ${isSelected ? "bg-brand/10" : "hover:bg-bg-hover"}`}
-      onClick={onSelect}
-    >
-      <td className="px-4 text-fg-tertiary">{index + 1}</td>
-      <td className="px-2 flex items-center gap-1.5">
-        {statusIcon}
-        <span className={`text-[10px] font-semibold ${result.method === "GET" ? "text-method-get" : result.method === "POST" ? "text-method-post" : result.method === "PUT" ? "text-method-post" : result.method === "DELETE" ? "text-accent-danger" : "text-fg-secondary"}`}>
-          {result.method}
-        </span>
-        <span className="text-fg-primary truncate max-w-[240px]">{result.requestName || result.url}</span>
-      </td>
-      <td className={`px-2 ${result.statusCode > 0 ? statusColor(result.statusCode) : "text-fg-tertiary"}`}>
-        {result.statusCode || "—"}
-      </td>
-      <td className="px-2">{result.time > 0 ? `${result.time}ms` : "—"}</td>
-      <td className="px-2">{result.size > 0 ? formatSize(result.size) : "—"}</td>
-      <td className="px-2 text-center">
-        {result.testResults.length > 0 ? (
-          <span>
-            <span className="text-accent-success">{result.testPassCount}</span>
-            <span className="text-fg-tertiary">/</span>
-            <span className={result.testFailCount > 0 ? "text-accent-danger" : "text-fg-tertiary"}>{result.testFailCount}</span>
-          </span>
-        ) : "—"}
-      </td>
-    </tr>
+    <>
+      <tr
+        className={`h-8 text-[11px] text-fg-secondary cursor-pointer ${isSelected ? "bg-brand/10" : "hover:bg-bg-hover"}`}
+        onClick={onSelect}
+      >
+        <td className="px-4 text-fg-tertiary">{index + 1}</td>
+        <td className="px-2">
+          <div className="flex items-center gap-1.5">
+            {statusIcon}
+            <span className={`text-[10px] font-semibold ${result.method === "GET" ? "text-method-get" : result.method === "POST" ? "text-method-post" : result.method === "PUT" ? "text-method-post" : result.method === "DELETE" ? "text-accent-danger" : "text-fg-secondary"}`}>
+              {result.method}
+            </span>
+            <span className="text-fg-primary truncate max-w-[240px]">{result.requestName || result.url}</span>
+            {hasError && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowError(!showError); }}
+                className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-accent-danger/15 text-accent-danger hover:bg-accent-danger/25 cursor-pointer"
+              >
+                Error
+              </button>
+            )}
+          </div>
+        </td>
+        <td className={`px-2 ${result.statusCode > 0 ? statusColor(result.statusCode) : "text-fg-tertiary"}`}>
+          {result.statusCode || "—"}
+        </td>
+        <td className="px-2">{result.time > 0 ? `${result.time}ms` : "—"}</td>
+        <td className="px-2">{result.size > 0 ? formatSize(result.size) : "—"}</td>
+        <td className="px-2 text-center">
+          {result.testResults.length > 0 ? (
+            <span>
+              <span className="text-accent-success">{result.testPassCount}</span>
+              <span className="text-fg-tertiary">/</span>
+              <span className={result.testFailCount > 0 ? "text-accent-danger" : "text-fg-tertiary"}>{result.testFailCount}</span>
+            </span>
+          ) : "—"}
+        </td>
+      </tr>
+      {showError && hasError && (
+        <tr className="bg-accent-danger/5">
+          <td colSpan={6} className="px-4 py-2">
+            <div className="text-[11px] font-mono text-accent-danger whitespace-pre-wrap break-all">{result.error}</div>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }

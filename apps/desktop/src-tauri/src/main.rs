@@ -115,6 +115,8 @@ commands::crypto::delete_vault_secret,
             proxy::start_proxy,
             proxy::stop_proxy,
             proxy::get_proxy_status,
+            commands::oauth::start_oauth2_authorization,
+            commands::oauth::exchange_oauth2_token,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();

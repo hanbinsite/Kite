@@ -106,6 +106,18 @@ function filterTreeByQuery(items: CollectionTreeNode[], query: string): Collecti
   }, []);
 }
 
+function countRequestItems(items: CollectionTreeNode[]): number {
+  let count = 0;
+  for (const item of items) {
+    if (item.type === "request") {
+      count++;
+    } else if (item.type === "folder") {
+      count += countRequestItems(item.items);
+    }
+  }
+  return count;
+}
+
 interface CollectionTreeItemsProps {
   items: CollectionTreeNode[];
   collectionId: string;
@@ -744,6 +756,17 @@ const commitEdit = () => {
                   onLoadRequestData={handleLoadRequestData}
                   escapeCancelled={escapeCancelled}
                 />
+            {(() => {
+              const totalCount = countRequestItems(col.items);
+              if (totalCount > 200) {
+                return (
+                  <div className="px-3 py-2 text-[11px] text-fg-tertiary italic border-t border-border-muted mt-1">
+                    {t("sidebar.largeCollectionHint", { count: totalCount })}
+                  </div>
+                );
+              }
+              return null;
+            })()}
   </div>
 )}
 {isExpanded && col.items.length === 0 && (

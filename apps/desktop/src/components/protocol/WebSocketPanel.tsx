@@ -87,6 +87,7 @@ export function WebSocketPanel({ connectionId }: WebSocketPanelProps) {
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 h-[44px] px-3 border-b border-border-muted shrink-0">
         <StatusDot status={status} />
+        <span className="text-[11px] font-medium text-fg-secondary shrink-0">{status.charAt(0).toUpperCase() + status.slice(1)}</span>
         <input
           type="text"
           value={url}

@@ -273,6 +273,58 @@ export async function graphqlIntrospect(url: string, headers?: [string, string][
   return invoke<unknown>("graphql_introspect", { url, headers: headers ?? null });
 }
 
+export interface OAuth2FlowConfig {
+  authorizationUrl: string;
+  tokenUrl: string;
+  clientId: string;
+  clientSecret?: string;
+  scope?: string;
+  redirectUri?: string;
+}
+
+export interface OAuth2StartResult {
+  state: string;
+  codeVerifier: string;
+}
+
+export interface OAuth2TokenResult {
+  accessToken: string;
+  tokenType?: string;
+  refreshToken?: string;
+  expiresIn?: number;
+}
+
+export interface OAuth2CallbackPayload {
+  code: string | null;
+  state: string;
+  success: boolean;
+  error?: string;
+}
+
+export async function startOAuth2Flow(config: OAuth2FlowConfig): Promise<OAuth2StartResult> {
+  return invoke<OAuth2StartResult>("start_oauth2_authorization", {
+    args: {
+      authorizationUrl: config.authorizationUrl,
+      tokenUrl: config.tokenUrl,
+      clientId: config.clientId,
+      clientSecret: config.clientSecret ?? null,
+      scope: config.scope ?? null,
+      redirectUri: config.redirectUri ?? null,
+    },
+  });
+}
+
+export async function exchangeOAuth2Token(config: {
+  tokenUrl: string;
+  clientId: string;
+  clientSecret?: string;
+  code: string;
+  codeVerifier: string;
+  redirectUri?: string;
+}): Promise<OAuth2TokenResult> {
+  return invoke<OAuth2TokenResult>("exchange_oauth2_token", { args: config });
+}
+
 export { useUIStore } from "../navigation";
 export type { UIStore, Theme } from "../navigation";
 

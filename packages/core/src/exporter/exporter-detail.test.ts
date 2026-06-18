@@ -88,20 +88,20 @@ describe("postman exporter", () => {
 
   it("includes request headers", () => {
     const result = toPostmanCollection(sampleCollection, options);
-    expect(result.item[0]!.request.header).toHaveLength(1);
-    expect(result.item[0]!.request.header[0]!.key).toBe("Accept");
+    expect(result.item[0]!.request!.header).toHaveLength(1);
+    expect(result.item[0]!.request!.header[0]!.key).toBe("Accept");
   });
 
   it("includes body for POST", () => {
     const result = toPostmanCollection(sampleCollection, options);
-    expect(result.item[1]!.request.body).toBeDefined();
-    expect(result.item[1]!.request.body!.raw).toBe('{"name":"Test"}');
+    expect(result.item[1]!.request!.body).toBeDefined();
+    expect(result.item[1]!.request!.body!.raw).toBe('{"name":"Test"}');
   });
 
   it("includes bearer auth", () => {
     const result = toPostmanCollection(sampleCollection, options);
-    expect(result.item[1]!.request.auth).toBeDefined();
-    expect(result.item[1]!.request.auth!.type).toBe("bearer");
+    expect(result.item[1]!.request!.auth).toBeDefined();
+    expect(result.item[1]!.request!.auth!.type).toBe("bearer");
   });
 
   it("includes variables when enabled", () => {
@@ -117,8 +117,8 @@ describe("postman exporter", () => {
 
   it("handles URL params in postman", () => {
     const result = toPostmanCollection(sampleCollection, options);
-    expect(result.item[0]!.request.url.query).toHaveLength(1);
-    expect(result.item[0]!.request.url.query![0]!.key).toBe("page");
+    expect(result.item[0]!.request!.url.query).toHaveLength(1);
+    expect(result.item[0]!.request!.url.query![0]!.key).toBe("page");
   });
 });
 

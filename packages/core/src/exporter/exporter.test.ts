@@ -135,7 +135,7 @@ describe("exporter", () => {
       expect(result.info.schema).toContain("postman");
       expect(result.item).toHaveLength(2);
       expect(result.item[0]!.name).toBe("Get Users");
-      expect(result.item[0]!.request.method).toBe("GET");
+      expect(result.item[0]!.request!.method).toBe("GET");
     });
 
     it("includes auth in postman request", () => {
@@ -153,7 +153,7 @@ describe("exporter", () => {
         ],
       };
       const result = toPostmanCollection(col, { format: "postman" });
-      expect(result.item[0]!.request.auth?.type).toBe("bearer");
+      expect(result.item[0]!.request!.auth?.type).toBe("bearer");
     });
   });
 

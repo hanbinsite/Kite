@@ -7,7 +7,7 @@ const EMPTY_CONFIGS: Record<string, Record<string, unknown>> = {
   basic: { username: "", password: "" },
   jwt: { token: "" },
   oauth1: { consumerKey: "", consumerSecret: "", token: "", tokenSecret: "", signatureMethod: "HMAC-SHA1" },
-  oauth2: { accessToken: "", tokenType: "Bearer" },
+  oauth2: { accessToken: "", tokenType: "Bearer", refreshToken: "", authorizationUrl: "", tokenUrl: "", clientId: "", clientSecret: "", scope: "", redirectUri: "" },
   awsv4: { accessKeyId: "", secretAccessKey: "", service: "", region: "" },
 };
 
