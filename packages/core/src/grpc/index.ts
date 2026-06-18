@@ -1,6 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
+export interface GrpcServiceInfo {
+  serviceName: string;
+  methods: GrpcMethodInfo[];
+}
+
 export interface GrpcMethodInfo {
   serviceName: string;
   methodName: string;
@@ -54,4 +59,10 @@ export async function onGrpcStreamMessage(
   return listen<GrpcStreamMessage>("grpc-stream-message", (event) => {
     callback(event.payload);
   });
+}
+
+export async function reflectGrpcServices(
+  url: string,
+): Promise<GrpcServiceInfo[]> {
+  return invoke<GrpcServiceInfo[]>("reflect_grpc_services", { url });
 }

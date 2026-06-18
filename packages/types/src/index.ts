@@ -167,6 +167,10 @@ export interface BasicAuth {
 export interface JWTAuth {
   token: string;
   secret?: string;
+  algorithm?: string;
+  payload?: string;
+  expirySeconds?: number;
+  prefix?: string;
 }
 
 export interface OAuth1Auth {

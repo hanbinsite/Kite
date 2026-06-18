@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import { sendHttpRequest, cancelHttpRequest, insertHistoryEntry } from "@api-client/core/http";
+import { listen } from "@tauri-apps/api/event";
+import { sendHttpRequest, cancelHttpRequest, downloadHttpResponse, insertHistoryEntry } from "@api-client/core/http";
 import { buildIpcAuth as buildIpcAuthUtil } from "@api-client/core/http";
 import { markStart, markEnd, VariableResolver, variablesToRecord, handleError,
   getCollectionVariables, getFolderVariables, mergeHeaders, resolveAuth, collectPreRequestChain, collectPostResponseChain } from "@api-client/core";
@@ -133,6 +134,17 @@ export interface RequestData {
   scripts: { preRequest?: string; postResponse?: string };
 }
 
+export interface DownloadState {
+  requestId: string;
+  totalBytes: number;
+  downloadedBytes: number;
+  percentage: number;
+  status: "downloading" | "complete" | "error";
+  filePath?: string;
+  durationMs?: number;
+  error?: string;
+}
+
 export interface RequestState {
   loadingTabs: Record<string, boolean>;
   responses: Record<string, HttpResponse>;
@@ -143,6 +155,7 @@ export interface RequestState {
   dirtyTabs: Record<string, boolean>;
   historyRefreshCounter: number;
   previousResponses: Record<string, string>;
+  downloads: Record<string, DownloadState>;
 }
 
 export interface RequestActions {
@@ -162,6 +175,7 @@ export interface RequestActions {
   setTestResults: (tabId: string, results: TestResult[]) => void;
   sendRequest: (tabId: string, method: HttpMethod, url: string) => Promise<void>;
   cancelRequest: (tabId: string) => Promise<void>;
+  downloadResponse: (tabId: string, method: HttpMethod, url: string) => Promise<void>;
   initTabData: (tabId: string, data?: Partial<RequestData>) => void;
   markDirty: (tabId: string) => void;
   clearDirty: (tabId: string) => void;
@@ -280,6 +294,7 @@ export const useRequestStore = create<RequestStore>()(
   dirtyTabs: {},
   historyRefreshCounter: 0,
   previousResponses: {},
+  downloads: {},
 
   setTabLoading: (tabId, loading) =>
     set((state) => {
@@ -572,6 +587,106 @@ export const useRequestStore = create<RequestStore>()(
       });
     },
 
+    downloadResponse: async (tabId, method, url) => {
+      const state = get();
+      if (state.loadingTabs[tabId]) return;
+
+      set((state) => {
+        state.loadingTabs[tabId] = true;
+        delete state.errors[tabId];
+      });
+
+      try {
+        const { save } = await import("@tauri-apps/plugin-dialog");
+        const filePath = await save({
+          title: "Save Download As",
+          defaultPath: "download",
+        });
+        if (!filePath) {
+          set((s) => { delete s.loadingTabs[tabId]; });
+          return;
+        }
+
+        const requestData = state.requestDataMap[tabId] || DEFAULT_REQUEST_DATA;
+        const envStore = (await import("./environment-store")).useEnvironmentStore.getState();
+        const settingsStore = (await import("./settings-store")).useSettingsStore.getState();
+        const mergedSettings = { ...requestData.settings, proxyUrl: settingsStore.proxyUrl || undefined };
+
+        const activeTab = useTabStore.getState().tabs.find((t) => t.id === tabId);
+        const requestId = activeTab?.requestId ?? tabId;
+        const hierarchy = useCollectionStore.getState().resolveRequestHierarchy(requestId);
+
+        const collectionVars = hierarchy ? getCollectionVariables(hierarchy) : {};
+        const folderVars = hierarchy ? getFolderVariables(hierarchy) : {};
+
+        const envScopeVars = envStore.activeEnvironmentId
+          ? variablesToRecord(envStore.environments.find((e) => e.id === envStore.activeEnvironmentId)?.variables ?? [])
+          : undefined;
+
+        const envScopes: VariableScope = {
+          global: variablesToRecord(envStore.globals),
+          environment: envScopeVars,
+          collection: Object.keys(collectionVars).length > 0 ? collectionVars : undefined,
+          folder: Object.keys(folderVars).length > 0 ? folderVars : undefined,
+        };
+        const resolver = new VariableResolver(envScopes);
+
+        const mergedHeaders = hierarchy
+          ? mergeHeaders(hierarchy, requestData.headers)
+          : requestData.headers;
+
+        const effectiveAuth = hierarchy
+          ? resolveAuth(hierarchy, requestData.auth)
+          : requestData.auth;
+
+        const resolvedUrl = resolver.resolve(url);
+        const resolvedHeaders = mergedHeaders
+          .filter((h) => !h.disabled && h.key)
+          .map((h) => ({ key: h.key, value: resolver.resolve(h.value), disabled: h.disabled }));
+        const resolvedParams = requestData.params
+          .filter((p) => !p.disabled && p.key)
+          .map((p) => ({ key: p.key, value: resolver.resolve(p.value), disabled: p.disabled }));
+
+        const ipcConfig: IpcHttpRequestConfig = {
+          id: tabId,
+          method,
+          url: resolvedUrl,
+          headers: resolvedHeaders,
+          params: resolvedParams,
+          body: buildIpcBodyConfig(requestData.body, resolver),
+          auth: buildIpcAuth(effectiveAuth),
+          settings: buildIpcSettings(mergedSettings),
+        };
+
+        set((s) => {
+          s.downloads[tabId] = {
+            requestId: tabId,
+            totalBytes: 0,
+            downloadedBytes: 0,
+            percentage: 0,
+            status: "downloading",
+          };
+        });
+
+        await downloadHttpResponse(ipcConfig, filePath);
+
+      } catch (err: unknown) {
+        const handled = handleError(err);
+        set((s) => {
+          s.downloads[tabId] = {
+            requestId: tabId,
+            totalBytes: 0,
+            downloadedBytes: 0,
+            percentage: 0,
+            status: "error",
+            error: handled.description,
+          };
+          s.errors[tabId] = handled.description;
+          delete s.loadingTabs[tabId];
+        });
+      }
+    },
+
   initTabData: (tabId, data) =>
     set((state) => {
       state.requestDataMap[tabId] = {
@@ -597,6 +712,44 @@ export const useRequestStore = create<RequestStore>()(
   isDirty: (tabId) => get().dirtyTabs[tabId] === true,
   })),
 );
+
+if (typeof window !== "undefined" && (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__) {
+  listen<{ requestId: string; totalBytes: number; downloadedBytes: number; percentage: number }>("http-download-progress", (event) => {
+    const { requestId, totalBytes, downloadedBytes, percentage } = event.payload;
+    useRequestStore.setState((s) => {
+      if (s.downloads[requestId]) {
+        s.downloads[requestId].totalBytes = totalBytes;
+        s.downloads[requestId].downloadedBytes = downloadedBytes;
+        s.downloads[requestId].percentage = percentage;
+      }
+    });
+  });
+
+  listen<{ requestId: string; filePath: string; totalBytes: number; durationMs: number }>("http-download-complete", (event) => {
+    const { requestId, filePath, totalBytes, durationMs } = event.payload;
+    useRequestStore.setState((s) => {
+      if (s.downloads[requestId]) {
+        s.downloads[requestId].status = "complete";
+        s.downloads[requestId].filePath = filePath;
+        s.downloads[requestId].totalBytes = totalBytes;
+        s.downloads[requestId].durationMs = durationMs;
+        s.downloads[requestId].percentage = 100;
+      }
+      delete s.loadingTabs[requestId];
+    });
+  });
+
+  listen<{ requestId: string; error: string }>("http-download-error", (event) => {
+    const { requestId, error } = event.payload;
+    useRequestStore.setState((s) => {
+      if (s.downloads[requestId]) {
+        s.downloads[requestId].status = "error";
+        s.downloads[requestId].error = error;
+      }
+      delete s.loadingTabs[requestId];
+    });
+  });
+}
 
 function logScriptResult(tabId: string, source: string, result: ScriptResult, startTime: number) {
   const consoleStore = useConsoleStore.getState();

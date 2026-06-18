@@ -4,14 +4,17 @@ import { useGrpcStore, type GrpcStore } from "./grpc-store";
 const initial: GrpcStore = {
   parsedProtos: {},
   requests: {},
+  discoveredServices: {},
   parseProto: expect.any(Function) as unknown as GrpcStore["parseProto"],
   sendRequest: expect.any(Function) as unknown as GrpcStore["sendRequest"],
   clearResponse: expect.any(Function) as unknown as GrpcStore["clearResponse"],
   pushStreamMessage: expect.any(Function) as unknown as GrpcStore["pushStreamMessage"],
+  reflectServices: expect.any(Function) as unknown as GrpcStore["reflectServices"],
+  clearDiscoveredServices: expect.any(Function) as unknown as GrpcStore["clearDiscoveredServices"],
 };
 
 beforeEach(() => {
-  useGrpcStore.setState({ parsedProtos: {}, requests: {} });
+  useGrpcStore.setState({ parsedProtos: {}, requests: {}, discoveredServices: {} });
 });
 
 describe("useGrpcStore", () => {

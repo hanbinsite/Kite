@@ -12,7 +12,7 @@ import { TestsTab } from "../response/TestsTab";
 import { ScriptErrorCard } from "../response/ScriptErrorCard";
 import { DiffViewer } from "../response/DiffViewer";
 import type { ResponseHeader, Cookie } from "@api-client/types";
-import { Clock, HardDrive, ArrowDownToLine, Maximize2, Columns2, Zap, AlertTriangle, RefreshCw, Search, Copy, Brain, Wrench, GitCompare } from "lucide-react";
+import { Clock, HardDrive, ArrowDownToLine, Maximize2, Columns2, Zap, AlertTriangle, RefreshCw, Search, Copy, Brain, Wrench, GitCompare, Download, CheckCircle2 } from "lucide-react";
 
 const RESPONSE_TABS = (t: (key: string) => string) => [
   { id: "body", label: t("response.body") },
@@ -47,6 +47,7 @@ export function ResponsePanel() {
   const error = useRequestStore(useShallow((s) => activeTabId ? s.errors[activeTabId] : undefined));
   const requestDataMap = useRequestStore((s) => s.requestDataMap);
   const previousResponses = useRequestStore((s) => s.previousResponses);
+  const downloadState = useRequestStore(useShallow((s) => activeTabId ? s.downloads[activeTabId] : undefined));
 
   const hasPrevious = !!(previousResponses[activeTabId ?? ""]);
   const [showDiff, setShowDiff] = useState(false);
@@ -59,11 +60,46 @@ export function ResponsePanel() {
   const [tabRefs, indicatorStyle] = useTabIndicator<ResponseTabId>(activeTab);
 
   if (isLoading) {
+    const download = downloadState;
     return (
       <div className="h-full flex flex-col overflow-hidden bg-bg-surface">
         <div className="response-loading flex flex-col items-center justify-center h-full gap-4">
-          <div className="response-loading-spinner w-6 h-6 border-2 border-border-default border-t-brand rounded-full animate-spin" />
-          <span className="response-loading-timer font-mono text-[11px] text-brand">{t("response.sending")}</span>
+          {download && download.status === "downloading" ? (
+            <>
+              <div className="w-[300px] flex flex-col gap-2">
+                <div className="flex items-center justify-between text-[11px] font-mono text-fg-secondary">
+                  <span>{t("response.downloading")}</span>
+                  <span>{download.percentage.toFixed(0)}%</span>
+                </div>
+                <div className="w-full h-[4px] bg-bg-elevated rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-brand rounded-full transition-all duration-150"
+                    style={{ width: `${Math.min(download.percentage, 100)}%` }}
+                  />
+                </div>
+                <span className="text-[10px] font-mono text-fg-tertiary text-center">
+                  {formatBodySize(download.downloadedBytes)} / {download.totalBytes > 0 ? formatBodySize(download.totalBytes) : "?"}
+                </span>
+              </div>
+            </>
+          ) : download && download.status === "complete" ? (
+            <>
+              <CheckCircle2 className="w-8 h-8 text-accent-success" />
+              <span className="font-mono text-[12px] text-fg-secondary">
+                {t("response.downloadComplete")} ({formatBodySize(download.totalBytes)}, {download.durationMs}ms)
+              </span>
+              {download.filePath && (
+                <span className="font-mono text-[10px] text-fg-tertiary break-all max-w-[320px] text-center">
+                  {download.filePath}
+                </span>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="response-loading-spinner w-6 h-6 border-2 border-border-default border-t-brand rounded-full animate-spin" />
+              <span className="response-loading-timer font-mono text-[11px] text-brand">{t("response.sending")}</span>
+            </>
+          )}
         </div>
       </div>
     );
@@ -207,6 +243,18 @@ checked={!(requestDataMap[activeTabId ?? ""]?.settings.verifySsl)}
                       title={t("response.copyBody")}
                     >
                         <ArrowDownToLine size={14} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        const { downloadResponse } = useRequestStore.getState();
+                        const tabId = useTabStore.getState().activeTabId;
+                        const tab = useTabStore.getState().tabs.find((t) => t.id === tabId);
+                        if (tabId && tab) downloadResponse(tabId, tab.method as "GET", tab.url);
+                      }}
+                      className="response-bar-btn w-6 h-6 rounded-[4px] flex items-center justify-center text-fg-tertiary cursor-pointer hover:bg-bg-hover hover:text-accent-info transition-all duration-50"
+                      title={t("response.downloadFile")}
+                    >
+                        <Download size={14} />
                     </button>
                     <button
                       onClick={() => useUIStore.getState().setSplitRatio(1)}

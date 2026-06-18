@@ -1,6 +1,8 @@
 use crate::commands::grpc::{
-    GrpcMethodInfo, GrpcResponse, GrpcStreamMessage, GrpcRequestConfig,
-    decode_grpc_frame,
+    GrpcServiceInfo, GrpcMethodInfo, GrpcResponse, GrpcStreamMessage, GrpcRequestConfig,
+    decode_grpc_frame, encode_grpc_body, encode_reflection_list_services,
+    extract_file_descriptor_set, encode_file_descriptor_containing_symbol,
+    decode_varint, read_field_lengthed,
 };
 
 #[test]
@@ -140,4 +142,98 @@ fn test_grpc_stream_message_end() {
     let json = serde_json::to_string(&msg).unwrap();
     let parsed: GrpcStreamMessage = serde_json::from_str(&json).unwrap();
     assert_eq!(parsed.stream_type, "end");
+}
+
+#[test]
+fn test_grpc_service_info_serde() {
+    let svc = GrpcServiceInfo {
+        service_name: "test.v1.UserService".into(),
+        methods: vec![GrpcMethodInfo {
+            service_name: "test.v1.UserService".into(),
+            method_name: "GetUser".into(),
+            input_type: "test.v1.GetUserRequest".into(),
+            output_type: "test.v1.GetUserResponse".into(),
+            client_streaming: false,
+            server_streaming: false,
+        }],
+    };
+    let json = serde_json::to_string(&svc).unwrap();
+    assert!(json.contains("serviceName"));
+    assert!(json.contains("UserService"));
+    let parsed: GrpcServiceInfo = serde_json::from_str(&json).unwrap();
+    assert_eq!(parsed.service_name, "test.v1.UserService");
+    assert_eq!(parsed.methods.len(), 1);
+    assert_eq!(parsed.methods[0].method_name, "GetUser");
+}
+
+#[test]
+fn test_encode_grpc_body() {
+    let data = b"hello";
+    let frame = encode_grpc_body(data);
+    assert_eq!(frame[0], 0);
+    let len = u32::from_be_bytes([frame[1], frame[2], frame[3], frame[4]]);
+    assert_eq!(len, 5);
+    assert_eq!(&frame[5..], data);
+}
+
+#[test]
+fn test_encode_reflection_list_services() {
+    let encoded = encode_reflection_list_services();
+    assert!(!encoded.is_empty());
+}
+
+#[test]
+fn test_encode_file_descriptor_sym() {
+    let encoded = encode_file_descriptor_containing_symbol("test.Service");
+    assert!(!encoded.is_empty());
+}
+
+#[test]
+fn test_decode_varint() {
+    use bytes::Bytes;
+    let mut buf = Bytes::from_static(&[0x01]);
+    let val = decode_varint(&mut buf).unwrap();
+    assert_eq!(val, 1);
+
+    let mut buf = Bytes::from_static(&[0x96, 0x01]);
+    let val = decode_varint(&mut buf).unwrap();
+    assert_eq!(val, 150);
+}
+
+#[test]
+fn test_read_field_lengthed() {
+    use bytes::Bytes;
+    let mut buf = Bytes::from_static(&[0x03, 0x41, 0x42, 0x43]);
+    let inner = read_field_lengthed(&mut buf).unwrap();
+    assert_eq!(&inner[..], b"ABC");
+}
+
+#[test]
+fn test_extract_file_descriptor_set_empty() {
+    let result = extract_file_descriptor_set(b"");
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_grpc_response_status_ok() {
+    let resp = GrpcResponse {
+        request_id: "req-1".into(),
+        status: "ok".into(),
+        headers: Vec::new(),
+        body: "{}".to_string(),
+        time_ms: 10,
+    };
+    assert_eq!(resp.status, "ok");
+}
+
+#[test]
+fn test_grpc_response_status_error() {
+    let resp = GrpcResponse {
+        request_id: "req-1".into(),
+        status: "error (grpc-status: 2)".into(),
+        headers: Vec::new(),
+        body: "".to_string(),
+        time_ms: 10,
+    };
+    assert!(resp.status.contains("error"));
 }

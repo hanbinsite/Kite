@@ -43,7 +43,7 @@ export function buildIpcAuth(type: string, config: Record<string, unknown> | nul
     bearer: ["token"],
     basic: ["username", "password"],
     apikey: ["key", "value"],
-    jwt: ["token"],
+    jwt: ["token", "secret"],
     oauth2: ["accessToken"],
   };
   const required = requiredFields[type];
@@ -95,6 +95,10 @@ export async function sendHttpRequest(config: IpcHttpRequestConfig): Promise<Htt
 
 export async function cancelHttpRequest(requestId: string): Promise<void> {
     return invoke<void>("cancel_http_request", { requestId });
+}
+
+export async function downloadHttpResponse(config: IpcHttpRequestConfig, downloadPath: string): Promise<void> {
+    return invoke<void>("download_http_response", { config, downloadPath });
 }
 
 export async function insertHistoryEntry(request: {

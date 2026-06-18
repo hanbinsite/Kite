@@ -37,6 +37,7 @@ async fn main() {
         .manage(commands::mock::MockState::new())
         .invoke_handler(tauri::generate_handler![
             commands::http::send_http_request,
+            commands::http::download_http_response,
             commands::http::cancel_http_request,
             commands::file_ops::read_file,
             commands::file_ops::write_file,
@@ -77,6 +78,7 @@ async fn main() {
             commands::mqtt::mqtt_disconnect,
             commands::grpc::parse_proto_file,
             commands::grpc::send_grpc_request,
+            commands::grpc::reflect_grpc_services,
             commands::mock::start_mock_server,
             commands::mock::stop_mock_server,
             commands::mock::get_mock_server_status,

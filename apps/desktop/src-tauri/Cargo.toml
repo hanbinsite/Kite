@@ -37,6 +37,7 @@ tokio-tungstenite = { version = "0.23", features = ["rustls-tls-webpki-roots"] }
 futures-util = "0.3"
 rumqttc = "0.24"
 prost = "0.13"
+prost-types = "0.13"
 prost-reflect = { version = "0.14", features = ["serde"] }
 protox = "0.7"
 tonic = { version = "0.12", features = ["transport", "tls", "tls-roots"] }
@@ -56,6 +57,7 @@ argon2 = "0.5"
 aes-gcm = "0.10"
 keyring = "3"
 ts-rs = "10"
+jsonwebtoken = "9"
 
 [dev-dependencies]
 tempfile = "3"

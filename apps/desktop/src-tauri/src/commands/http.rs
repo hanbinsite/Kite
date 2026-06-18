@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
@@ -171,6 +171,22 @@ pub struct JwtAuth {
     pub token: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub secret: Option<String>,
+    #[serde(default = "default_jwt_algorithm")]
+    pub algorithm: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payload: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expiry_seconds: Option<u64>,
+    #[serde(default = "default_jwt_prefix")]
+    pub prefix: String,
+}
+
+fn default_jwt_algorithm() -> String {
+    "HS256".into()
+}
+
+fn default_jwt_prefix() -> String {
+    "Bearer".into()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -299,6 +315,42 @@ pub(crate) fn build_client(settings: &RequestSettings) -> Result<Client, AppErro
     builder.build().map_err(|e| AppError::internal(format!("Failed to build HTTP client: {}", e)))
 }
 
+pub(crate) fn sign_jwt(jwt: &JwtAuth) -> Result<String, AppError> {
+    if let Some(ref secret) = jwt.secret {
+        let header = match jwt.algorithm.as_str() {
+            "HS256" => jsonwebtoken::Header::new(jsonwebtoken::Algorithm::HS256),
+            "HS384" => jsonwebtoken::Header::new(jsonwebtoken::Algorithm::HS384),
+            "HS512" => jsonwebtoken::Header::new(jsonwebtoken::Algorithm::HS512),
+            "RS256" => jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS256),
+            "RS384" => jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS384),
+            "RS512" => jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS512),
+            "ES256" => jsonwebtoken::Header::new(jsonwebtoken::Algorithm::ES256),
+            "ES384" => jsonwebtoken::Header::new(jsonwebtoken::Algorithm::ES384),
+            _ => return Err(AppError::internal(format!("Unsupported JWT algorithm: {}", jwt.algorithm))),
+        };
+        let mut claims: serde_json::Value = if let Some(ref payload) = jwt.payload {
+            serde_json::from_str(payload).map_err(|e| AppError::internal(format!("Invalid JWT payload JSON: {}", e)))?
+        } else {
+            serde_json::Value::Object(serde_json::Map::new())
+        };
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        if let Some(obj) = claims.as_object_mut() {
+            obj.entry("iat").or_insert_with(|| serde_json::Value::Number(now.into()));
+            if let Some(exp) = jwt.expiry_seconds {
+                obj.insert("exp".into(), serde_json::Value::Number((now + exp).into()));
+            }
+        }
+        let token = jsonwebtoken::encode(&header, &claims, &jsonwebtoken::EncodingKey::from_secret(secret.as_bytes()))
+            .map_err(|e| AppError::internal(format!("JWT signing failed: {}", e)))?;
+        Ok(token)
+    } else {
+        Ok(jwt.token.clone())
+    }
+}
+
 pub(crate) fn apply_auth_to_config(
     config: &mut HttpRequestConfig,
 ) -> Result<(), AppError> {
@@ -347,14 +399,21 @@ pub(crate) fn apply_auth_to_config(
                 }
             }
             AuthConfig::Jwt(j) => {
-                if !j.token.is_empty() {
-                    config.headers.retain(|h| h.key.to_lowercase() != "authorization");
-                    config.headers.push(Header {
-                        key: "Authorization".into(),
-                        value: format!("Bearer {}", j.token),
-                        disabled: false,
-                    });
+                let signed_token = sign_jwt(j)?;
+                if signed_token.is_empty() {
+                    return Ok(());
                 }
+                config.headers.retain(|h| h.key.to_lowercase() != "authorization");
+                let header_value = if j.prefix.is_empty() {
+                    signed_token
+                } else {
+                    format!("{} {}", j.prefix, signed_token)
+                };
+                config.headers.push(Header {
+                    key: "Authorization".into(),
+                    value: header_value,
+                    disabled: false,
+                });
             }
             AuthConfig::OAuth2(o) => {
                 if !o.access_token.is_empty() {
@@ -658,6 +717,258 @@ pub async fn cancel_http_request(
     if let Some((token, _)) = tokens.remove(&request_id) {
         token.cancel();
     }
+    Ok(())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DownloadProgress {
+    pub request_id: String,
+    pub total_bytes: u64,
+    pub downloaded_bytes: u64,
+    pub percentage: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DownloadComplete {
+    pub request_id: String,
+    pub file_path: String,
+    pub total_bytes: u64,
+    pub duration_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DownloadError {
+    pub request_id: String,
+    pub error: String,
+}
+
+#[tauri::command]
+pub async fn download_http_response(
+    app_handle: tauri::AppHandle,
+    http_state: State<'_, HttpClientState>,
+    mut config: HttpRequestConfig,
+    download_path: String,
+) -> Result<(), AppError> {
+    let request_id = config.id.clone();
+    let start = Instant::now();
+
+    let cancel_token = CancellationToken::new();
+    http_state.cancellation_tokens.write().await.insert(request_id.clone(), (cancel_token.clone(), Instant::now()));
+
+    let app_data_dir = app_handle.path().app_data_dir()
+        .map_err(|e| AppError::internal(format!("Cannot get app data dir: {}", e)))?;
+    let download_path = std::path::Path::new(&download_path);
+    crate::commands::file_ops::validate_path_within_app_data(&app_data_dir, download_path)?;
+
+    apply_auth_to_config(&mut config)?;
+
+    let client = build_client(&config.settings)?;
+
+    let mut parsed_url = reqwest::Url::parse(&config.url)
+        .map_err(|e| AppError::net_invalid_url(format!("Invalid URL: {}", e)))?;
+    {
+        let mut query = parsed_url.query_pairs_mut();
+        for p in &config.params {
+            if !p.disabled && !p.key.is_empty() {
+                query.append_pair(&p.key, &p.value);
+            }
+        }
+    }
+    let url = parsed_url.to_string();
+
+    let method = reqwest::Method::from_bytes(config.method.to_uppercase().as_bytes())
+        .map_err(|_| AppError::internal(format!("Invalid HTTP method: {}", config.method)))?;
+
+    let mut request_builder = client.request(method, &url);
+
+    for header in &config.headers {
+        if !header.disabled && !header.key.is_empty() {
+            request_builder = request_builder.header(&header.key, &header.value);
+        }
+    }
+
+    let cookie_header = load_cookie_header(&app_handle, &url).await;
+    if !cookie_header.is_empty() {
+        request_builder = request_builder.header("Cookie", &cookie_header);
+    }
+
+    if let Some(body) = &config.body {
+        match body.mode.as_str() {
+            "raw" => {
+                if let Some(content) = &body.content {
+                    if !content.is_empty() {
+                        if let Some(ct) = &body.content_type {
+                            request_builder = request_builder.header("Content-Type", ct);
+                        }
+                        request_builder = request_builder.body(content.clone());
+                    }
+                }
+            }
+            "urlencoded" => {
+                let pairs: Vec<(&str, &str)> = body
+                    .urlencoded
+                    .iter()
+                    .filter(|p| !p.disabled && !p.key.is_empty())
+                    .map(|p| (p.key.as_str(), p.value.as_str()))
+                    .collect();
+                request_builder = request_builder.form(&pairs);
+            }
+            "formdata" => {
+                let mut form = reqwest::multipart::Form::new();
+                for param in &body.formdata {
+                    if param.disabled || param.key.is_empty() {
+                        continue;
+                    }
+                    match param.param_type.as_str() {
+                        "text" => {
+                            form = form.text(param.key.clone(), param.value.clone());
+                        }
+"file" => {
+     let file_path = std::path::Path::new(&param.value);
+     let app_data = app_handle.path().app_data_dir();
+     if let Ok(app_data_dir) = app_data {
+         if crate::commands::file_ops::validate_path_within_app_data(&app_data_dir, file_path).is_ok() {
+             if let Ok(data) = std::fs::read(file_path) {
+                 let file_name = file_path
+                     .file_name()
+                     .map(|n| n.to_string_lossy().to_string())
+                     .unwrap_or_else(|| "file".into());
+                 let part = reqwest::multipart::Part::bytes(data)
+                     .file_name(file_name);
+                 let part = match part.mime_str(
+                     param.content_type.as_deref().unwrap_or("application/octet-stream"),
+                 ) {
+                     Ok(p) => p,
+                     Err(_) => reqwest::multipart::Part::bytes(Vec::<u8>::new())
+                         .file_name("file"),
+                 };
+                 form = form.part(param.key.clone(), part);
+             }
+         }
+     }
+ }
+                        _ => {
+                            form = form.text(param.key.clone(), param.value.clone());
+                        }
+                    }
+                }
+                request_builder = request_builder.multipart(form);
+            }
+            "graphql" => {
+                let payload = serde_json::json!({
+                    "query": body.graphql_query.as_deref().unwrap_or(""),
+                    "variables": body.graphql_variables.as_deref()
+                        .and_then(|v| serde_json::from_str(v).ok())
+                        .unwrap_or(serde_json::Value::Null),
+                });
+                request_builder = request_builder
+                    .header("Content-Type", "application/json")
+                    .json(&payload);
+            }
+            "binary" => {
+                if let Some(content) = &body.content {
+                    if !content.is_empty() {
+                        if let Some(ct) = &body.content_type {
+                            request_builder = request_builder.header("Content-Type", ct);
+                        }
+                        let data = if std::path::Path::new(content).exists() {
+                            let file_path = std::path::Path::new(content);
+                            let app_data = app_handle.path().app_data_dir();
+                            if let Ok(app_data_dir) = app_data {
+                                if crate::commands::file_ops::validate_path_within_app_data(&app_data_dir, file_path).is_err() {
+                                    return Err(AppError::storage_path_traversal(format!(
+                                        "Binary file path is outside app data directory: {}",
+                                        content
+                                    )));
+                                }
+                            }
+                            std::fs::read(content).map_err(|e| AppError::storage_read_failed(format!("Failed to read binary file: {}", e)))?
+                        } else {
+                            content.as_bytes().to_vec()
+                        };
+                        request_builder = request_builder.body(data);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let response = tokio::select! {
+        res = request_builder.send() => res,
+        _ = cancel_token.cancelled() => {
+            http_state.cancellation_tokens.write().await.remove(&request_id);
+            return Err(AppError::net_cancelled());
+        }
+    };
+
+    http_state.cancellation_tokens.write().await.remove(&request_id);
+
+    let response = response.map_err(|e| {
+        if e.is_timeout() {
+            AppError::net_timeout(config.settings.timeout_ms)
+        } else if e.is_connect() {
+            AppError::net_connect_failed(e.to_string())
+        } else if e.is_redirect() {
+            AppError::net_redirect_limit(config.settings.max_redirects)
+        } else {
+            AppError::internal(e.to_string())
+        }
+    })?;
+
+    if let Some(parent) = download_path.parent() {
+        tokio::fs::create_dir_all(parent).await
+            .map_err(|e| AppError::internal(format!("Cannot create download parent dir: {}", e)))?;
+    }
+
+    let total_bytes = response.content_length().unwrap_or(0);
+    let mut downloaded_bytes: u64 = 0;
+    let mut file = tokio::fs::File::create(download_path).await
+        .map_err(|e| AppError::internal(format!("Cannot create download file: {}", e)))?;
+
+    use tokio::io::AsyncWriteExt;
+    let mut stream = response.bytes_stream();
+    use futures_util::StreamExt;
+
+    while let Some(chunk_result) = stream.next().await {
+        if cancel_token.is_cancelled() {
+            let _ = tokio::fs::remove_file(download_path).await;
+            return Err(AppError::net_cancelled());
+        }
+        let chunk = chunk_result.map_err(|e| AppError::internal(e.to_string()))?;
+        file.write_all(&chunk).await
+            .map_err(|e| AppError::internal(format!("Failed to write chunk: {}", e)))?;
+        downloaded_bytes += chunk.len() as u64;
+
+        let percentage = if total_bytes > 0 {
+            (downloaded_bytes as f64 / total_bytes as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        let _ = app_handle.emit("http-download-progress", DownloadProgress {
+            request_id: request_id.clone(),
+            total_bytes,
+            downloaded_bytes,
+            percentage,
+        });
+    }
+
+    file.flush().await.map_err(|e| AppError::internal(format!("Failed to flush file: {}", e)))?;
+    drop(file);
+
+    let elapsed = start.elapsed().as_millis() as u64;
+
+    let _ = app_handle.emit("http-download-complete", DownloadComplete {
+        request_id: request_id.clone(),
+        file_path: download_path.to_string_lossy().to_string(),
+        total_bytes: downloaded_bytes,
+        duration_ms: elapsed,
+    });
+
     Ok(())
 }
 
@@ -1204,7 +1515,7 @@ mod tests {
     }
 
     #[test]
-    fn test_apply_auth_jwt() {
+    fn test_apply_auth_jwt_presigned() {
         let mut config = HttpRequestConfig {
             id: "t1".into(),
             method: "GET".into(),
@@ -1215,12 +1526,123 @@ mod tests {
             auth: Some(AuthConfig::Jwt(JwtAuth {
                 token: "jwt.token.here".into(),
                 secret: None,
+                algorithm: "HS256".into(),
+                payload: None,
+                expiry_seconds: None,
+                prefix: "Bearer".into(),
             })),
             settings: RequestSettings::default(),
         };
         apply_auth_to_config(&mut config).unwrap();
         let auth_header = config.headers.iter().find(|h| h.key == "Authorization").unwrap();
         assert_eq!(auth_header.value, "Bearer jwt.token.here");
+    }
+
+    #[test]
+    fn test_apply_auth_jwt_signed() {
+        let mut config = HttpRequestConfig {
+            id: "t1".into(),
+            method: "GET".into(),
+            url: "https://example.com".into(),
+            headers: vec![],
+            params: vec![],
+            body: None,
+            auth: Some(AuthConfig::Jwt(JwtAuth {
+                token: String::new(),
+                secret: Some("my-secret-key".into()),
+                algorithm: "HS256".into(),
+                payload: Some(r#"{"sub":"123"}"#.into()),
+                expiry_seconds: Some(3600),
+                prefix: "Bearer".into(),
+            })),
+            settings: RequestSettings::default(),
+        };
+        apply_auth_to_config(&mut config).unwrap();
+        let auth_header = config.headers.iter().find(|h| h.key == "Authorization").unwrap();
+        assert!(auth_header.value.starts_with("Bearer eyJ"));
+    }
+
+    #[test]
+    fn test_apply_auth_jwt_signed_custom_prefix() {
+        let mut config = HttpRequestConfig {
+            id: "t1".into(),
+            method: "GET".into(),
+            url: "https://example.com".into(),
+            headers: vec![],
+            params: vec![],
+            body: None,
+            auth: Some(AuthConfig::Jwt(JwtAuth {
+                token: String::new(),
+                secret: Some("my-secret-key".into()),
+                algorithm: "HS256".into(),
+                payload: Some(r#"{"sub":"456"}"#.into()),
+                expiry_seconds: None,
+                prefix: "JWT".into(),
+            })),
+            settings: RequestSettings::default(),
+        };
+        apply_auth_to_config(&mut config).unwrap();
+        let auth_header = config.headers.iter().find(|h| h.key == "Authorization").unwrap();
+        assert!(auth_header.value.starts_with("JWT eyJ"));
+    }
+
+    #[test]
+    fn test_sign_jwt_no_secret() {
+        let jwt = JwtAuth {
+            token: "pre-signed.jwt.token".into(),
+            secret: None,
+            algorithm: "HS256".into(),
+            payload: None,
+            expiry_seconds: None,
+            prefix: "Bearer".into(),
+        };
+        let result = sign_jwt(&jwt).unwrap();
+        assert_eq!(result, "pre-signed.jwt.token");
+    }
+
+    #[test]
+    fn test_sign_jwt_with_secret_hs256() {
+        let jwt = JwtAuth {
+            token: String::new(),
+            secret: Some("secret123".into()),
+            algorithm: "HS256".into(),
+            payload: Some(r#"{"sub":"user1"}"#.into()),
+            expiry_seconds: Some(3600),
+            prefix: "Bearer".into(),
+        };
+        let result = sign_jwt(&jwt).unwrap();
+        assert!(!result.is_empty());
+        assert_ne!(result, jwt.token);
+        let parts: Vec<&str> = result.split('.').collect();
+        assert_eq!(parts.len(), 3);
+    }
+
+    #[test]
+    fn test_sign_jwt_invalid_payload_json() {
+        let jwt = JwtAuth {
+            token: String::new(),
+            secret: Some("secret123".into()),
+            algorithm: "HS256".into(),
+            payload: Some("not-json".into()),
+            expiry_seconds: None,
+            prefix: "Bearer".into(),
+        };
+        let result = sign_jwt(&jwt);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_sign_jwt_unsupported_algorithm() {
+        let jwt = JwtAuth {
+            token: String::new(),
+            secret: Some("secret123".into()),
+            algorithm: "INVALID".into(),
+            payload: Some(r#"{"sub":"user1"}"#.into()),
+            expiry_seconds: None,
+            prefix: "Bearer".into(),
+        };
+        let result = sign_jwt(&jwt);
+        assert!(result.is_err());
     }
 
     #[test]

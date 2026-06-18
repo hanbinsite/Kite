@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import { parseProtoFile as ipcParse, sendGrpcRequest as ipcSend, onGrpcStreamMessage, type GrpcMethodInfo, type GrpcResponse, type GrpcStreamMessage, type GrpcRequestConfig } from "@api-client/core/grpc";
+import { parseProtoFile as ipcParse, sendGrpcRequest as ipcSend, reflectGrpcServices as ipcReflect, onGrpcStreamMessage, type GrpcMethodInfo, type GrpcResponse, type GrpcStreamMessage, type GrpcRequestConfig, type GrpcServiceInfo } from "@api-client/core/grpc";
 import { handleError } from "@api-client/core/error";
 
 export interface GrpcParsedProto {
@@ -18,6 +18,7 @@ export interface GrpcRequestState {
 export interface GrpcState {
   parsedProtos: Record<string, GrpcParsedProto>;
   requests: Record<string, GrpcRequestState>;
+  discoveredServices: Record<string, GrpcServiceInfo[]>;
 }
 
 export interface GrpcActions {
@@ -25,6 +26,8 @@ export interface GrpcActions {
   sendRequest: (config: GrpcRequestConfig) => Promise<void>;
   clearResponse: (requestId: string) => void;
   pushStreamMessage: (requestId: string, msg: GrpcStreamMessage) => void;
+  reflectServices: (connectionId: string, url: string) => Promise<void>;
+  clearDiscoveredServices: (connectionId: string) => void;
 }
 
 export type GrpcStore = GrpcState & GrpcActions;
@@ -33,6 +36,7 @@ export const useGrpcStore = create<GrpcStore>()(
   immer((set) => ({
     parsedProtos: {},
     requests: {},
+    discoveredServices: {},
 
     parseProto: async (protoFileId, filePath) => {
       try {
@@ -98,6 +102,39 @@ export const useGrpcStore = create<GrpcStore>()(
         if (msg.streamType === "end" || msg.streamType === "error") {
           state.requests[requestId].loading = false;
         }
+      }),
+
+    reflectServices: async (connectionId, url) => {
+      set((state) => {
+        state.requests[connectionId] = {
+          loading: true,
+          response: null,
+          error: null,
+          streamMessages: [],
+        };
+      });
+      try {
+        const services = await ipcReflect(url);
+        set((state) => {
+          state.discoveredServices[connectionId] = services;
+          const req = state.requests[connectionId];
+          if (req) req.loading = false;
+        });
+      } catch (err) {
+        const handled = handleError(err);
+        set((state) => {
+          const req = state.requests[connectionId];
+          if (req) {
+            req.loading = false;
+            req.error = handled.description;
+          }
+        });
+      }
+    },
+
+    clearDiscoveredServices: (connectionId) =>
+      set((state) => {
+        delete state.discoveredServices[connectionId];
       }),
   })),
 );

@@ -162,6 +162,14 @@ pub enum SavedAuth {
         token: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         secret: Option<String>,
+        #[serde(default)]
+        algorithm: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        payload: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        expiry_seconds: Option<u64>,
+        #[serde(default)]
+        prefix: Option<String>,
     },
     #[serde(rename = "oauth1")]
     OAuth1 {
@@ -214,9 +222,13 @@ impl SavedAuth {
                 value: value.clone(),
                 add_to: add_to.clone().unwrap_or_else(|| "header".into()),
             }),
-            SavedAuth::Jwt { token, secret } => AuthConfig::Jwt(JwtAuth {
+            SavedAuth::Jwt { token, secret, algorithm, payload, expiry_seconds, prefix } => AuthConfig::Jwt(JwtAuth {
                 token: token.clone(),
                 secret: secret.clone(),
+                algorithm: algorithm.clone().unwrap_or_else(|| "HS256".into()),
+                payload: payload.clone(),
+                expiry_seconds: *expiry_seconds,
+                prefix: prefix.clone().unwrap_or_else(|| "Bearer".into()),
             }),
             SavedAuth::OAuth1 { consumer_key, consumer_secret, token, token_secret, signature_method } => {
                 AuthConfig::OAuth1(OAuth1Auth {

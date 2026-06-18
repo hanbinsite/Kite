@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useGrpcStore } from "../../stores/grpc-store";
-import type { GrpcMethodInfo } from "@api-client/core/grpc";
-import { Send, FileCode, AlertCircle, Loader2 } from "lucide-react";
+import type { GrpcMethodInfo, GrpcServiceInfo } from "@api-client/core/grpc";
+import { Send, FileCode, AlertCircle, Loader2, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface GrpcPanelProps {
@@ -19,33 +19,52 @@ export function GrpcPanel({ connectionId }: GrpcPanelProps) {
 
   const parsedProto = useGrpcStore((s) => s.parsedProtos[connectionId]);
   const requestState = useGrpcStore((s) => s.requests[connectionId]);
+  const discoveredServices = useGrpcStore((s) => s.discoveredServices[connectionId]);
   const parseProto = useGrpcStore((s) => s.parseProto);
   const sendRequest = useGrpcStore((s) => s.sendRequest);
+  const reflectServices = useGrpcStore((s) => s.reflectServices);
 
   const methods = parsedProto?.methods ?? [];
+  const availableServices = discoveredServices ?? [];
+
+  const uniqueServices = methods.length > 0
+    ? [...new Set(methods.map((m) => m.serviceName))]
+    : availableServices.map((s: GrpcServiceInfo) => s.serviceName);
+  const serviceMethods = methods.length > 0
+    ? methods.filter((m) => m.serviceName === serviceName)
+    : (availableServices.find((s: GrpcServiceInfo) => s.serviceName === serviceName)?.methods ?? []);
+
   const loading = requestState?.loading ?? false;
   const response = requestState?.response;
   const error = requestState?.error;
   const streamMessages = requestState?.streamMessages ?? [];
+
+  const handleDiscover = useCallback(async () => {
+    if (!url.trim()) return;
+    await reflectServices(connectionId, url.trim());
+  }, [connectionId, url, reflectServices]);
 
   const handleParse = useCallback(async () => {
     if (!protoPath.trim()) return;
     await parseProto(connectionId, protoPath.trim());
   }, [connectionId, protoPath, parseProto]);
 
-  const handleServiceChange = useCallback((serviceName: string) => {
-    setServiceName(serviceName);
+  const handleServiceChange = useCallback((svc: string) => {
+    setServiceName(svc);
     setMethodName("");
     setSelectedMethod(null);
   }, []);
 
-  const handleMethodChange = useCallback((methodName: string) => {
-    setMethodName(methodName);
-    const method = methods.find(
-      (m) => m.methodName === methodName && m.serviceName === serviceName,
+  const handleMethodChange = useCallback((name: string) => {
+    setMethodName(name);
+    const allMethods = methods.length > 0
+      ? methods
+      : availableServices.flatMap((s: GrpcServiceInfo) => s.methods);
+    const method = allMethods.find(
+      (m) => m.methodName === name && m.serviceName === serviceName,
     );
     setSelectedMethod(method ?? null);
-  }, [methods, serviceName]);
+  }, [methods, availableServices, serviceName]);
 
   const handleSend = useCallback(async () => {
     if (!serviceName || !methodName) return;
@@ -59,8 +78,7 @@ export function GrpcPanel({ connectionId }: GrpcPanelProps) {
     });
   }, [connectionId, url, serviceName, methodName, requestJson, sendRequest]);
 
-  const uniqueServices = [...new Set(methods.map((m) => m.serviceName))];
-  const serviceMethods = methods.filter((m) => m.serviceName === serviceName);
+  const hasMethods = uniqueServices.length > 0;
 
   return (
     <div className="flex flex-col h-full">
@@ -75,6 +93,14 @@ export function GrpcPanel({ connectionId }: GrpcPanelProps) {
           placeholder={t("grpc.urlPlaceholder")}
           className="flex-1 h-[28px] px-2 bg-bg-input border border-border-muted rounded text-[12px] text-fg-primary placeholder:text-fg-tertiary outline-none focus:border-border-focus font-mono"
         />
+        <button
+          onClick={handleDiscover}
+          disabled={loading || !url.trim()}
+          className="flex items-center gap-1 h-[28px] px-3 rounded bg-method-grpc/15 text-method-grpc text-[11px] font-semibold cursor-pointer hover:bg-method-grpc/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
+          {t("grpc.discover")}
+        </button>
         <button
           onClick={handleSend}
           disabled={loading || !serviceName || !methodName}
@@ -103,7 +129,7 @@ export function GrpcPanel({ connectionId }: GrpcPanelProps) {
         </button>
       </div>
 
-      {methods.length > 0 && (
+      {hasMethods && (
         <div className="flex items-center gap-2 px-3 py-2 border-b border-border-muted shrink-0">
           <select
             value={serviceName}
