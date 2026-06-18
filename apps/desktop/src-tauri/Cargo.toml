@@ -11,6 +11,7 @@ crate-type = ["rlib"]
 
 [build-dependencies]
  tauri-build = { version = "2", features = [] }
+tonic-build = "0.12"
 
 [dependencies]
  tauri = { version = "2", features = ["protocol-asset"] }
@@ -40,7 +41,7 @@ prost = "0.13"
 prost-types = "0.13"
 prost-reflect = { version = "0.14", features = ["serde"] }
 protox = "0.7"
-tonic = { version = "0.12", features = ["transport", "tls", "tls-roots"] }
+tonic = { version = "0.12", features = ["transport", "tls", "tls-roots", "gzip"] }
 http = "1"
 bytes = "1"
 hyper = { version = "1", features = ["server", "http1"] }

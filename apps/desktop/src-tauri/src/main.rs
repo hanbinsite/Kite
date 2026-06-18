@@ -74,6 +74,7 @@ async fn main() {
             commands::sse::sse_disconnect,
             commands::mqtt::mqtt_connect,
             commands::mqtt::mqtt_subscribe,
+            commands::mqtt::mqtt_unsubscribe,
             commands::mqtt::mqtt_publish,
             commands::mqtt::mqtt_disconnect,
             commands::grpc::parse_proto_file,

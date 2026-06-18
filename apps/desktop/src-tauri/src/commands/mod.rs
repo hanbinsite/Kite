@@ -3,6 +3,8 @@ pub mod http;
 mod http_integration_tests;
 pub mod file_ops;
 pub mod history;
+#[cfg(test)]
+mod history_test;
 pub mod collection;
 pub mod environment;
 #[cfg(test)]
@@ -28,3 +30,5 @@ pub mod codegen;
 mod codegen_test;
 pub mod crypto;
 pub mod oauth;
+#[cfg(test)]
+mod oauth_test;

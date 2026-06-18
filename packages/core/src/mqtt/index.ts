@@ -35,6 +35,13 @@ export async function mqttSubscribe(
   return invoke<void>("mqtt_subscribe", { connectionId, topic, qos });
 }
 
+export async function mqttUnsubscribe(
+  connectionId: string,
+  topic: string,
+): Promise<void> {
+  return invoke<void>("mqtt_unsubscribe", { connectionId, topic });
+}
+
 export async function mqttPublish(
   connectionId: string,
   topic: string,

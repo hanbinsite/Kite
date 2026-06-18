@@ -1,7 +1,7 @@
 use rquickjs::{Runtime, Context, Ctx, Object};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::OnceLock;
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 const MEMORY_LIMIT_BYTES: usize = 128 * 1024 * 1024;
@@ -55,6 +55,7 @@ pub struct ScriptResult {
     pub modified_request: Option<serde_json::Value>,
     pub error: Option<String>,
     pub timed_out: bool,
+    pub set_cookie_headers: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -65,6 +66,15 @@ pub struct ScriptContext {
     pub environment: Option<HashMap<String, String>>,
     pub collection_variables: Option<HashMap<String, String>>,
     pub globals: Option<HashMap<String, String>>,
+    pub cookie_header: Option<String>,
+    pub auth_header: Option<AuthHeaderEntry>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthHeaderEntry {
+    pub key: String,
+    pub value: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -97,6 +107,7 @@ impl ScriptEngine {
                 modified_request: None,
                 error: Some(format!("Script timed out after {}ms", timeout_ms)),
                 timed_out: true,
+                set_cookie_headers: vec![],
             },
         }
     }
@@ -108,7 +119,7 @@ impl ScriptEngine {
                 return ScriptResult {
                     success: false, logs: vec![], test_results: vec![],
                     variables: vec![], modified_request: None,
-                    timed_out: false,
+                    timed_out: false, set_cookie_headers: vec![],
                     error: Some(format!("Failed to create runtime: {}", e)),
                 };
             }
@@ -123,19 +134,24 @@ impl ScriptEngine {
                 return ScriptResult {
                     success: false, logs: vec![], test_results: vec![],
                     variables: vec![], modified_request: None,
-                    timed_out: false,
+                    timed_out: false, set_cookie_headers: vec![],
                     error: Some(format!("Failed to create context: {}", e)),
                 };
             }
         };
 
+        let cookie_header = params.context.cookie_header.clone();
+        let auth_header = params.context.auth_header.clone();
+        let collected_cookies = Arc::new(Mutex::new(Vec::<String>::new()));
+
         let pm_js = Self::build_pm_js(&params.context);
 
         ctx.with(|ctx| {
+            let cc = Arc::clone(&collected_cookies);
             let send_req_fn = match rquickjs::Function::new(
                 ctx.clone(),
-                |config: Object| -> String {
-                    Self::handle_send_request_json(config)
+                move |config: Object| -> String {
+                    Self::handle_send_request_json(config, &cookie_header, &auth_header, &cc)
                 },
             ) {
                 Ok(f) => f,
@@ -161,15 +177,22 @@ impl ScriptEngine {
         });
 
         match exec_result {
-            Ok(()) => ScriptResult {
-                success: true,
-                logs,
-                test_results,
-                variables,
-                modified_request: None,
-                error: None,
-                timed_out: false,
-            },
+            Ok(()) => {
+                let cookies: Vec<String> = match Arc::try_unwrap(collected_cookies) {
+                    Ok(mutex) => mutex.into_inner().unwrap_or_default(),
+                    Err(arc) => arc.lock().unwrap().clone(),
+                };
+                ScriptResult {
+                    success: true,
+                    logs,
+                    test_results,
+                    variables,
+                    modified_request: None,
+                    error: None,
+                    timed_out: false,
+                    set_cookie_headers: cookies,
+                }
+            }
             Err(e) => ScriptResult {
                 success: false,
                 logs,
@@ -178,11 +201,17 @@ impl ScriptEngine {
                 modified_request: None,
                 error: Some(format!("{}", e)),
                 timed_out: false,
+                set_cookie_headers: vec![],
             },
         }
     }
 
-    fn handle_send_request_json(config: Object) -> String {
+    fn handle_send_request_json(
+        config: Object,
+        cookie_header: &Option<String>,
+        auth_header: &Option<AuthHeaderEntry>,
+        collected_cookies: &Arc<Mutex<Vec<String>>>,
+    ) -> String {
         let url: String = config.get("url").unwrap_or_default();
         let method: String = config.get("method").unwrap_or_else(|_| "GET".into());
 
@@ -213,6 +242,14 @@ impl ScriptEngine {
         for (k, v) in &headers_vec {
             req_builder = req_builder.header(k.as_str(), v.as_str());
         }
+        if let Some(ref cookie) = cookie_header {
+            if !cookie.is_empty() {
+                req_builder = req_builder.header("Cookie", cookie.as_str());
+            }
+        }
+        if let Some(ref auth) = auth_header {
+            req_builder = req_builder.header(auth.key.as_str(), auth.value.as_str());
+        }
         if let Some(ref body) = body_str {
             req_builder = req_builder.body(body.clone());
         }
@@ -221,19 +258,30 @@ impl ScriptEngine {
             Ok(resp) => {
                 let status = resp.status().as_u16();
                 let status_text = resp.status().canonical_reason().unwrap_or("").to_string();
+                let set_cookie_headers: Vec<String> = resp.headers()
+                    .get_all("set-cookie")
+                    .iter()
+                    .filter_map(|v| v.to_str().ok().map(|s| s.to_string()))
+                    .collect();
                 let resp_headers: HashMap<String, String> = resp.headers().iter()
                     .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
                     .collect();
                 let body = resp.text().unwrap_or_default();
+                if !set_cookie_headers.is_empty() {
+                    if let Ok(mut cc) = collected_cookies.lock() {
+                        cc.extend(set_cookie_headers.clone());
+                    }
+                }
                 serde_json::json!({
                     "status": status,
                     "statusText": status_text,
                     "headers": resp_headers,
-                    "body": body
+                    "body": body,
+                    "setCookieHeaders": set_cookie_headers
                 }).to_string()
             }
             Err(e) => {
-                serde_json::json!({"status": 0, "error": e.to_string(), "body": "", "headers": {}}).to_string()
+                serde_json::json!({"status": 0, "error": e.to_string(), "body": "", "headers": {}, "setCookieHeaders": []}).to_string()
             }
         }
     }
@@ -514,6 +562,7 @@ pm.sendRequest = function(configOrUrl, callback) {{
             statusText: result.statusText || '',
             headers: result.headers || {{}},
             body: result.body || '',
+            setCookieHeaders: result.setCookieHeaders || [],
             json: function() {{ try {{ return JSON.parse(this.body); }} catch(e) {{ throw new Error('Response is not valid JSON: ' + e.message); }} }},
             text: function() {{ return this.body; }},
             time: 0,

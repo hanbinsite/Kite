@@ -28,6 +28,11 @@ export interface ScriptResult {
   error: string | null;
 }
 
+export interface AuthHeaderEntry {
+  key: string;
+  value: string;
+}
+
 export interface ScriptContext {
   request?: Record<string, unknown>;
   response?: Record<string, unknown>;
@@ -36,6 +41,8 @@ export interface ScriptContext {
   globals?: Record<string, string>;
   folderPath?: string[];
   collectionName?: string;
+  cookieHeader?: string;
+  authHeader?: AuthHeaderEntry;
 }
 
 export interface ExecuteScriptParams {

@@ -274,7 +274,7 @@ export const useRunnerStore = create<RunnerStore>()(
                 });
                 for (const entry of preChain) {
                   const scriptCtx: ScriptContext = {
-                    request: { method: req.method, url: resolvedUrl, headers: resolvedHeaders, body: ipcConfig.body },
+                    request: { method: req.method, url: resolvedUrl, headers: resolvedHeaders, body: ipcConfig.body, auth: ipcConfig.auth },
                     environment: { ...(envScopes.environment ?? {}), ...persistedVars },
                     collectionVariables: collectionVariablesRecord,
                     globals: envScopes.global,
@@ -294,7 +294,7 @@ export const useRunnerStore = create<RunnerStore>()(
                 }
               } else if (req.scripts?.preRequest?.trim()) {
                 const scriptCtx: ScriptContext = {
-                  request: { method: req.method, url: resolvedUrl, headers: resolvedHeaders, body: ipcConfig.body },
+                  request: { method: req.method, url: resolvedUrl, headers: resolvedHeaders, body: ipcConfig.body, auth: ipcConfig.auth },
                   environment: { ...(envScopes.environment ?? {}), ...persistedVars },
                   globals: envScopes.global,
                 };
@@ -324,7 +324,7 @@ export const useRunnerStore = create<RunnerStore>()(
                 });
                 for (const entry of postChain) {
                   const scriptCtx: ScriptContext = {
-                    request: { method: req.method, url: resolvedUrl },
+                    request: { method: req.method, url: resolvedUrl, auth: ipcConfig.auth },
                     response: { status: response.status, statusText: response.statusText, headers: response.headers, body: response.body, time: response.time },
                     environment: { ...(envScopes.environment ?? {}), ...persistedVars },
                     collectionVariables: collectionVariablesRecord,
@@ -350,7 +350,7 @@ export const useRunnerStore = create<RunnerStore>()(
                 }
               } else if (req.scripts?.postResponse?.trim()) {
                 const scriptCtx: ScriptContext = {
-                  request: { method: req.method, url: resolvedUrl },
+                  request: { method: req.method, url: resolvedUrl, auth: ipcConfig.auth },
                   response: { status: response.status, statusText: response.statusText, headers: response.headers, body: response.body, time: response.time },
                   environment: { ...(envScopes.environment ?? {}), ...persistedVars },
                   globals: envScopes.global,

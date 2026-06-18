@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import { mqttConnect as ipcConnect, mqttSubscribe as ipcSubscribe, mqttPublish as ipcPublish, mqttDisconnect as ipcDisconnect, onMqttMessage, type MqttMessage, type MqttConnectConfig } from "@api-client/core/mqtt";
+import { mqttConnect as ipcConnect, mqttSubscribe as ipcSubscribe, mqttUnsubscribe as ipcUnsubscribe, mqttPublish as ipcPublish, mqttDisconnect as ipcDisconnect, onMqttMessage, type MqttMessage, type MqttConnectConfig } from "@api-client/core/mqtt";
 import { handleError } from "@api-client/core/error";
 
 export type MqttConnectionStatus = "disconnected" | "connecting" | "connected" | "error";
@@ -20,6 +20,7 @@ export interface MqttState {
 export interface MqttActions {
   connect: (connectionId: string, config: MqttConnectConfig) => Promise<void>;
   subscribe: (connectionId: string, topic: string, qos: number) => Promise<void>;
+  unsubscribe: (connectionId: string, topic: string) => Promise<void>;
   publish: (connectionId: string, topic: string, payload: string, qos: number) => Promise<void>;
   disconnect: (connectionId: string) => Promise<void>;
   clearMessages: (connectionId: string) => void;
@@ -77,6 +78,33 @@ export const useMqttStore = create<MqttStore>()(
           topic,
           payload: `Subscribed to ${topic} (QoS ${qos})`,
           qos,
+          direction: "system",
+          timestamp: Date.now(),
+        });
+      } catch (err) {
+        const handled = handleError(err);
+        set((state) => {
+          if (state.connections[connectionId]) {
+            state.connections[connectionId].error = handled.description;
+          }
+        });
+      }
+    },
+
+    unsubscribe: async (connectionId, topic) => {
+      try {
+        await ipcUnsubscribe(connectionId, topic);
+        set((state) => {
+          if (state.connections[connectionId]) {
+            const conn = state.connections[connectionId];
+            conn.subscriptions = conn.subscriptions.filter((t) => t !== topic);
+          }
+        });
+        get().pushMessage(connectionId, {
+          connectionId,
+          topic,
+          payload: `Unsubscribed from ${topic}`,
+          qos: 0,
           direction: "system",
           timestamp: Date.now(),
         });

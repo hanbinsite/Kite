@@ -54,18 +54,18 @@ pub struct OAuth2TokenResponse {
     pub expires_in: Option<u64>,
 }
 
-fn generate_pkce_verifier() -> String {
+pub fn generate_pkce_verifier() -> String {
     let mut rng = rand::thread_rng();
     let bytes: Vec<u8> = (0..64).map(|_| rng.gen()).collect();
     URL_SAFE_NO_PAD.encode(&bytes)
 }
 
-fn compute_code_challenge(verifier: &str) -> String {
+pub fn compute_code_challenge(verifier: &str) -> String {
     let digest = Sha256::digest(verifier.as_bytes());
     URL_SAFE_NO_PAD.encode(digest)
 }
 
-fn generate_state() -> String {
+pub fn generate_state() -> String {
     let mut rng = rand::thread_rng();
     let bytes: Vec<u8> = (0..32).map(|_| rng.gen()).collect();
     URL_SAFE_NO_PAD.encode(&bytes)

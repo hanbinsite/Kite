@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::{Emitter, State};
 use tokio::sync::RwLock;
+use tokio_util::sync::CancellationToken;
 use rumqttc::{MqttOptions, Client, Event, Packet, QoS, Connection};
 use serde::{Deserialize, Serialize};
 
@@ -17,6 +18,7 @@ impl Default for MqttState {
 
 pub struct MqttConnection {
     pub client: Client,
+    pub cancel_token: CancellationToken,
 }
 
 impl MqttState {
@@ -74,14 +76,18 @@ pub async fn mqtt_connect(
     }
 
     let (client, connection) = Client::new(mqttopts, 100);
+    let cancel_token = CancellationToken::new();
 
-    state.connections.write().await.insert(connection_id.clone(), MqttConnection { client });
+    state.connections.write().await.insert(connection_id.clone(), MqttConnection {
+        client,
+        cancel_token: cancel_token.clone(),
+    });
 
     let conn_id = connection_id.clone();
     let app_handle = app.clone();
 
     tokio::spawn(async move {
-        poll_mqtt_events(connection, conn_id, app_handle).await;
+        poll_mqtt_events(connection, conn_id, app_handle, cancel_token).await;
     });
 
     let msg = MqttMessage {
@@ -102,60 +108,67 @@ pub async fn mqtt_connect(
     Ok(())
 }
 
-async fn poll_mqtt_events(mut connection: Connection, conn_id: String, app_handle: tauri::AppHandle) {
+async fn poll_mqtt_events(mut connection: Connection, conn_id: String, app_handle: tauri::AppHandle, cancel_token: CancellationToken) {
     loop {
-        match connection.eventloop.poll().await {
-            Ok(Event::Incoming(Packet::Publish(publish))) => {
-                let payload_str = String::from_utf8_lossy(&publish.payload).to_string();
-                let msg = MqttMessage {
-                    connection_id: conn_id.clone(),
-                    topic: publish.topic.clone(),
-                    payload: payload_str,
-                    qos: publish.qos as u8,
-                    direction: "received".to_string(),
-                    timestamp: std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_millis() as u64,
-                };
-                if let Err(e) = app_handle.emit("mqtt-message", &msg) {
-                    tracing::warn!("Failed to emit mqtt-message: {}", e);
-                }
-            }
-            Ok(Event::Incoming(Packet::Disconnect)) => {
-                let msg = MqttMessage {
-                    connection_id: conn_id.clone(),
-                    topic: String::new(),
-                    payload: "Disconnected by server".to_string(),
-                    qos: 0,
-                    direction: "system".to_string(),
-                    timestamp: std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_millis() as u64,
-                };
-                if let Err(e) = app_handle.emit("mqtt-message", &msg) {
-                    tracing::warn!("Failed to emit mqtt-message: {}", e);
-                }
+        tokio::select! {
+            _ = cancel_token.cancelled() => {
                 break;
             }
-            Ok(_) => {}
-            Err(e) => {
-                let msg = MqttMessage {
-                    connection_id: conn_id.clone(),
-                    topic: String::new(),
-                    payload: format!("Error: {}", e),
-                    qos: 0,
-                    direction: "error".to_string(),
-                    timestamp: std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_millis() as u64,
-                };
-                if let Err(e) = app_handle.emit("mqtt-message", &msg) {
-                    tracing::warn!("Failed to emit mqtt-message: {}", e);
+            result = connection.eventloop.poll() => {
+                match result {
+                    Ok(Event::Incoming(Packet::Publish(publish))) => {
+                        let payload_str = String::from_utf8_lossy(&publish.payload).to_string();
+                        let msg = MqttMessage {
+                            connection_id: conn_id.clone(),
+                            topic: publish.topic.clone(),
+                            payload: payload_str,
+                            qos: publish.qos as u8,
+                            direction: "received".to_string(),
+                            timestamp: std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_millis() as u64,
+                        };
+                        if let Err(e) = app_handle.emit("mqtt-message", &msg) {
+                            tracing::warn!("Failed to emit mqtt-message: {}", e);
+                        }
+                    }
+                    Ok(Event::Incoming(Packet::Disconnect)) => {
+                        let msg = MqttMessage {
+                            connection_id: conn_id.clone(),
+                            topic: String::new(),
+                            payload: "Disconnected by server".to_string(),
+                            qos: 0,
+                            direction: "system".to_string(),
+                            timestamp: std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_millis() as u64,
+                        };
+                        if let Err(e) = app_handle.emit("mqtt-message", &msg) {
+                            tracing::warn!("Failed to emit mqtt-message: {}", e);
+                        }
+                        break;
+                    }
+                    Ok(_) => {}
+                    Err(e) => {
+                        let msg = MqttMessage {
+                            connection_id: conn_id.clone(),
+                            topic: String::new(),
+                            payload: format!("Error: {}", e),
+                            qos: 0,
+                            direction: "error".to_string(),
+                            timestamp: std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_millis() as u64,
+                        };
+                        if let Err(e) = app_handle.emit("mqtt-message", &msg) {
+                            tracing::warn!("Failed to emit mqtt-message: {}", e);
+                        }
+                        break;
+                    }
                 }
-                break;
             }
         }
     }
@@ -175,6 +188,22 @@ pub async fn mqtt_subscribe(
     conn.client
         .subscribe(&topic, qos_from_u8(qos))
         .map_err(|e| crate::error::AppError::net_connect_failed(format!("Subscribe failed: {}", e)))?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn mqtt_unsubscribe(
+    state: State<'_, MqttState>,
+    connection_id: String,
+    topic: String,
+) -> Result<(), crate::error::AppError> {
+    let connections = state.connections.read().await;
+    let conn = connections
+        .get(&connection_id)
+        .ok_or_else(|| crate::error::AppError::net_connect_failed("MQTT connection not found".to_string()))?;
+    conn.client
+        .unsubscribe(&topic)
+        .map_err(|e| crate::error::AppError::net_connect_failed(format!("Unsubscribe failed: {}", e)))?;
     Ok(())
 }
 
@@ -203,6 +232,7 @@ pub async fn mqtt_disconnect(
 ) -> Result<(), crate::error::AppError> {
     let mut connections = state.connections.write().await;
     if let Some(conn) = connections.remove(&connection_id) {
+        conn.cancel_token.cancel();
         let _ = conn.client.disconnect();
         Ok(())
     } else {

@@ -1,9 +1,9 @@
 use crate::error::AppError;
 use crate::storage::{CookieEntry, HistoryEntry};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tauri::Manager;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct InsertHistoryRequest {
     pub method: String,
     pub url: String,

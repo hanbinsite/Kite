@@ -5,6 +5,7 @@ const initial: MqttStore = {
   connections: {},
   connect: expect.any(Function) as unknown as MqttStore["connect"],
   subscribe: expect.any(Function) as unknown as MqttStore["subscribe"],
+  unsubscribe: expect.any(Function) as unknown as MqttStore["unsubscribe"],
   publish: expect.any(Function) as unknown as MqttStore["publish"],
   disconnect: expect.any(Function) as unknown as MqttStore["disconnect"],
   clearMessages: expect.any(Function) as unknown as MqttStore["clearMessages"],

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useMqttStore, type MqttConnectionStatus } from "../../stores/mqtt-store";
 import type { MqttConnectConfig } from "@api-client/core/mqtt";
-import { Trash2, Link, Unlink, AlertCircle, ArrowUp, ArrowDown, Send } from "lucide-react";
+import { Trash2, Link, Unlink, AlertCircle, ArrowUp, ArrowDown, Send, X, HelpCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface MqttPanelProps {
@@ -45,6 +45,7 @@ export function MqttPanel({ connectionId }: MqttPanelProps) {
   const connection = useMqttStore((s) => s.connections[connectionId]);
   const doConnect = useMqttStore((s) => s.connect);
   const subscribe = useMqttStore((s) => s.subscribe);
+  const unsubscribe = useMqttStore((s) => s.unsubscribe);
   const publish = useMqttStore((s) => s.publish);
   const doDisconnect = useMqttStore((s) => s.disconnect);
   const clearMessages = useMqttStore((s) => s.clearMessages);
@@ -123,14 +124,20 @@ export function MqttPanel({ connectionId }: MqttPanelProps) {
         <div className="flex flex-col gap-1 px-3 py-2 border-b border-border-muted shrink-0">
           <div className="flex items-center gap-2">
             <span className="font-sans text-[10px] font-semibold text-fg-tertiary uppercase tracking-[0.06em] w-[60px] shrink-0">{t("mqtt.subscribe")}</span>
-            <input
-              type="text"
-              value={subTopic}
-              onChange={(e) => setSubTopic(e.target.value)}
-              placeholder={t("mqtt.topicPlaceholder")}
-              className="flex-1 h-[24px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary placeholder:text-fg-tertiary outline-none focus:border-border-focus font-mono"
-              onKeyDown={(e) => e.key === "Enter" && handleSubscribe()}
-            />
+            <div className="flex-1 flex items-center gap-1">
+              <input
+                type="text"
+                value={subTopic}
+                onChange={(e) => setSubTopic(e.target.value)}
+                placeholder={t("mqtt.topicPlaceholder")}
+                className="flex-1 h-[24px] px-2 bg-bg-input border border-border-muted rounded text-[11px] text-fg-primary placeholder:text-fg-tertiary outline-none focus:border-border-focus font-mono"
+                onKeyDown={(e) => e.key === "Enter" && handleSubscribe()}
+              />
+              <HelpCircle
+                size={12}
+                className="text-fg-tertiary cursor-help shrink-0"
+              />
+            </div>
             <select
               value={subQos}
               onChange={(e) => setSubQos(Number(e.target.value))}
@@ -176,8 +183,15 @@ export function MqttPanel({ connectionId }: MqttPanelProps) {
             <div className="flex items-center gap-1 flex-wrap">
               <span className="font-sans text-[10px] text-fg-tertiary">{t("mqtt.subs")}</span>
               {subscriptions.map((t) => (
-                <span key={t} className="font-mono text-[10px] px-1.5 py-0.5 bg-method-mqtt/10 text-method-mqtt rounded">
+                <span key={t} className="inline-flex items-center gap-0.5 font-mono text-[10px] px-1.5 py-0.5 bg-method-mqtt/10 text-method-mqtt rounded">
                   {t}
+                  <button
+              onClick={(e) => { e.preventDefault(); unsubscribe(connectionId, t); }}
+              className="inline-flex items-center justify-center w-3 h-3 rounded-sm hover:bg-method-mqtt/20 text-method-mqtt/70 hover:text-method-mqtt cursor-pointer transition-colors"
+              title={`Unsubscribe ${t}`}
+                  >
+                    <X size={8} />
+                  </button>
                 </span>
               ))}
             </div>

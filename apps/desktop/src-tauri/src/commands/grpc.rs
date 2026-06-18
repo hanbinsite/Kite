@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 use tauri::{Emitter, State};
 use tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
@@ -144,9 +145,19 @@ fn json_to_dynamic_msg(msg_desc: &prost_reflect::MessageDescriptor, json_str: &s
     Ok(msg)
 }
 
-async fn create_grpc_channel(url: &str) -> Result<Channel, crate::error::AppError> {
-    let endpoint = Endpoint::from_shared(url.to_string())
+async fn create_grpc_channel(url: &str, timeout_ms: Option<u64>) -> Result<Channel, crate::error::AppError> {
+    let mut endpoint = Endpoint::from_shared(url.to_string())
         .map_err(|e| crate::error::AppError::net_invalid_url(format!("Invalid gRPC URL: {}", e)))?;
+
+    let timeout = Duration::from_millis(timeout_ms.unwrap_or(30_000));
+    endpoint = endpoint.timeout(timeout);
+
+    // Phase 2/3: once using tonic-generated clients, enable gRPC compression negotiation:
+    //   client = client.accept_compressed(CompressionEncoding::Gzip)
+    //                  .send_compressed(CompressionEncoding::Gzip);
+    // The low-level Endpoint doesn't expose accept_compressed/send_compressed directly —
+    // those are on the generated Grpc<T> client types.
+
     endpoint.connect()
         .await
         .map_err(|e| crate::error::AppError::safe_net_error("gRPC channel connect", e))
@@ -180,7 +191,7 @@ pub async fn send_grpc_request(
     let grpc_body = encode_grpc_message(&dynamic_msg);
 
     // Use tonic Channel for HTTP/2 transport
-    let mut channel = create_grpc_channel(&config.url).await?;
+    let mut channel = create_grpc_channel(&config.url, config.timeout_ms).await?;
 
     let mut request_builder = http::Request::builder()
         .method(http::Method::POST)
@@ -210,11 +221,45 @@ pub async fn send_grpc_request(
         .unwrap_or("0")
         .to_string();
 
+    let grpc_message = response.headers()
+        .get("grpc-message")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+
+    let has_status_details = response.headers().contains_key("grpc-status-details-bin");
+
+    // Emit a structured event for UI-level error reporting
+    if grpc_status != "0" || grpc_message.is_some() || has_status_details {
+        #[derive(Debug, Clone, Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct GrpcResponseEvent {
+            request_id: String,
+            grpc_status: String,
+            grpc_message: Option<String>,
+            has_status_details_bin: bool,
+        }
+        let event = GrpcResponseEvent {
+            request_id: config.request_id.clone(),
+            grpc_status: grpc_status.clone(),
+            grpc_message: grpc_message.clone(),
+            has_status_details_bin: has_status_details,
+        };
+        if let Err(e) = app.emit("grpc-response", &event) {
+            tracing::warn!("Failed to emit grpc-response event: {}", e);
+        }
+        if has_status_details {
+            tracing::debug!("gRPC response contains grpc-status-details-bin header (not decoded)");
+        }
+    }
+
     let response_headers: Vec<(String, String)> = response.headers().iter()
         .filter_map(|(k, v)| Some((k.to_string(), v.to_str().ok()?.to_string())))
         .collect();
 
     if method.is_server_streaming() {
+        // Phase 3: replace manual frame parsing with tonic::Streaming<T>
+        //   i.e. let stream: tonic::Streaming<T> = tonic_client.server_streaming(req).await?.into_streaming()
+        //   This would eliminate manual gRPC frame decoding below.
         let conn_id = config.request_id.clone();
         let app_handle = app.clone();
         let output_desc = method.output().clone();
@@ -225,6 +270,7 @@ pub async fn send_grpc_request(
             use futures_util::StreamExt;
             use http_body_util::BodyExt;
 
+            // Phase 3: replace the entire body data stream + buffer loop with tonic::Streaming<DynamicMessage>
             let mut stream = response.into_body().into_data_stream();
             let mut buffer = bytes::BytesMut::new();
 
@@ -232,6 +278,7 @@ pub async fn send_grpc_request(
                 match stream.next().await {
                     Some(Ok(chunk)) => {
                         buffer.extend_from_slice(&chunk);
+                        // Phase 3: this manual frame reassembly replaces by tonic's built-in framing
                         while buffer.len() >= 5 {
                             let compressed = buffer[0] != 0;
                             let len = u32::from_be_bytes([buffer[1], buffer[2], buffer[3], buffer[4]]) as usize;
@@ -253,6 +300,7 @@ pub async fn send_grpc_request(
 
                             let _ = compressed;
 
+                            // Phase 3: message decoding here would use tonic's generated types
                             match DynamicMessage::decode(output_desc.clone(), frame_data.as_slice()) {
                                 Ok(msg) => {
                                     let body = dynamic_msg_to_json(&msg);
@@ -319,7 +367,7 @@ pub async fn send_grpc_request(
 pub async fn reflect_grpc_services(
     url: String,
 ) -> Result<Vec<GrpcServiceInfo>, crate::error::AppError> {
-    let channel = create_grpc_channel(&url).await?;
+    let channel = create_grpc_channel(&url, None).await?;
 
     let services = list_reflection_services(&channel).await?;
 

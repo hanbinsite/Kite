@@ -15,6 +15,8 @@ fn basic_context() -> ScriptContext {
         environment: Some([("HOST".into(), "localhost".into())].into()),
         collection_variables: None,
         globals: None,
+        cookie_header: None,
+        auth_header: None,
     }
 }
 
@@ -70,6 +72,8 @@ fn test_pm_response_in_post_response_context() {
         environment: Some([("BASE".into(), "https://api.example.com".into())].into()),
         collection_variables: None,
         globals: None,
+        cookie_header: None,
+        auth_header: None,
     };
     let params = ExecuteScriptParams {
         code: r#"
@@ -122,6 +126,8 @@ fn test_pm_globals_set_and_get() {
             environment: None,
             collection_variables: None,
             globals: Some([("existing".into(), "value".into())].into()),
+            cookie_header: None,
+            auth_header: None,
         },
         timeout_ms: Some(5000),
     };
@@ -142,6 +148,8 @@ fn test_pm_collection_variables() {
             environment: None,
             collection_variables: Some([("version".into(), "v1".into())].into()),
             globals: None,
+            cookie_header: None,
+            auth_header: None,
         },
         timeout_ms: Some(5000),
     };
@@ -265,6 +273,7 @@ fn test_script_result_serde() {
         modified_request: None,
         error: None,
         timed_out: false,
+        set_cookie_headers: vec![],
     };
     let json = serde_json::to_string(&result).unwrap();
     let parsed: ScriptResult = serde_json::from_str(&json).unwrap();
@@ -284,6 +293,7 @@ fn test_script_result_timeout() {
         modified_request: None,
         error: Some("Script timed out after 100ms".into()),
         timed_out: true,
+        set_cookie_headers: vec![],
     };
     let json = serde_json::to_string(&result).unwrap();
     let parsed: ScriptResult = serde_json::from_str(&json).unwrap();

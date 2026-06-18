@@ -167,7 +167,7 @@ pub async fn call_mcp_tool(
         "send_request" => handle_send_request(&args).await,
         "list_collections" => handle_list_collections(app).await,
         "get_environment" => handle_get_environment(app, &args).await,
-        "execute_script" => handle_execute_script(&args).await,
+        "execute_script" => handle_execute_script(app, &args).await,
         unknown => Err(AppError::not_found(format!("Unknown MCP tool: {}", unknown))),
     }
 }
@@ -376,7 +376,7 @@ async fn handle_get_environment(app: tauri::AppHandle, args: &serde_json::Value)
     Ok(json)
 }
 
-async fn handle_execute_script(args: &serde_json::Value) -> Result<String, AppError> {
+async fn handle_execute_script(app: tauri::AppHandle, args: &serde_json::Value) -> Result<String, AppError> {
     let code = get_str(args, "code")
         .ok_or_else(|| AppError::validation_failed("Missing 'code' field".into()))?
         .to_string();
@@ -396,6 +396,8 @@ async fn handle_execute_script(args: &serde_json::Value) -> Result<String, AppEr
         environment: env_vars,
         collection_variables: None,
         globals: None,
+        cookie_header: None,
+        auth_header: None,
     };
 
     let params = crate::script::engine::ExecuteScriptParams {
@@ -404,7 +406,7 @@ async fn handle_execute_script(args: &serde_json::Value) -> Result<String, AppEr
         timeout_ms,
     };
 
-    let result = crate::commands::script::execute_script(params).await?;
+    let result = crate::commands::script::execute_script(app, params).await?;
     let json = serde_json::to_string_pretty(&result)
         .map_err(|e| AppError::internal(format!("Failed to serialize script result: {}", e)))?;
     Ok(json)

@@ -476,7 +476,7 @@ export const useRequestStore = create<RequestStore>()(
           });
           for (const entry of preChain) {
             const scriptCtx: ScriptContext = {
-              request: { method, url: resolvedUrl, headers: resolvedHeaders, body: ipcConfig.body },
+              request: { method, url: resolvedUrl, headers: resolvedHeaders, body: ipcConfig.body, auth: ipcConfig.auth },
               environment: envScopes.environment,
               collectionVariables: collectionVariablesRecord,
               globals: envScopes.global,
@@ -490,7 +490,7 @@ export const useRequestStore = create<RequestStore>()(
           const preScript = requestData.scripts?.preRequest;
           if (preScript?.trim()) {
             const scriptCtx: ScriptContext = {
-              request: { method, url: resolvedUrl, headers: resolvedHeaders, body: ipcConfig.body },
+              request: { method, url: resolvedUrl, headers: resolvedHeaders, body: ipcConfig.body, auth: ipcConfig.auth },
               environment: envScopes.environment,
               globals: envScopes.global,
             };
@@ -528,7 +528,7 @@ export const useRequestStore = create<RequestStore>()(
         });
         for (const entry of postChain) {
           const scriptCtx: ScriptContext = {
-            request: { method, url: resolvedUrl },
+            request: { method, url: resolvedUrl, auth: buildIpcAuth(effectiveAuth) },
             response: { status: response.status, statusText: response.statusText, headers: response.headers, body: response.body, time: response.time },
             environment: envScopes.environment,
             collectionVariables: collectionVariablesRecord,
@@ -542,7 +542,7 @@ export const useRequestStore = create<RequestStore>()(
         const postScript = requestData.scripts?.postResponse;
         if (postScript?.trim()) {
           const scriptCtx: ScriptContext = {
-            request: { method, url: resolvedUrl },
+            request: { method, url: resolvedUrl, auth: buildIpcAuth(effectiveAuth) },
             response: { status: response.status, statusText: response.statusText, headers: response.headers, body: response.body, time: response.time },
             environment: envScopes.environment,
             globals: envScopes.global,

@@ -972,7 +972,7 @@ pub async fn download_http_response(
     Ok(())
 }
 
-async fn load_cookie_header(
+pub(crate) async fn load_cookie_header(
     app_handle: &tauri::AppHandle,
     url: &str,
 ) -> String {
@@ -1020,6 +1020,42 @@ async fn load_cookie_header(
         .map(|c| format!("{}={}", c.name, c.value))
         .collect::<Vec<_>>()
         .join("; ")
+}
+
+pub(crate) async fn save_cookies_from_response_headers(
+    app_handle: &tauri::AppHandle,
+    url: &str,
+    set_cookie_headers: &[String],
+) {
+    if set_cookie_headers.is_empty() {
+        return;
+    }
+
+    let host = match reqwest::Url::parse(url) {
+        Ok(u) => match u.host_str() {
+            Some(h) => h.to_string(),
+            None => {
+                tracing::warn!("URL has no host: {}", url);
+                return;
+            }
+        },
+        Err(_) => return,
+    };
+
+    let storage = app_handle.state::<crate::AppState>().storage.clone();
+    let cookies = set_cookie_headers.to_vec();
+    let _ = tokio::task::spawn_blocking(move || {
+        let storage_lock = storage.lock().expect("storage Mutex poisoned");
+        let storage = match storage_lock.as_ref() {
+            Some(s) => s,
+            None => return,
+        };
+        for cookie_str in cookies {
+            let cookie = parse_set_cookie(&cookie_str, &host);
+            let _ = storage.upsert_cookie(&cookie);
+        }
+    })
+    .await;
 }
 
 async fn save_cookies_from_response(
