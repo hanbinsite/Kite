@@ -1,4 +1,4 @@
-use crate::ai::local::{LocalAiConfig, test_ollama_connection, list_ollama_models, ollama_chat, ollama_stream_chat};
+use crate::ai::local::LocalAiConfig;
 
 #[test]
 fn test_local_ai_config_new() {

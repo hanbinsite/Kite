@@ -203,19 +203,15 @@ fn handle_create_request(args: &serde_json::Value) -> Result<String, AppError> {
         })
         .unwrap_or_default();
 
-    let body = if let Some(b) = args.get("body") {
-        Some(http::BodyConfig {
-            mode: b["mode"].as_str().unwrap_or("raw").to_string(),
-            content: b["content"].as_str().map(|s| s.to_string()),
-            content_type: b["content_type"].as_str().map(|s| s.to_string()),
-            formdata: Vec::new(),
-            urlencoded: Vec::new(),
-            graphql_query: None,
-            graphql_variables: None,
-        })
-    } else {
-        None
-    };
+    let body = args.get("body").map(|b| http::BodyConfig {
+        mode: b["mode"].as_str().unwrap_or("raw").to_string(),
+        content: b["content"].as_str().map(|s| s.to_string()),
+        content_type: b["content_type"].as_str().map(|s| s.to_string()),
+        formdata: Vec::new(),
+        urlencoded: Vec::new(),
+        graphql_query: None,
+        graphql_variables: None,
+    });
 
     let config = http::HttpRequestConfig {
         id,

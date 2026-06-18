@@ -923,7 +923,7 @@ fn build_oauth1_header(
     method: &str,
     url: &str,
 ) -> Result<String, AppError> {
-    let nonce: String = std::iter::repeat_with(|| rand::random::<char>())
+    let nonce: String = std::iter::repeat_with(rand::random::<char>)
         .filter(|c| c.is_ascii_alphanumeric())
         .take(32)
         .collect();

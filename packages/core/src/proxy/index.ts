@@ -1,3 +1,5 @@
+// MITM HTTP interception proxy server (hudsucker-based), deferred.
+// This is separate from the Settings > Proxy outbound client proxy (proxyUrl).
 import { invoke } from "@tauri-apps/api/core";
 
 export interface ProxyConfig {

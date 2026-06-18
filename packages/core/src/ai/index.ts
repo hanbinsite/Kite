@@ -42,7 +42,8 @@ export interface AiApiKeyStatus {
 }
 
 export interface AgentAction {
-  type: "create_request" | "modify_request" | "write_test" | "generate_doc" | "fix_error" | "extract_variables" | "generate_mock" | "explain_response";
+  // Note: "explain_response" was removed — /explain produces free-text, not an action card.
+  type: "create_request" | "modify_request" | "write_test" | "generate_doc" | "fix_error" | "extract_variables" | "generate_mock";
   data: Record<string, unknown>;
   description: string;
 }
@@ -159,11 +160,11 @@ export { buildContextMessage } from "./context-builder";
 export type { AiContextData } from "./context-builder";
 export { parseAgentAction, AGENT_TOOLS } from "./action-types";
 export type { CreateRequestAction, ModifyRequestAction, WriteTestAction, GenerateDocAction, FixErrorAction, ExtractVariablesAction, GenerateMockAction, ToolDefinition, AiChatWithToolsRequest, AiChatWithToolsResponse, AiToolCall } from "./action-types";
-export { chatAndParseActions } from "./action-dispatcher";
+export { chatAndParseActions, extractActionsFromText } from "./action-dispatcher";
 export type { DispatchResult } from "./action-dispatcher";
 export { computeJsonDiff } from "./response-differ";
 export type { DiffResult } from "./response-differ";
-export { buildAnalysisContext } from "./collection-analyzer";
+export { buildAnalysisContext, parseAnalysisReport } from "./collection-analyzer";
 export type { AnalysisReport } from "./collection-analyzer";
 export { formatDoc } from "./doc-generator";
 export type { DocEndpoint } from "./doc-generator";

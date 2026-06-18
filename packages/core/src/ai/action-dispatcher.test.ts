@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { chatAndParseActions } from "./action-dispatcher";
+import { chatAndParseActions, extractActionsFromText } from "./action-dispatcher";
 import type { AiChatWithToolsResponse } from "./action-types";
 
 vi.mock("./index", () => ({
@@ -177,5 +177,69 @@ describe("action-dispatcher", () => {
 
     expect(actions).toHaveLength(1);
     expect(actions[0]!.type).toBe("fix_error");
+  });
+});
+
+describe("extractActionsFromText", () => {
+  it("extracts a create_request action from a json code block", () => {
+    const text = 'Here is your request:\n```json\n{"type":"create_request","description":"New","data":{"name":"Test","method":"GET","url":"https://example.com"}}\n```';
+    const actions = extractActionsFromText(text);
+    expect(actions).toHaveLength(1);
+    expect(actions[0]!.type).toBe("create_request");
+    expect((actions[0]!.data as Record<string, unknown>).name).toBe("Test");
+  });
+
+  it("extracts multiple actions from separate json blocks", () => {
+    const text = '```json\n{"type":"create_request","description":"A","data":{"name":"A","method":"GET","url":"/a"}}\n```\n```json\n{"type":"create_request","description":"B","data":{"name":"B","method":"POST","url":"/b"}}\n```';
+    const actions = extractActionsFromText(text);
+    expect(actions).toHaveLength(2);
+  });
+
+  it("extracts array of actions from a single json block", () => {
+    const text = '```json\n[{"type":"create_request","description":"A","data":{"name":"A","method":"GET","url":"/a"}},{"type":"create_request","description":"B","data":{"name":"B","method":"POST","url":"/b"}}]\n```';
+    const actions = extractActionsFromText(text);
+    expect(actions).toHaveLength(2);
+  });
+
+  it("skips code blocks without language specifier", () => {
+    const text = '```\n{"type":"create_request","description":"New","data":{"name":"Test","method":"GET","url":"https://example.com"}}\n```';
+    const actions = extractActionsFromText(text);
+    expect(actions).toHaveLength(1);
+  });
+
+  it("skips invalid JSON in code blocks", () => {
+    const text = '```json\nnot json at all\n```';
+    const actions = extractActionsFromText(text);
+    expect(actions).toHaveLength(0);
+  });
+
+  it("skips JSON that is not an action", () => {
+    const text = '```json\n{"foo":"bar"}\n```';
+    const actions = extractActionsFromText(text);
+    expect(actions).toHaveLength(0);
+  });
+
+  it("returns empty for empty text", () => {
+    expect(extractActionsFromText("")).toEqual([]);
+  });
+
+  it("handles generate_doc action", () => {
+    const text = '```json\n{"type":"generate_doc","description":"Docs","data":{"markdown":"# Title"}}\n```';
+    const actions = extractActionsFromText(text);
+    expect(actions).toHaveLength(1);
+    expect(actions[0]!.type).toBe("generate_doc");
+  });
+
+  it("handles extract_variables action", () => {
+    const text = '```json\n{"type":"extract_variables","description":"Vars","data":{"variables":[{"key":"x","value":"1"}]}}\n```';
+    const actions = extractActionsFromText(text);
+    expect(actions).toHaveLength(1);
+    expect(actions[0]!.type).toBe("extract_variables");
+  });
+
+  it("handles text with no json blocks", () => {
+    const text = "Just some plain text without any code blocks.";
+    const actions = extractActionsFromText(text);
+    expect(actions).toHaveLength(0);
   });
 });

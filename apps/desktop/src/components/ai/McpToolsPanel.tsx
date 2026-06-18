@@ -169,7 +169,7 @@ export function McpToolsPanel() {
 
       {mcpTools.length === 0 ? (
         <div className="text-[10px] text-fg-tertiary text-center py-4">
-          No MCP tools connected. Configure MCP servers in Settings.
+          No MCP tools loaded. Click refresh to load built-in tools (create_request, send_request, etc.).
         </div>
       ) : (
         <div className="space-y-1">

@@ -1,3 +1,6 @@
+// MITM HTTP proxy server — stub, full hudsucker-based implementation deferred.
+// The Settings ProxySection manages a client-side outbound proxy (proxyUrl),
+// which is a separate concept from this server-side interception proxy.
 use crate::error::AppError;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};

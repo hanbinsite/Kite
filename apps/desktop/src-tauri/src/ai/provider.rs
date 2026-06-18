@@ -365,17 +365,11 @@ pub async fn ai_test_connection(app: tauri::AppHandle, provider_id: String, base
             let path = providers_file(&app)?;
             let fresh = load_providers_from_file(&path)?;
             if let Some(p) = fresh.iter().find(|p| p.id == provider_id) {
-                match get_api_key(&app, &p.id) {
-                    Ok(_) => { used_key = true; }
-                    Err(_) => {}
-                }
+                if get_api_key(&app, &p.id).is_ok() { used_key = true; }
             }
         }
         Some(p) => {
-            match get_api_key(&app, &p.id) {
-                Ok(_) => { used_key = true; }
-                Err(_) => {}
-            }
+            if get_api_key(&app, &p.id).is_ok() { used_key = true; }
         }
     }
 

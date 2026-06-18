@@ -1,10 +1,10 @@
 ﻿export interface DocEndpoint {
-  name: string;
   method: string;
   path: string;
   params: string;
   bodyExample: string;
   responseExample: string;
+  name: string;
 }
 
 export function formatDoc(requests: DocEndpoint[], collectionName: string): string {
@@ -18,7 +18,7 @@ export function formatDoc(requests: DocEndpoint[], collectionName: string): stri
   ];
 
   for (const req of requests) {
-    parts.push(`### ${req.method} ${req.path}`);
+    parts.push(`### ${req.method} ${req.path} — ${req.name}`);
     parts.push("");
     if (req.params) {
       parts.push(`**Query Parameters:** ${req.params}`);

@@ -32,3 +32,31 @@ export async function chatAndParseActions(
 
   return { actions, response };
 }
+
+export function extractActionsFromText(text: string): AgentAction[] {
+  if (!text) return [];
+
+  const actions: AgentAction[] = [];
+  const jsonBlockRegex = /```(?:json)?\s*\n?([\s\S]*?)```/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = jsonBlockRegex.exec(text)) !== null) {
+    const raw = match[1]!.trim();
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        for (const item of parsed) {
+          const action = parseAgentAction(item);
+          if (action) actions.push(action);
+        }
+      } else if (typeof parsed === "object" && parsed !== null) {
+        const action = parseAgentAction(parsed);
+        if (action) actions.push(action);
+      }
+    } catch {
+      // skip unparseable JSON blocks
+    }
+  }
+
+  return actions;
+}

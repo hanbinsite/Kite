@@ -252,8 +252,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const allMessages = [...(contextMessages ?? []), ...updatedMessages].map((m) => ({ role: m.role, content: m.content }));
 
       await executeStreaming(get, set, sessionId, providerId, allMessages, updatedMessages);
-      await new Promise((r) => setTimeout(r, 100));
-      await detectActions(sessionId);
+      await new Promise((r) => setTimeout(r, 50));
+      detectActions(sessionId);
     },
 
     sendSlashCommand: async (sessionId, providerId, command, contextMessages) => {
@@ -279,8 +279,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const allMessages = [...(contextMessages ?? []), systemMessage, ...updatedMessages].map((m) => ({ role: m.role, content: m.content }));
 
       await executeStreaming(get, set, sessionId, providerId, allMessages, updatedMessages);
-      await new Promise((r) => setTimeout(r, 100));
-      await detectActions(sessionId);
+      await new Promise((r) => setTimeout(r, 50));
+      detectActions(sessionId);
     },
 
   loadSession: async (sessionId) => {
@@ -340,22 +340,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
 async function detectActions(sessionId: string) {
   const { useChatStore } = await import("./store");
-  const { useProviderStore } = await import("./store");
   const msgs = useChatStore.getState().messages[sessionId];
   if (!msgs || msgs.length === 0) return;
 
-  const activeProviderId = useProviderStore.getState().activeProviderId;
-  if (!activeProviderId) return;
+  const lastAssistantMsg = [...msgs].reverse().find((m) => m.role === "assistant");
+  if (!lastAssistantMsg?.content) return;
 
   try {
-    const { chatAndParseActions } = await import("./action-dispatcher");
-    const apiMessages = msgs.map((m) => ({ role: m.role, content: m.content }));
-    const { actions } = await chatAndParseActions(activeProviderId, apiMessages);
-    console.log("[detectActions] tools returned", actions.length, "actions");
+    const { extractActionsFromText } = await import("./action-dispatcher");
+    const actions = extractActionsFromText(lastAssistantMsg.content);
     if (actions.length > 0) {
       useChatStore.getState().setPendingActions?.(sessionId, actions);
     }
   } catch (e) {
-    console.error("[detectActions] tools call failed:", e);
+    console.error("[detectActions] text extraction failed:", e);
   }
 }

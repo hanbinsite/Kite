@@ -7,6 +7,27 @@
   duplicateEndpoints: string[];
 }
 
+export function parseAnalysisReport(text: string): AnalysisReport {
+  const extractSection = (label: string): string[] => {
+    const regex = new RegExp(`${label}:\\s*(.+)`, "i");
+    const match = text.match(regex);
+    if (!match || !match[1]?.trim()) return [];
+    return match[1].split(",").map((s) => s.trim()).filter(Boolean);
+  };
+
+  const summaryMatch = text.match(/summary:\s*(.+)/i);
+  const summary = summaryMatch?.[1]?.trim() || "";
+
+  return {
+    summary,
+    missingTests: extractSection("missingTests"),
+    missingDocs: extractSection("missingDocs"),
+    authInconsistencies: extractSection("authInconsistencies"),
+    hardcodedUrls: extractSection("hardcodedUrls"),
+    duplicateEndpoints: extractSection("duplicateEndpoints"),
+  };
+}
+
 export function buildAnalysisContext(requests: Array<{
   name: string;
   method: string;
