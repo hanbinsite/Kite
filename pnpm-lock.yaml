@@ -231,6 +231,9 @@ importers:
       '@api-client/types':
         specifier: workspace:*
         version: link:../types
+      '@codemirror/autocomplete':
+        specifier: ^6.0.0
+        version: 6.20.1
       '@tauri-apps/api':
         specifier: ^2.0.0
         version: 2.10.1
