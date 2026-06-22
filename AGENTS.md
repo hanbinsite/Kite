@@ -152,7 +152,7 @@ api-client/
 10. **文件操作必须校验路径** — 所有文件 Command 校验路径在 `{app_data}/` 内，防止路径遍历
 11. **Vault 加密使用随机 nonce** — AES-256-GCM 每次加密生成随机 12 字节 nonce，不用静态 nonce
 12. **Vault secret 名校验** — `delete_vault_secret` 校验 name 不含路径分隔符
-13. **OAuth1/AwsV4 未实现** — 选择此认证类型时返回 `NOT_IMPLEMENTED` 错误
+13. **OAuth1/AwsV4 已实现** — OAuth1 使用 HMAC-SHA1 签名，AWSv4 使用 sigv4 签名（`http.rs build_oauth1_header()` / `build_aws_v4_header()`）
 14. **gRPC 使用 tonic HTTP/2** — 通过 `tonic::transport::Endpoint` 连接，支持 HTTP/2 + protobuf
 15. **响应体大小限制 10MB** — `http.rs` 检查响应体大小，超限返回 `NET_BODY_TOO_LARGE`
 16. **AI API key 通过系统 keyring 存储** — `ai_set_api_key` 写入 keyring，`ai_get_api_key_status` 只返回 hasKey bool，不返回 key 值

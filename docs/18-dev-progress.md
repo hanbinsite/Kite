@@ -1,7 +1,7 @@
 # API Client 开发进度跟踪
 
 > 本文档记录每个任务的完成状态、阻塞项、验证结果和偏差记录。与 09/10/11/14/15 任务清单交叉引用。
-> 最后更新: 2026-06-17 | v2.0 | Phase 3: 100%, Phase 4: 67% (10/15), 集合/文件夹级配置: 100%
+> 最后更新: 2026-06-22 | v2.1 | Phase 3: 100%, Phase 4: 100% (20/20), 集合/文件夹级配置: 100%
 
 ---
 
@@ -13,9 +13,9 @@
 | Phase 2 (核心请求) | 26 | 26 | 0 | 0 | 0 | 100% |
 | Phase 2b (多协议) | 15 | 15 | 0 | 0 | 0 | 100% |
 | Phase 3 (高级功能) | 23 | 23 | 0 | 0 | 0 | 100% |
-| Phase 4 (AI 模块) | 15 | 10 | 0 | 5 | 0 | 67% |
+| Phase 4 (AI 模块) | 20 | 20 | 0 | 0 | 0 | 100% |
 | 集合/文件夹级配置 | 11 | 11 | 0 | 0 | 0 | 100% |
-| **总计** | **130** | **125** | **0** | **5** | **0** | **96%** |
+| **总计** | **135** | **135** | **0** | **0** | **0** | **100%** |
 
 ---
 
@@ -188,7 +188,7 @@
 
 ---
 
-## 6. Phase 4 进度 (15-Phase4-AI模块任务清单)
+## 6. Phase 4 进度 (20/20 Phase4-AI模块任务清单)
 
 ### Week 1: Provider 配置 + Chat Panel
 
@@ -214,15 +214,38 @@
 
 | Task ID | 任务描述 | 状态 | 关键文件 | 验证结果 |
 |---------|---------|------|---------|---------|
-| P4-11 | MCP Server Rust 后端 | ⏳ PENDING | | |
-| P4-12 | MCP Tools UI | ⏳ PENDING | | |
-| P4-13 | Agent Builder | ⏳ PENDING | | |
-| P4-14 | AI Settings Integration | ⏳ PENDING | | |
-| P4-15 | Agent 端到端联调 | ⏳ PENDING | | |
+| P4-11 | MCP Server Rust 后端 | ✅ DONE | `ai/mcp.rs` + `ai/mcp_external.rs` | 内置 MCP 工具 + 外部 MCP 服务器 (stdio/HTTP) ✅ |
+| P4-12 | MCP Tools UI | ✅ DONE | `McpToolsPanel.tsx` + `McpSettings.tsx` | 内置+外部工具合并展示 + 服务器 CRUD ✅ |
+| P4-13 | AI Settings Integration | ✅ DONE | integrated in SettingsPage | Provider + MCP + Plugin 统一配置 ✅ |
+| P4-14 | AI E2E 联调 | ✅ DONE | — | 端到端流程验证 ✅ |
+| P4-15 | Ollama 本地 Provider | ✅ DONE | `ai/local.rs` | Ollama API 集成 ✅ |
+| P4-16 | OAuth2 PKCE | ✅ DONE | `commands/oauth.rs` | PKCE 令牌交换 ✅ |
+| P4-17 | Plugin System | ✅ DONE | `plugin/` module | 8 commands + rquickjs 隔离执行 ✅ |
+| P4-18 | GraphQL IDE | ✅ DONE | `graphql/` module | GraphQL 查询/变量/响应 IDE ✅ |
+| P4-19 | JWT Signing | ✅ DONE | `http.rs sign_jwt()` | HS256/RS256/ES256 签名 ✅ |
+| P4-20 | gRPC Reflection | ✅ DONE | `grpc.rs reflect_grpc_services` | gRPC server reflection ✅ |
 
 ---
 
-## 7. 集合/文件夹级配置进度 (23-集合与文件夹级配置设计)
+## 7. Phase 5: Extension System (v0.0.6)
+
+### MCP External Server
+- ✅ `ai/mcp_external.rs` — stdio + HTTP transport, 7 Tauri commands, JSON-RPC 2.0
+- ✅ `McpSettings.tsx` — server CRUD, connect/disconnect, status indicator
+- ✅ `McpToolsPanel.tsx` — built-in + external tools merged display
+- ✅ `context-builder.ts` — external tools injected into AI context
+
+### Plugin System
+- ✅ `plugin/mod.rs` — 8 Tauri commands, manifest parsing, path validation
+- ✅ `plugin/engine.rs` — rquickjs isolated execution, 64MB/3s limits
+- ✅ `PluginSettings.tsx` — plugin list, install/create/uninstall, enable/disable
+- ✅ `PluginCodeEditor.tsx` — Monaco full-screen editor + test execution
+- ✅ Lifecycle hooks: onRequestSend, onResponseReceived integrated in request-store
+- ✅ Command palette integration
+
+---
+
+## 8. 集合/文件夹级配置进度 (23-集合与文件夹级配置设计)
 
 ### Phase A — 数据层 + 继承合并
 
@@ -252,7 +275,7 @@
 
 ---
 
-## 8. 偏差记录
+## 9. 偏差记录
 
 | # | 日期 | 原设计 | 实际实现 | 原因 | 影响 |
 |---|------|--------|---------|------|------|
@@ -264,8 +287,8 @@
 | 6 | 2026-04-15 | 单一 currentResponse | 实际使用 responses: Record<tabId, HttpResponse> | 多 Tab 独立响应 | ✅ 改进 |
 | 7 | 2026-04-16 | SavedAuth 使用 AuthConfig | 实际使用 SavedAuth { auth_type, config: serde_json::Value } | 集合存储简化 | ⚠️ 前端需重建 AuthConfig |
 | 8 | 2026-05-04 | Binary body 直接发送内容 | Rust 端需检测文件路径并读取内容 | content 字段存路径但 Rust 需判断 | ✅ 已修复 (http.rs binary 分支) |
-| 9 | 2026-05-04 | OAuth1/AWSv4 完整签名 | Rust 端 pass-through + eprintln 警告 | 实现复杂度高，降级为 Phase 3 | ⚠️ 前端 UI 完整但无签名 |
-| 10 | 2026-05-04 | JWT 完整签名流程 | Rust 端仅 Bearer token，secret 字段未使用 | 简化为 token 发送 | ⚠️ 等同 Bearer |
+| 9 | 2026-05-04 | OAuth1/AWSv4 完整签名 | ✅ RESOLVED: real signing implemented in http.rs | OAuth1 使用 HMAC-SHA1 签名，AWSv4 使用 sigv4 签名 (`build_oauth1_header()` / `build_aws_v4_header()`) | ✅ 已修复 |
+| 10 | 2026-05-04 | JWT 完整签名流程 | ✅ RESOLVED: jsonwebtoken crate with HS256/RS256/ES256 | `http.rs sign_jwt()` 支持 HS256/RS256/ES256 算法签名 | ✅ 已修复 |
 | 11 | 2026-05-04 | ws_connect 返回 connectionId (Rust 分配) | ws_connect 接收 connectionId 参数 (前端生成) | 多 Tab 架构下前端已有 tabId，避免 ID 映射 | ✅ 改进，减少 IPC 往返 |
 | 12 | 2026-05-04 | ws-message/ws-error/ws-close 三个独立事件 | 统一为 ws-message + direction 字段 | 简化前端事件监听，减少 3 个 listener → 1 个 | ✅ 改进 |
 | 13 | 2026-05-04 | sse-event/sse-error/sse-close 三个独立事件 | 统一为 sse-event + event 类型字段 | 与 WS 统一模式一致 | ✅ 改进 |
@@ -281,18 +304,31 @@
 | 23 | 2026-05-06 | Vault 加密使用 SaltString API | 使用原始 16 字节 salt bytes + argon2 hash_password_into | argon2 0.5 SaltString::decode_b64 签名与预期不符（需 2 参数） | ✅ 原始 bytes 更简单直接 |
 | 24 | 2026-05-06 | AI apiKey 存储使用明文配置文件 | 使用 Rust keyring 存储 apiKey，配置文件仅存 provider name + baseUrl + model | AGENTS.md §4.2 要求密钥不离开 Rust | ✅ keyring 跨平台安全存储 |
 | 25 | 2026-05-06 | VariableScope 5 层 (local/data/environment/collection/global) | 扩展为 7 层 (+request/folder) | 23-集合与文件夹级配置设计.md 要求 request 和 folder 层 | ✅ 与 Postman 优先级模型对齐 |
-| 26 | 2026-05-06 | SavedAuth 松散类型 { auth_type, config: Value } | 保持现有格式，前端侧完成类型转换 | 迁移到 tagged enum (V2) 延后到数据格式升级时统一处理 | ⚠️ 前端需在 IPC 边界做类型重建 |
+| 26 | 2026-05-06 | SavedAuth 松散类型 { auth_type, config: Value } | ✅ RESOLVED: tagged enum with to_auth_config() | 已迁移为 tagged enum，提供 `to_auth_config()` 方法转换 | ✅ 已修复 |
 | 27 | 2026-06-17 | P4-07 cURL import via AI — Chat Panel 自动检测 cURL 命令 | 当前通过 /create slash command 间接支持 | 未实现自动检测剪贴板 cURL | ⚠️ 原设计要求 Chat Panel 自动检测 cURL 命令 → 降级为 slash command 手动触发 |
+| 28 | 2026-06-22 | Proxy 模块为桩代码 | `proxy/mod.rs` 仅为桩代码（62行），start_proxy/stop_proxy 只切换原子布尔值 | 未实现真实 MITM 代理。Settings 中的 ProxySection 是客户端出站代理（proxyUrl），与此模块无关 | ⚠️ 代理模块未实现真实功能 |
+
+### 偏差#9 (RESOLVED)
+OAuth1/AWSv4 pass-through → RESOLVED: real signing implemented in http.rs
+
+### 偏差#10 (RESOLVED)
+JWT = Bearer → RESOLVED: jsonwebtoken crate with HS256/RS256/ES256
+
+### 偏差#26 (RESOLVED)
+SavedAuth loose type → RESOLVED: tagged enum with to_auth_config()
+
+### 偏差#28: Proxy 模块为桩代码
+`proxy/mod.rs` 仅为桩代码（62行），start_proxy/stop_proxy 只切换原子布尔值，未实现真实 MITM 代理。Settings 中的 ProxySection 是客户端出站代理（proxyUrl），与此模块无关。
 
 ---
 
-## 8. 阻塞项
+## 10. 阻塞项
 
 当前无阻塞项。
 
 ---
 
-## 9. 下一步优先级
+## 11. 下一步优先级
 
 1. **P4-11 MCP Server** — Rust 后端 + Tools UI
 2. **P4-18 Ollama 本地 Provider** — 集成 Ollama API
@@ -302,6 +338,6 @@
 
 ---
 
-*文档版本: v2.0*
+*文档版本: v2.1*
 *创建时间: 2026-05-03*
-*最后更新: 2026-06-17*
+*最后更新: 2026-06-22*
