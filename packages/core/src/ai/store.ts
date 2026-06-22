@@ -118,14 +118,21 @@ export const useProviderStore = create<ProviderStore>((set) => ({
 
   addProvider: async (config, apiKey) => {
     await addProviderIpc(config);
+    let hasKey: boolean | undefined;
     if (apiKey) {
       await setApiKeyIpc(config.id, apiKey);
+      hasKey = true;
+    } else if (apiKey === "") {
+      hasKey = false;
     }
-    const hasKey = !!apiKey;
+    const merged = { ...useProviderStore.getState().apiKeyStatus };
+    if (hasKey !== undefined) {
+      merged[config.id] = hasKey;
+    }
     set((s) => ({
       providers: s.providers.filter((p) => p.id !== config.id).concat(config),
       activeProviderId: s.activeProviderId ?? config.id,
-      apiKeyStatus: { ...s.apiKeyStatus, [config.id]: hasKey },
+      apiKeyStatus: merged,
     }));
   },
 

@@ -204,12 +204,25 @@ fn get_keyring_entry() -> Result<keyring::Entry, AppError> {
 fn load_api_keys(app: &tauri::AppHandle) -> Result<std::collections::HashMap<String, String>, AppError> {
     let entry = get_keyring_entry()?;
     match entry.get_password() {
-        Ok(json_str) => {
+        Ok(json_str) if !json_str.is_empty() => {
             serde_json::from_str(&json_str)
                 .map_err(|e| AppError::storage_parse_failed(format!("Failed to parse keys: {}", e)))
         }
-        Err(keyring::Error::NoEntry) => {
-            migrate_keys_from_json(app)
+        Ok(_) | Err(keyring::Error::NoEntry) => {
+            let path = api_keys_file(app)?;
+            if !path.exists() {
+                return migrate_keys_from_json(app);
+            }
+            let content = std::fs::read_to_string(&path)
+                .map_err(|e| AppError::storage_read_failed(format!("Failed to read keys file: {}", e)))?;
+            let keys: std::collections::HashMap<String, String> = serde_json::from_str(&content)
+                .map_err(|e| AppError::storage_parse_failed(format!("Failed to parse keys: {}", e)))?;
+            if !keys.is_empty() {
+                let json_str = serde_json::to_string(&keys)
+                    .map_err(|e| AppError::internal(format!("Failed to serialize keys: {}", e)))?;
+                let _ = entry.set_password(&json_str);
+            }
+            Ok(keys)
         }
         Err(e) => Err(AppError::vault_keyring_failed(format!("Keyring read failed: {}", e))),
     }
@@ -235,12 +248,14 @@ fn migrate_keys_from_json(app: &tauri::AppHandle) -> Result<std::collections::Ha
     Ok(keys)
 }
 
-fn save_api_keys(_app: &tauri::AppHandle, keys: &std::collections::HashMap<String, String>) -> Result<(), AppError> {
+fn save_api_keys(app: &tauri::AppHandle, keys: &std::collections::HashMap<String, String>) -> Result<(), AppError> {
     let json_str = serde_json::to_string(keys)
         .map_err(|e| AppError::internal(format!("Failed to serialize keys: {}", e)))?;
     let entry = get_keyring_entry()?;
-    entry.set_password(&json_str)
-        .map_err(|e| AppError::vault_keyring_failed(format!("Keyring write failed: {}", e)))?;
+    let _ = entry.set_password(&json_str);
+    let path = api_keys_file(app)?;
+    crate::storage::file::atomic_write(&path, &json_str)
+        .map_err(|e| AppError::storage_write_failed(format!("Failed to write keys backup: {}", e)))?;
     Ok(())
 }
 
