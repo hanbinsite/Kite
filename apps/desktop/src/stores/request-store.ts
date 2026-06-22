@@ -8,6 +8,7 @@ import { markStart, markEnd, VariableResolver, variablesToRecord, handleError,
 import type { VariableScope } from "@api-client/core";
 import type { IpcHttpRequestConfig, IpcBodyConfig, IpcRequestSettings, IpcAuthConfig } from "@api-client/core/http";
 import { executeScript, type ScriptResult, type ScriptContext } from "@api-client/core/script";
+import type { PluginHookResult } from "@api-client/core/plugin";
 import type {
   HttpResponse,
   HttpMethod,
@@ -121,6 +122,152 @@ async function executePostResponseScripts(
       level: "error",
       message: `[Post-response][${source}] 执行失败: ${scriptErr}`,
       source: "post-response",
+    });
+  }
+}
+
+interface PluginRequestModification {
+  modified?: boolean;
+  method?: string;
+  url?: string;
+  headers?: Array<{ key?: string; value?: string }>;
+  body?: string;
+}
+
+function applyPluginRequestModifications(ipcConfig: IpcHttpRequestConfig, mod: PluginRequestModification) {
+  if (!mod || !mod.modified) return;
+  if (typeof mod.url === "string" && mod.url.length > 0) {
+    ipcConfig.url = mod.url;
+  }
+  if (typeof mod.method === "string" && mod.method.length > 0) {
+    ipcConfig.method = mod.method as IpcHttpRequestConfig["method"];
+  }
+  if (mod.body !== undefined && ipcConfig.body) {
+    ipcConfig.body.content = mod.body;
+  }
+  if (Array.isArray(mod.headers)) {
+    for (const h of mod.headers) {
+      const key = typeof h.key === "string" ? h.key : "";
+      const value = typeof h.value === "string" ? h.value : "";
+      if (!key) continue;
+      const existing = ipcConfig.headers.findIndex((eh) => eh.key === key);
+      if (existing >= 0) {
+        ipcConfig.headers[existing] = { key, value, disabled: false };
+      } else {
+        ipcConfig.headers.push({ key, value, disabled: false });
+      }
+    }
+  }
+}
+
+async function executeOnRequestSendPlugins(
+  tabId: string,
+  ipcConfig: IpcHttpRequestConfig,
+  method: string,
+  url: string,
+): Promise<void> {
+  try {
+    const { usePluginStore } = await import("./plugin-store");
+    const pluginStore = usePluginStore.getState();
+    const hasHook = pluginStore.plugins.some(
+      (p) => p.enabled && !p.hasError && p.manifest.hooks.includes("onRequestSend"),
+    );
+    if (!hasHook) return;
+    const results = await pluginStore.executeHook("onRequestSend", {
+      event: "request:send",
+      data: {
+        method,
+        url,
+        headers: ipcConfig.headers,
+        params: ipcConfig.params,
+        body: ipcConfig.body,
+        auth: ipcConfig.auth,
+      },
+    });
+    const consoleStore = useConsoleStore.getState();
+    for (const result of results) {
+      logPluginHookResult(tabId, "onRequestSend", result, consoleStore);
+      if (result.success && result.result) {
+        applyPluginRequestModifications(ipcConfig, result.result as PluginRequestModification);
+      }
+    }
+  } catch (e) {
+    console.error("[plugin] onRequestSend failed:", e);
+    useConsoleStore.getState().addEntry(tabId, {
+      level: "error",
+      message: `[plugin] onRequestSend failed: ${e}`,
+      source: "system",
+    });
+  }
+}
+
+async function executeOnResponseReceivedPlugins(
+  tabId: string,
+  response: HttpResponse,
+): Promise<void> {
+  try {
+    const { usePluginStore } = await import("./plugin-store");
+    const pluginStore = usePluginStore.getState();
+    const hasHook = pluginStore.plugins.some(
+      (p) => p.enabled && !p.hasError && p.manifest.hooks.includes("onResponseReceived"),
+    );
+    if (!hasHook) return;
+    const results = await pluginStore.executeHook("onResponseReceived", {
+      event: "response:received",
+      data: {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+        body: response.body,
+        time: response.time,
+        size: response.bodySize,
+      },
+    });
+    const consoleStore = useConsoleStore.getState();
+    for (const result of results) {
+      logPluginHookResult(tabId, "onResponseReceived", result, consoleStore);
+    }
+  } catch (e) {
+    console.error("[plugin] onResponseReceived failed:", e);
+    useConsoleStore.getState().addEntry(tabId, {
+      level: "error",
+      message: `[plugin] onResponseReceived failed: ${e}`,
+      source: "system",
+    });
+  }
+}
+
+function logPluginHookResult(
+  tabId: string,
+  hook: string,
+  result: PluginHookResult,
+  consoleStore: ReturnType<typeof useConsoleStore.getState>,
+) {
+  if (result.success) {
+    consoleStore.addEntry(tabId, {
+      level: "info",
+      message: `[plugin] ${result.pluginId} ${hook} executed`,
+      source: "system",
+    });
+  } else {
+    consoleStore.addEntry(tabId, {
+      level: "error",
+      message: `[plugin] ${result.pluginId} ${hook} failed: ${result.error ?? "unknown error"}`,
+      source: "system",
+    });
+  }
+  for (const log of result.logs) {
+    consoleStore.addEntry(tabId, {
+      level: "info",
+      message: `[plugin][${result.pluginId}] ${log}`,
+      source: "system",
+    });
+  }
+  if (result.uiInject) {
+    consoleStore.addEntry(tabId, {
+      level: "info",
+      message: `[plugin][${result.pluginId}] ${result.uiInject}`,
+      source: "system",
     });
   }
 }
@@ -500,6 +647,8 @@ export const useRequestStore = create<RequestStore>()(
         }
 
         markStart("request:send", { method, url });
+        // Plugin onRequestSend hooks — non-blocking, never fail the request
+        await executeOnRequestSendPlugins(tabId, ipcConfig, method, url);
         const response = await sendHttpRequest(ipcConfig);
         markEnd("request:send", { status: response.status, time: response.time });
       set((state) => {
@@ -520,6 +669,9 @@ export const useRequestStore = create<RequestStore>()(
       }).catch((e) => {
         console.error("Failed to insert history entry:", e);
       });
+
+      // Plugin onResponseReceived hooks — non-blocking
+      await executeOnResponseReceivedPlugins(tabId, response);
 
       // Post-response script chain
       if (hierarchy) {

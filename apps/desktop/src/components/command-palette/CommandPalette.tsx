@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 interface CommandItem {
   id: string;
   label: string;
-  category: "recent" | "action" | "ai" | "collection" | "variable";
+  category: "recent" | "action" | "ai" | "collection" | "variable" | "plugin";
   icon?: React.ReactNode;
   action: () => void;
   shortcut?: string;
@@ -18,7 +18,7 @@ interface CommandPaletteProps {
   items: CommandItem[];
 }
 
-const CATEGORY_ORDER = ["recent", "collection", "variable", "action", "ai"] as const;
+const CATEGORY_ORDER = ["recent", "collection", "variable", "action", "plugin", "ai"] as const;
 
 export function CommandPalette({ isOpen, onClose, items }: CommandPaletteProps) {
   const { t } = useTranslation();

@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use api_client_lib::{AppState, commands, storage, ai, proxy};
+use api_client_lib::{AppState, commands, storage, ai, proxy, plugin};
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
 
@@ -126,6 +126,14 @@ commands::crypto::delete_vault_secret,
             proxy::get_proxy_status,
             commands::oauth::start_oauth2_authorization,
             commands::oauth::exchange_oauth2_token,
+            plugin::plugin_list,
+            plugin::plugin_install,
+            plugin::plugin_uninstall,
+            plugin::plugin_toggle,
+            plugin::plugin_execute_hook,
+            plugin::plugin_execute_command,
+            plugin::plugin_get_code,
+            plugin::plugin_save_code,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
@@ -136,6 +144,7 @@ commands::crypto::delete_vault_secret,
                     let _ = tokio::fs::create_dir_all(data_dir.join("vault")).await;
                     let _ = tokio::fs::create_dir_all(data_dir.join("ai-sessions")).await;
                     let _ = tokio::fs::create_dir_all(data_dir.join("mcp-servers")).await;
+                    let _ = tokio::fs::create_dir_all(data_dir.join("plugins")).await;
 
                     if let Ok(s) = storage::Storage::new(&data_dir) {
                         let state = app_handle.state::<AppState>();

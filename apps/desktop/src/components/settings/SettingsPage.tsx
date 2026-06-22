@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, Fragment } from "react";
-import { X, Settings, Globe, Type, Database, Info, Server, Cookie, Trash2, Leaf, Bot, Pencil, Plug } from "lucide-react";
+import { X, Settings, Globe, Type, Database, Info, Server, Cookie, Trash2, Leaf, Bot, Pencil, Plug, Puzzle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useUIStore } from "@api-client/core";
 import type { Theme } from "@api-client/core";
@@ -13,6 +13,7 @@ import type { CookieEntry } from "@api-client/core/cookie";
 import { EnvironmentEditor } from "../environment";
 import { KeyValueEditor, type KeyValue } from "../request/KeyValueEditor";
 import { McpSettings } from "./McpSettings";
+import { PluginSettings } from "./PluginSettings";
 import type { Variable } from "@api-client/types";
 
 const FONT_SIZE_OPTIONS = [
@@ -29,6 +30,7 @@ const CATEGORIES = [
   { id: "general", labelKey: "settings.categories.general", icon: Settings },
   { id: "ai", labelKey: "settings.categories.ai", icon: Bot },
   { id: "mcp", labelKey: "settings.categories.mcp", icon: Plug },
+  { id: "plugins", labelKey: "settings.categories.plugins", icon: Puzzle },
   { id: "environments", labelKey: "settings.categories.environments", icon: Leaf },
   { id: "proxy", labelKey: "settings.categories.proxy", icon: Globe },
   { id: "mock", labelKey: "settings.categories.mock", icon: Server },
@@ -139,6 +141,7 @@ export function SettingsPage() {
             {category === "general" && <GeneralSection />}
             {category === "ai" && <AiSection />}
             {category === "mcp" && <McpSettings />}
+            {category === "plugins" && <PluginSettings />}
             {category === "environments" && <EnvironmentsSection onEditEnvironment={setEditingEnvId} />}
             {category === "proxy" && <ProxySection />}
             {category === "mock" && <MockSection />}

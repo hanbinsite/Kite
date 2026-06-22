@@ -7,10 +7,12 @@ import { Workbench } from "./components/workbench/Workbench";
 import { CommandPalette, type CommandItem } from "./components/command-palette";
 import { SettingsPage } from "./components/settings";
 import { CodeSnippetDrawer, CollectionRunnerDialog, ImportDialog, ExportDialog, VariableInspector } from "./components/drawers";
+import { toast } from "@api-client/ui";
 import { useUIStore, useTabStore } from "@api-client/core";
-import { Plus, Settings, FolderOpen, Code2, Terminal, Play, Upload, Download, Variable, Bot, Activity } from "lucide-react";
+import { Plus, Settings, FolderOpen, Code2, Terminal, Play, Upload, Download, Variable, Bot, Activity, Plug } from "lucide-react";
 import { useTheme, useKeyboardShortcuts, useAutoSave, useSaveShortcut } from "./hooks";
 import { useRequestStore, initWsEventListener, initSseEventListener, initMqttEventListener, initGrpcEventListener, initMockEventListener, useCollectionStore } from "./stores";
+import { useConsoleStore } from "./stores/console-store";
 import { registerVariableCompletionProvider } from "./stores/variable-completion-provider";
 import { ApiMonitorDialog } from "./components/drawers/ApiMonitorDialog";
 import { useWsStore } from "./stores/websocket-store";
@@ -18,6 +20,7 @@ import { useSseStore } from "./stores/sse-store";
 import { useMqttStore } from "./stores/mqtt-store";
 import { useProviderStore } from "@api-client/core/ai";
 import { useEnvironmentStore } from "./stores/environment-store";
+import { usePluginStore } from "./stores/plugin-store";
 import { i18n } from "./i18n";
 import { formatShortcut } from "./utils/platform";
 
@@ -44,6 +47,7 @@ export function App() {
     initMockEventListener();
     useProviderStore.getState().loadProviders();
     useEnvironmentStore.getState().loadFromDisk();
+    usePluginStore.getState().loadPlugins();
     registerVariableCompletionProvider();
     useTabStore.getState().restoreTabs();
   }, []);
@@ -140,6 +144,7 @@ export function App() {
   }, [toggleSidebar, openTab, toggleConsole, toggleAiPanel, focusUrlBar, activeTabId, activeTab, sendRequest, t]);
 
   const collections = useCollectionStore((s) => s.collections);
+  const plugins = usePluginStore((s) => s.plugins);
 
   const collectionItems: CommandItem[] = useMemo(() => {
     const items: CommandItem[] = [];
@@ -159,6 +164,79 @@ export function App() {
     }
     return items;
   }, [collections, openTab]);
+
+  const pluginCommandItems: CommandItem[] = useMemo(() => {
+    const items: CommandItem[] = [];
+    const tabId = activeTabId ?? "";
+    for (const plugin of plugins) {
+      if (!plugin.enabled || plugin.hasError) continue;
+      for (const cmd of plugin.manifest.commands) {
+        items.push({
+          id: `plugin-${plugin.manifest.id}-${cmd.id}`,
+          label: cmd.title,
+          category: "plugin",
+          icon: <Plug className="w-4 h-4" />,
+          detail: cmd.description ?? plugin.manifest.name,
+          action: () => {
+            usePluginStore
+              .getState()
+              .executeCommand(plugin.manifest.id, cmd.id, {
+                event: "command:invoke",
+                data: { tabId, pluginId: plugin.manifest.id, commandId: cmd.id },
+              })
+              .then((result) => {
+                const consoleStore = useConsoleStore.getState();
+                if (result.success) {
+                  consoleStore.addEntry(tabId, {
+                    level: "info",
+                    message: `[plugin] ${plugin.manifest.id} command "${cmd.id}" executed`,
+                    source: "system",
+                  });
+                  for (const log of result.logs) {
+                    consoleStore.addEntry(tabId, {
+                      level: "info",
+                      message: `[plugin][${plugin.manifest.id}] ${log}`,
+                      source: "system",
+                    });
+                  }
+                  if (result.uiInject) {
+                    toast({
+                      variant: "info",
+                      title: plugin.manifest.name,
+                      description: result.uiInject,
+                    });
+                  }
+                  toast({
+                    variant: "success",
+                    title: plugin.manifest.name,
+                    description: `Command "${cmd.title}" executed`,
+                  });
+                } else {
+                  consoleStore.addEntry(tabId, {
+                    level: "error",
+                    message: `[plugin] ${plugin.manifest.id} command "${cmd.id}" failed: ${result.error ?? "unknown error"}`,
+                    source: "system",
+                  });
+                  toast({
+                    variant: "error",
+                    title: plugin.manifest.name,
+                    description: `Command "${cmd.title}" failed: ${result.error ?? "unknown error"}`,
+                  });
+                }
+              })
+              .catch((err) => {
+                toast({
+                  variant: "error",
+                  title: plugin.manifest.name,
+                  description: `Command "${cmd.title}" error: ${err}`,
+                });
+              });
+          },
+        });
+      }
+    }
+    return items;
+  }, [plugins, activeTabId]);
 
   const commands: CommandItem[] = [
     {
@@ -296,6 +374,7 @@ export function App() {
       shortcut: formatShortcut("Cmd+Shift+N"),
     },
     ...collectionItems,
+    ...pluginCommandItems,
   ];
 
   return (

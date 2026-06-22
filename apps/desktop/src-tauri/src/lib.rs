@@ -2,6 +2,7 @@ pub mod commands;
 pub mod error;
 pub mod storage;
 pub mod script;
+pub mod plugin;
 pub mod ai;
 pub mod proxy;
 mod ts_export;

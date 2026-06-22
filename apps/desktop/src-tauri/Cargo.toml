@@ -58,9 +58,10 @@ argon2 = "0.5"
 aes-gcm = "0.10"
 keyring = "3"
 ts-rs = "10"
-jsonwebtoken = "9"
+ jsonwebtoken = "9"
 open = "5"
 url = "2"
+zip = "4"
 
 [dev-dependencies]
 tempfile = "3"

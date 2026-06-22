@@ -21,7 +21,8 @@
     "./codegen": "./src/codegen/index.ts",
     "./ai": "./src/ai/index.ts",
     "./ai/mcp-external": "./src/ai/mcp-external.ts",
-    "./graphql": "./src/graphql/index.ts"
+    "./graphql": "./src/graphql/index.ts",
+    "./plugin": "./src/plugin/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
