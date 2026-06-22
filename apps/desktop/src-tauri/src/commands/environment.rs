@@ -105,11 +105,10 @@ pub async fn save_environment(
     let content = serde_json::to_string_pretty(&environment)
         .map_err(|e| AppError::internal(e.to_string()))?;
 
-    let tmp_path = path.with_extension("json.tmp");
-    tokio::fs::write(&tmp_path, &content).await
-        .map_err(|e| AppError::storage_write_failed(e.to_string()))?;
-    tokio::fs::rename(&tmp_path, &path).await
-        .map_err(|e| AppError::storage_write_failed(e.to_string()))?;
+    if path.exists() {
+        crate::storage::file::create_backup(&path)?;
+    }
+    crate::storage::file::atomic_write(&path, &content)?;
 
     Ok(())
 }

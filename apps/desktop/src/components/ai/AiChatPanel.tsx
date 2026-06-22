@@ -7,6 +7,7 @@ import { useCollectionStore, useEnvironmentStore, useRequestStore } from "../../
 import { Send, Bot, User, Loader2, X, PanelRightClose, FileText, Globe, FolderOpen, Zap, ChevronRight, Key, Copy, RotateCw, Wrench } from "lucide-react";
 import { AiActionCard } from "./AiActionCard";
 import { McpToolsPanel } from "./McpToolsPanel";
+import { runTestAllBatch } from "./test-all-batch";
 
 function escapeHtml(text: string): string {
   return text
@@ -114,6 +115,15 @@ export function AiChatPanel() {
     if (!text || !activeProviderId || loading) return;
     setInput("");
 
+    if (text === "/test-all" || text.startsWith("/test-all ")) {
+      void runTestAllBatch({
+        sessionId,
+        providerId: activeProviderId,
+        buildContextMsgs,
+      });
+      return;
+    }
+
     if (text.startsWith("/")) {
       sendSlashCommand(sessionId, activeProviderId, text, buildContextMsgs());
     } else {
@@ -126,6 +136,16 @@ export function AiChatPanel() {
     setShowSlashMenu(false);
     setSlashFilter("");
     setInput("");
+
+    if (cmd.key === "test-all") {
+      void runTestAllBatch({
+        sessionId,
+        providerId: activeProviderId,
+        buildContextMsgs,
+      });
+      return;
+    }
+
     sendSlashCommand(sessionId, activeProviderId, `/${cmd.key}`, buildContextMsgs());
   }, [activeProviderId, loading, sessionId, sendSlashCommand, buildContextMsgs]);
 

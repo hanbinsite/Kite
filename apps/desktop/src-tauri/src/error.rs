@@ -42,6 +42,23 @@ impl AppError {
     pub fn vault_encrypt_failed(detail: String) -> Self { Self { code: "VAULT_ENCRYPT_FAILED".into(), detail } }
     pub fn vault_decrypt_failed(detail: String) -> Self { Self { code: "VAULT_DECRYPT_FAILED".into(), detail } }
     pub fn vault_keyring_failed(detail: String) -> Self { Self { code: "VAULT_KEYRING_FAILED".into(), detail } }
+    pub fn vault_secret_not_found(name: &str) -> Self { Self { code: "VAULT_SECRET_NOT_FOUND".into(), detail: format!("Secret not found: {}", name) } }
+
+    // Auth errors
+    pub fn auth_invalid_credentials() -> Self { Self { code: "AUTH_INVALID_CREDENTIALS".into(), detail: "Invalid credentials".into() } }
+    pub fn auth_token_expired() -> Self { Self { code: "AUTH_TOKEN_EXPIRED".into(), detail: "Token has expired".into() } }
+    pub fn auth_oauth_state_mismatch() -> Self { Self { code: "AUTH_OAUTH_STATE_MISMATCH".into(), detail: "OAuth state mismatch".into() } }
+    pub fn auth_oauth_no_code() -> Self { Self { code: "AUTH_OAUTH_NO_CODE".into(), detail: "No authorization code received".into() } }
+    pub fn auth_oauth_exchange_failed(detail: &str) -> Self { Self { code: "AUTH_OAUTH_EXCHANGE_FAILED".into(), detail: detail.into() } }
+
+    // Import errors
+    pub fn import_invalid_format(detail: &str) -> Self { Self { code: "IMPORT_INVALID_FORMAT".into(), detail: detail.into() } }
+    pub fn import_file_not_found(path: &str) -> Self { Self { code: "IMPORT_FILE_NOT_FOUND".into(), detail: format!("File not found: {}", path) } }
+    pub fn import_parse_error(detail: &str) -> Self { Self { code: "IMPORT_PARSE_ERROR".into(), detail: detail.into() } }
+    pub fn import_unsupported_format(fmt: &str) -> Self { Self { code: "IMPORT_UNSUPPORTED_FORMAT".into(), detail: format!("Unsupported format: {}", fmt) } }
+
+    // Export errors
+    pub fn export_failed(detail: &str) -> Self { Self { code: "EXPORT_FAILED".into(), detail: detail.into() } }
 
     // Validation errors
     pub fn validation_failed(detail: String) -> Self { Self { code: "VALIDATION_FAILED".into(), detail } }
@@ -50,6 +67,15 @@ impl AppError {
     // Mock server errors (was proxy)
     pub fn mock_start_failed(detail: String) -> Self { Self { code: "MOCK_START_FAILED".into(), detail } }
     pub fn mock_not_running() -> Self { Self { code: "MOCK_NOT_RUNNING".into(), detail: "Mock server is not running".into() } }
+
+    // Missing STORAGE errors
+    pub fn storage_delete_failed(detail: String) -> Self { Self { code: "STORAGE_DELETE_FAILED".into(), detail } }
+    pub fn storage_db_error(detail: String) -> Self { Self { code: "STORAGE_DB_ERROR".into(), detail } }
+    pub fn storage_migration_failed(detail: String) -> Self { Self { code: "STORAGE_MIGRATION_FAILED".into(), detail } }
+
+    // Missing NET errors
+    pub fn net_connection_refused() -> Self { Self { code: "NET_CONNECTION_REFUSED".into(), detail: "Connection refused".into() } }
+    pub fn net_send_failed(detail: String) -> Self { Self { code: "NET_SEND_FAILED".into(), detail } }
 
     // General
     pub fn not_found(detail: String) -> Self { Self { code: "NOT_FOUND".into(), detail } }
@@ -211,5 +237,66 @@ mod tests {
     fn test_invalid_input() {
         let app_err = AppError::invalid_input("field required".into());
         assert_eq!(app_err.code, "INVALID_INPUT");
+    }
+
+    #[test]
+    fn test_auth_errors() {
+        let e = AppError::auth_invalid_credentials();
+        assert_eq!(e.code, "AUTH_INVALID_CREDENTIALS");
+        let e = AppError::auth_token_expired();
+        assert_eq!(e.code, "AUTH_TOKEN_EXPIRED");
+        let e = AppError::auth_oauth_state_mismatch();
+        assert_eq!(e.code, "AUTH_OAUTH_STATE_MISMATCH");
+        let e = AppError::auth_oauth_no_code();
+        assert_eq!(e.code, "AUTH_OAUTH_NO_CODE");
+        let e = AppError::auth_oauth_exchange_failed("bad code");
+        assert_eq!(e.code, "AUTH_OAUTH_EXCHANGE_FAILED");
+        assert!(e.detail.contains("bad code"));
+    }
+
+    #[test]
+    fn test_import_errors() {
+        let e = AppError::import_invalid_format("not json");
+        assert_eq!(e.code, "IMPORT_INVALID_FORMAT");
+        let e = AppError::import_file_not_found("/tmp/x.json");
+        assert_eq!(e.code, "IMPORT_FILE_NOT_FOUND");
+        assert!(e.detail.contains("/tmp/x.json"));
+        let e = AppError::import_parse_error("bad token");
+        assert_eq!(e.code, "IMPORT_PARSE_ERROR");
+        let e = AppError::import_unsupported_format("yaml");
+        assert_eq!(e.code, "IMPORT_UNSUPPORTED_FORMAT");
+        assert!(e.detail.contains("yaml"));
+    }
+
+    #[test]
+    fn test_export_failed() {
+        let e = AppError::export_failed("disk full");
+        assert_eq!(e.code, "EXPORT_FAILED");
+        assert!(e.detail.contains("disk full"));
+    }
+
+    #[test]
+    fn test_vault_secret_not_found() {
+        let e = AppError::vault_secret_not_found("api_key");
+        assert_eq!(e.code, "VAULT_SECRET_NOT_FOUND");
+        assert!(e.detail.contains("api_key"));
+    }
+
+    #[test]
+    fn test_storage_extended_errors() {
+        let e = AppError::storage_delete_failed("locked".into());
+        assert_eq!(e.code, "STORAGE_DELETE_FAILED");
+        let e = AppError::storage_db_error("corrupt".into());
+        assert_eq!(e.code, "STORAGE_DB_ERROR");
+        let e = AppError::storage_migration_failed("v1->v2".into());
+        assert_eq!(e.code, "STORAGE_MIGRATION_FAILED");
+    }
+
+    #[test]
+    fn test_net_extended_errors() {
+        let e = AppError::net_connection_refused();
+        assert_eq!(e.code, "NET_CONNECTION_REFUSED");
+        let e = AppError::net_send_failed("write closed".into());
+        assert_eq!(e.code, "NET_SEND_FAILED");
     }
 }

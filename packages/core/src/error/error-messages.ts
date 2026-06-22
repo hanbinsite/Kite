@@ -4,7 +4,7 @@ import type { AppError } from "@api-client/types";
 // They are NOT user-facing translatable strings — translations happen at the UI layer
 // via i18n using code-based lookups. This map only provides defaults when i18n is unavailable.
 
-export type ErrorCategory = "network" | "storage" | "script" | "vault" | "validation" | "mock" | "general";
+export type ErrorCategory = "network" | "storage" | "script" | "vault" | "validation" | "mock" | "general" | "auth" | "import" | "export";
 
 export interface ErrorMapping {
   title: string;
@@ -92,6 +92,21 @@ const ERROR_MAP: Record<string, ErrorMapping> = {
     retryable: false,
     action: { label: "Edit Auth", handler: "editAuth" },
   },
+  NET_CONNECTION_REFUSED: {
+    title: "Connection Refused",
+    description: "The server refused the connection.",
+    variant: "error",
+    category: "network",
+    retryable: true,
+    action: { label: "Check URL", handler: "checkUrl" },
+  },
+  NET_SEND_FAILED: {
+    title: "Send Failed",
+    description: "Failed to send the request.",
+    variant: "error",
+    category: "network",
+    retryable: true,
+  },
   STORAGE_READ_FAILED: {
     title: "Read Failed",
     description: "Could not read from storage. The data may be corrupted.",
@@ -131,6 +146,27 @@ const ERROR_MAP: Record<string, ErrorMapping> = {
     title: "File Too Large",
     description: "The file exceeds the size limit.",
     variant: "warning",
+    category: "storage",
+    retryable: false,
+  },
+  STORAGE_DELETE_FAILED: {
+    title: "Delete Failed",
+    description: "Failed to delete data.",
+    variant: "error",
+    category: "storage",
+    retryable: false,
+  },
+  STORAGE_DB_ERROR: {
+    title: "Database Error",
+    description: "A database error occurred.",
+    variant: "error",
+    category: "storage",
+    retryable: false,
+  },
+  STORAGE_MIGRATION_FAILED: {
+    title: "Migration Failed",
+    description: "Database migration failed. Backup may be needed.",
+    variant: "error",
     category: "storage",
     retryable: false,
   },
@@ -182,6 +218,85 @@ const ERROR_MAP: Record<string, ErrorMapping> = {
     variant: "error",
     category: "vault",
     retryable: true,
+  },
+  VAULT_SECRET_NOT_FOUND: {
+    title: "Secret Not Found",
+    description: "The requested vault secret was not found.",
+    variant: "warning",
+    category: "vault",
+    retryable: false,
+  },
+  AUTH_INVALID_CREDENTIALS: {
+    title: "Invalid Credentials",
+    description: "The provided credentials are invalid.",
+    variant: "error",
+    category: "auth",
+    retryable: false,
+    action: { label: "Edit Auth", handler: "editAuth" },
+  },
+  AUTH_TOKEN_EXPIRED: {
+    title: "Token Expired",
+    description: "Your authentication token has expired.",
+    variant: "warning",
+    category: "auth",
+    retryable: false,
+    action: { label: "Refresh Auth", handler: "refreshAuth" },
+  },
+  AUTH_OAUTH_STATE_MISMATCH: {
+    title: "Security Error",
+    description: "OAuth state parameter mismatch.",
+    variant: "error",
+    category: "auth",
+    retryable: false,
+  },
+  AUTH_OAUTH_NO_CODE: {
+    title: "Authorization Failed",
+    description: "No authorization code received.",
+    variant: "error",
+    category: "auth",
+    retryable: false,
+  },
+  AUTH_OAUTH_EXCHANGE_FAILED: {
+    title: "Token Exchange Failed",
+    description: "Failed to exchange authorization code for token.",
+    variant: "error",
+    category: "auth",
+    retryable: false,
+  },
+  IMPORT_INVALID_FORMAT: {
+    title: "Invalid Format",
+    description: "The file content is not in a valid format.",
+    variant: "error",
+    category: "import",
+    retryable: false,
+  },
+  IMPORT_FILE_NOT_FOUND: {
+    title: "File Not Found",
+    description: "The specified file was not found.",
+    variant: "error",
+    category: "import",
+    retryable: false,
+  },
+  IMPORT_PARSE_ERROR: {
+    title: "Parse Error",
+    description: "Failed to parse the file content.",
+    variant: "error",
+    category: "import",
+    retryable: false,
+  },
+  IMPORT_UNSUPPORTED_FORMAT: {
+    title: "Unsupported Format",
+    description: "This format is not supported.",
+    variant: "error",
+    category: "import",
+    retryable: false,
+  },
+  EXPORT_FAILED: {
+    title: "Export Failed",
+    description: "Failed to export data.",
+    variant: "error",
+    category: "export",
+    retryable: false,
   },
   VALIDATION_FAILED: {
     title: "Validation Error",
@@ -242,6 +357,9 @@ export function categorizeError(code: string): ErrorCategory {
   if (code.startsWith("STORAGE_")) return "storage";
   if (code.startsWith("SCRIPT_")) return "script";
   if (code.startsWith("VAULT_")) return "vault";
+  if (code.startsWith("AUTH_")) return "auth";
+  if (code.startsWith("IMPORT_")) return "import";
+  if (code.startsWith("EXPORT_")) return "export";
   if (code.startsWith("VALIDATION_") || code === "INVALID_INPUT") return "validation";
   if (code.startsWith("MOCK_")) return "mock";
   return "general";

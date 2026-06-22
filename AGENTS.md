@@ -56,7 +56,7 @@ api-client/
 │       │   ├── main.rs            # Rust 入口 + AppState
 │       │   ├── commands/          # Tauri commands
 │       │   │   ├── http.rs        # HTTP 请求 (reqwest)
-│   │   │   ├── grpc.rs        # gRPC (tonic HTTP/2 + prost-reflect)
+│   │   │   ├── grpc.rs        # gRPC (reqwest HTTP/2 + prost-reflect)
 │       │   │   ├── websocket.rs   # WebSocket (tokio-tungstenite)
 │       │   │   ├── file_ops.rs    # 文件操作
 │       │   │   ├── crypto.rs      # Vault 加密 (argon2 + aes-gcm)
@@ -153,7 +153,7 @@ api-client/
 11. **Vault 加密使用随机 nonce** — AES-256-GCM 每次加密生成随机 12 字节 nonce，不用静态 nonce
 12. **Vault secret 名校验** — `delete_vault_secret` 校验 name 不含路径分隔符
 13. **OAuth1/AwsV4 已实现** — OAuth1 使用 HMAC-SHA1 签名，AWSv4 使用 sigv4 签名（`http.rs build_oauth1_header()` / `build_aws_v4_header()`）
-14. **gRPC 使用 tonic HTTP/2** — 通过 `tonic::transport::Endpoint` 连接，支持 HTTP/2 + protobuf
+14. **gRPC 使用 reqwest HTTP/2 + 手动 protobuf** — 运行时通过 `prost-reflect` 动态编解码（支持任意 .proto），`tonic-build` 仅作 build dependency 用于 reflection。偏差#15 已记录
 15. **响应体大小限制 10MB** — `http.rs` 检查响应体大小，超限返回 `NET_BODY_TOO_LARGE`
 16. **AI API key 通过系统 keyring 存储** — `ai_set_api_key` 写入 keyring，`ai_get_api_key_status` 只返回 hasKey bool，不返回 key 值
 17. **AI streaming 按 sessionId 过滤** — 前端 `listen("ai-stream-chunk")` 必须检查 `chunk.sessionId === sessionId`，避免跨 Tab 干扰
@@ -216,7 +216,7 @@ api-client/
 | keyring | 3.x | 系统密钥链 |
 | argon2 | 0.5.x | 密钥派生（KDF） |
 | aes-gcm | 0.10.x | 数据加密（AES-256-GCM） |
-| hudsucker | 0.22.x | HTTP 代理 |
+| hyper | 1.x | Mock 服务器（直接构建 HTTP 服务器，非 hudsucker） |
 | rumqttc | 0.24.x | MQTT |
 | ts-rs | 10.x | TypeScript 类型生成 |
 

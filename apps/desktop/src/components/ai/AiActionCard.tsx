@@ -1,6 +1,7 @@
 import { useState } from "react";
-import type { CreateRequestAction, ModifyRequestAction, WriteTestAction, FixErrorAction, ExtractVariablesAction, GenerateMockAction, AgentAction } from "@api-client/core/ai";
+import type { CreateRequestAction, ModifyRequestAction, WriteTestAction, FixErrorAction, ExtractVariablesAction, GenerateMockAction, GenerateDocAction, AgentAction } from "@api-client/core/ai";
 import type { BodyConfig, AuthConfig, Header, QueryParam, BodyMode } from "@api-client/types";
+import { toast } from "@api-client/ui";
 
 interface ModifyContext {
   headers: Header[];
@@ -184,7 +185,7 @@ async function applyAction(action: AgentAction): Promise<string> {
     case "generate_mock":
       return applyGenerateMock(action as GenerateMockAction);
     case "generate_doc":
-      return `Documentation generated (${String((action.data as { markdown?: string }).markdown ?? "").length} chars).`;
+      return applyGenerateDoc(action as GenerateDocAction);
     default:
       return `${action.type}: action received. Manual configuration needed.`;
   }
@@ -346,11 +347,51 @@ function parseFixValue(fix: string): unknown {
 
 async function applyExtractVariables(action: ExtractVariablesAction): Promise<string> {
   const { useEnvironmentStore } = await import("@/stores/environment-store");
-  for (const v of action.data.variables) {
-    useEnvironmentStore.getState().setGlobalVariable(v.key, v.value);
+  const envStore = useEnvironmentStore.getState();
+  const activeEnvId = envStore.activeEnvironmentId;
+
+  if (!activeEnvId) {
+    for (const v of action.data.variables) {
+      envStore.setGlobalVariable(v.key, v.value);
+    }
+    const names = action.data.variables.map((v) => v.key).join(", ");
+    return `No active environment — added to globals: ${names}`;
   }
-  const names = action.data.variables.map((v) => v.key).join(", ");
-  return `Added to globals: ${names}`;
+
+  const env = envStore.environments.find((e) => e.id === activeEnvId);
+  if (!env) {
+    for (const v of action.data.variables) {
+      envStore.setGlobalVariable(v.key, v.value);
+    }
+    const names = action.data.variables.map((v) => v.key).join(", ");
+    return `Active environment missing — added to globals: ${names}`;
+  }
+
+  const existingByKey = new Map(env.variables.map((v) => [v.key, v]));
+  const merged = env.variables.map((v) => {
+    const replacement = action.data.variables.find((nv) => nv.key === v.key);
+    if (replacement) return { ...v, value: replacement.value };
+    return v;
+  });
+  for (const nv of action.data.variables) {
+    if (!existingByKey.has(nv.key)) {
+      merged.push({ key: nv.key, value: nv.value, enabled: true });
+    }
+  }
+  envStore.updateEnvironment(activeEnvId, { variables: merged });
+
+  const count = action.data.variables.length;
+  try {
+    toast({
+      variant: "success",
+      title: "Variables Extracted",
+      description: `Extracted ${count} variable${count === 1 ? "" : "s"} to ${env.name}`,
+      duration: 3000,
+    });
+  } catch (e) {
+    console.error("toast error", e);
+  }
+  return `Extracted ${count} variable${count === 1 ? "" : "s"} to ${env.name}`;
 }
 
 async function applyGenerateMock(action: GenerateMockAction): Promise<string> {
@@ -373,6 +414,74 @@ async function applyGenerateMock(action: GenerateMockAction): Promise<string> {
   });
 
   return `Mock route added: ${action.data.method} ${action.data.route} → ${action.data.statusCode}`;
+}
+
+async function applyGenerateDoc(action: GenerateDocAction): Promise<string> {
+  const markdown = action.data.markdown ?? "";
+  const { invoke } = await import("@tauri-apps/api/core");
+  const { useCollectionStore } = await import("@/stores/collection-store");
+  const { useTabStore } = await import("@api-client/core");
+
+  const tabStore = useTabStore.getState();
+  const activeTabId = tabStore.activeTabId;
+  const activeTab = tabStore.tabs.find((t) => t.id === activeTabId);
+  const colStore = useCollectionStore.getState();
+
+  let collectionId: string | undefined;
+  if (activeTab?.requestId) {
+    const hierarchy = colStore.resolveRequestHierarchy(activeTab.requestId);
+    collectionId = hierarchy?.collectionId;
+  }
+  if (!collectionId) {
+    collectionId = colStore.collections[0]?.id;
+  }
+
+  if (collectionId) {
+    const collection = colStore.collections.find((c) => c.id === collectionId);
+    const collectionName = collection?.name ?? collectionId;
+    const relativePath = `collections/${collectionId}/README.md`;
+    try {
+      await invoke<void>("write_file", { path: relativePath, content: markdown });
+      try {
+        toast({
+          variant: "success",
+          title: "Documentation Saved",
+          description: `Saved to ${collectionName}/README.md`,
+          duration: 4000,
+        });
+      } catch (e) {
+        console.error("toast error", e);
+      }
+      return `Documentation saved to ${collectionName}/README.md (${markdown.length} chars).`;
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : String(e);
+      try {
+        navigator.clipboard.writeText(markdown);
+        toast({
+          variant: "warning",
+          title: "Save Failed — Copied",
+          description: `Could not write README.md: ${detail}. Copied to clipboard.`,
+          duration: 5000,
+        });
+      } catch (err) {
+        console.error("toast error", err);
+      }
+      return `Failed to save README.md (${detail}). Copied to clipboard.`;
+    }
+  }
+
+  try {
+    navigator.clipboard.writeText(markdown);
+    toast({
+      variant: "info",
+      title: "Documentation Copied",
+      description: "No collection context — markdown copied to clipboard.",
+      duration: 4000,
+    });
+  } catch (e) {
+    console.error("toast error", e);
+  }
+  return `No collection context — documentation copied to clipboard (${markdown.length} chars).`;
 }
 
 function renderPreview(action: AgentAction) {

@@ -2,6 +2,8 @@ use rusqlite::{Connection, params};
 use std::path::Path;
 use std::sync::Mutex;
 
+pub mod file;
+
 pub struct Storage {
     pub conn: Mutex<Connection>,
 }

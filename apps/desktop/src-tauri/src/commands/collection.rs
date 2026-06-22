@@ -389,11 +389,10 @@ pub async fn save_collection(
     let content = serde_json::to_string_pretty(&collection)
         .map_err(|e| AppError::internal(e.to_string()))?;
 
-    let tmp_path = path.with_extension("json.tmp");
-    tokio::fs::write(&tmp_path, &content).await
-        .map_err(|e| AppError::storage_write_failed(e.to_string()))?;
-    tokio::fs::rename(&tmp_path, &path).await
-        .map_err(|e| AppError::storage_write_failed(e.to_string()))?;
+    if path.exists() {
+        crate::storage::file::create_backup(&path)?;
+    }
+    crate::storage::file::atomic_write(&path, &content)?;
 
     Ok(())
 }
@@ -427,8 +426,7 @@ pub async fn update_collection_config(
     let path = app_data_dir.join("collections").join(&collection_id).join("collection.json");
     super::file_ops::validate_path_within_app_data(&app_data_dir, &path)?;
 
-    let content = tokio::fs::read_to_string(&path).await
-        .map_err(|e| AppError::storage_read_failed(format!("Collection not found: {}", e)))?;
+    let content = crate::storage::file::read_with_backup(&path)?;
     let mut col: CollectionFile = serde_json::from_str(&content)
         .map_err(|e| AppError::internal(format!("Failed to parse collection: {}", e)))?;
     col.updated_at = chrono::Utc::now().to_rfc3339();
@@ -436,11 +434,8 @@ pub async fn update_collection_config(
 
     let new_content = serde_json::to_string_pretty(&col)
         .map_err(|e| AppError::internal(e.to_string()))?;
-    let tmp_path = path.with_extension("json.tmp");
-    tokio::fs::write(&tmp_path, &new_content).await
-        .map_err(|e| AppError::storage_write_failed(e.to_string()))?;
-    tokio::fs::rename(&tmp_path, &path).await
-        .map_err(|e| AppError::storage_write_failed(e.to_string()))?;
+    crate::storage::file::create_backup(&path)?;
+    crate::storage::file::atomic_write(&path, &new_content)?;
     Ok(())
 }
 
@@ -456,8 +451,7 @@ pub async fn update_folder_config(
     let path = app_data_dir.join("collections").join(&collection_id).join("collection.json");
     super::file_ops::validate_path_within_app_data(&app_data_dir, &path)?;
 
-    let content = tokio::fs::read_to_string(&path).await
-        .map_err(|e| AppError::storage_read_failed(format!("Collection not found: {}", e)))?;
+    let content = crate::storage::file::read_with_backup(&path)?;
     let mut col: CollectionFile = serde_json::from_str(&content)
         .map_err(|e| AppError::internal(format!("Failed to parse collection: {}", e)))?;
     col.updated_at = chrono::Utc::now().to_rfc3339();
@@ -466,11 +460,8 @@ pub async fn update_folder_config(
 
     let new_content = serde_json::to_string_pretty(&col)
         .map_err(|e| AppError::internal(e.to_string()))?;
-    let tmp_path = path.with_extension("json.tmp");
-    tokio::fs::write(&tmp_path, &new_content).await
-        .map_err(|e| AppError::storage_write_failed(e.to_string()))?;
-    tokio::fs::rename(&tmp_path, &path).await
-        .map_err(|e| AppError::storage_write_failed(e.to_string()))?;
+    crate::storage::file::create_backup(&path)?;
+    crate::storage::file::atomic_write(&path, &new_content)?;
     Ok(())
 }
 
