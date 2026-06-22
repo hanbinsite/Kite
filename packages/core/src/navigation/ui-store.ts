@@ -14,6 +14,7 @@ export interface UIState {
   settingsCategory?: string;
   consoleOpen: boolean;
   aiPanelOpen: boolean;
+  aiPanelWidth: number;
   bottomPanelTab: "response" | "ai";
   urlBarFocusCounter: number;
 }
@@ -31,6 +32,7 @@ export interface UIActions {
   setConsoleOpen: (open: boolean) => void;
   toggleAiPanel: () => void;
   setAiPanelOpen: (open: boolean) => void;
+  setAiPanelWidth: (width: number) => void;
   setBottomPanelTab: (tab: "response" | "ai") => void;
   focusUrlBar: () => void;
 }
@@ -49,6 +51,7 @@ interface UIStoreImpl extends UIStore {
   setConsoleOpen: (open: boolean) => void;
   toggleAiPanel: () => void;
   setAiPanelOpen: (open: boolean) => void;
+  setAiPanelWidth: (width: number) => void;
   setBottomPanelTab: (tab: "response" | "ai") => void;
 }
 
@@ -67,6 +70,7 @@ export const useUIStore = create<UIStoreImpl>()((set) => ({
   settingsCategory: undefined,
   consoleOpen: false,
   aiPanelOpen: false,
+  aiPanelWidth: 380,
   bottomPanelTab: "response",
   urlBarFocusCounter: 0,
 
@@ -89,6 +93,7 @@ export const useUIStore = create<UIStoreImpl>()((set) => ({
   setConsoleOpen: (open) => set({ consoleOpen: open }),
   toggleAiPanel: () => set((state) => ({ aiPanelOpen: !state.aiPanelOpen, bottomPanelTab: "ai" })),
   setAiPanelOpen: (open) => set({ aiPanelOpen: open }),
+  setAiPanelWidth: (width) => set({ aiPanelWidth: width }),
   setBottomPanelTab: (tab) => set({ bottomPanelTab: tab }),
   focusUrlBar: () => set((s) => ({ urlBarFocusCounter: s.urlBarFocusCounter + 1 })),
 }));
