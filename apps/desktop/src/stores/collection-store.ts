@@ -453,3 +453,88 @@ export const useCollectionStore = create<CollectionStore>()(
   },
     })),
 );
+
+export interface InheritedAuth {
+  auth: AuthConfig;
+  source: "collection" | "folder";
+  sourceName: string;
+  sourceId: string;
+  collectionId: string;
+}
+
+export interface InheritedHeader {
+  key: string;
+  value: string;
+  source: "collection" | "folder";
+  sourceName: string;
+  sourceId: string;
+  collectionId: string;
+}
+
+export function getInheritedAuth(requestId: string): InheritedAuth | null {
+  const hierarchy = useCollectionStore.getState().resolveRequestHierarchy(requestId);
+  if (!hierarchy) return null;
+
+  for (let i = hierarchy.folderPath.length - 1; i >= 0; i--) {
+    const folder = hierarchy.folderPath[i];
+    const folderAuth = folder?.config?.auth as AuthConfig | undefined;
+    if (folderAuth && folderAuth.type !== "none") {
+      return { auth: folderAuth, source: "folder", sourceName: folder!.name, sourceId: folder!.id, collectionId: hierarchy.collectionId };
+    }
+  }
+
+  if (hierarchy.collectionConfig) {
+    const colAuth = hierarchy.collectionConfig.auth as AuthConfig | undefined;
+    if (colAuth && colAuth.type !== "none") {
+      return { auth: colAuth, source: "collection", sourceName: hierarchy.collectionName, sourceId: hierarchy.collectionId, collectionId: hierarchy.collectionId };
+    }
+  }
+
+  return null;
+}
+
+export function getInheritedHeaders(requestId: string): InheritedHeader[] {
+  const hierarchy = useCollectionStore.getState().resolveRequestHierarchy(requestId);
+  if (!hierarchy) return [];
+
+  const result: InheritedHeader[] = [];
+  const seen = new Map<string, number>();
+
+  const addHeaders = (
+    headers: { key: string; value: string; disabled: boolean }[] | undefined,
+    source: "collection" | "folder",
+    sourceName: string,
+    sourceId: string,
+  ) => {
+    if (!headers) return;
+    for (const h of headers) {
+      if (!h.key || h.disabled) continue;
+      const lowerKey = h.key.toLowerCase();
+      const entry: InheritedHeader = { key: h.key, value: h.value, source, sourceName, sourceId, collectionId: hierarchy.collectionId };
+      const idx = seen.get(lowerKey);
+      if (idx !== undefined) {
+        result[idx] = entry;
+      } else {
+        seen.set(lowerKey, result.length);
+        result.push(entry);
+      }
+    }
+  };
+
+  addHeaders(
+    hierarchy.collectionConfig?.headers as { key: string; value: string; disabled: boolean }[] | undefined,
+    "collection",
+    hierarchy.collectionName,
+    hierarchy.collectionId,
+  );
+  for (const folder of hierarchy.folderPath) {
+    addHeaders(
+      folder.config?.headers as { key: string; value: string; disabled: boolean }[] | undefined,
+      "folder",
+      folder.name,
+      folder.id,
+    );
+  }
+
+  return result;
+}

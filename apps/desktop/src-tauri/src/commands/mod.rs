@@ -28,9 +28,11 @@ pub mod mock;
 #[cfg(test)]
 mod mock_test;
 pub mod script;
+pub mod script_templates;
 pub mod codegen;
 #[cfg(test)]
 mod codegen_test;
+pub mod importer;
 pub mod crypto;
 pub mod oauth;
 #[cfg(test)]

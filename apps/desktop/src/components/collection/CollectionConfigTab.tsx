@@ -7,16 +7,17 @@ import { ConfigHeadersTab } from "./ConfigHeadersTab";
 import { ConfigAuthTab } from "./ConfigAuthTab";
 import { ConfigScriptsTab } from "./ConfigScriptsTab";
 
-type SubTab = "overview" | "variables" | "headers" | "auth" | "scripts";
+export type SubTab = "overview" | "variables" | "headers" | "auth" | "scripts";
 
 interface CollectionConfigTabProps {
   collectionId: string;
   folderId?: string;
+  initialSubTab?: SubTab;
 }
 
-export function CollectionConfigTab({ collectionId, folderId }: CollectionConfigTabProps) {
+export function CollectionConfigTab({ collectionId, folderId, initialSubTab }: CollectionConfigTabProps) {
   const { t } = useTranslation();
-  const [activeSubTab, setActiveSubTab] = useState<SubTab>("overview");
+  const [activeSubTab, setActiveSubTab] = useState<SubTab>(initialSubTab ?? "overview");
   const collections = useCollectionStore((s) => s.collections);
 
   const SUB_TABS: { key: SubTab; label: string }[] = [

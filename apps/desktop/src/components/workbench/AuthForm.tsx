@@ -8,10 +8,13 @@ import {
   exchangeOAuth2Token,
 } from "@api-client/core";
 import type { OAuth2CallbackPayload } from "@api-client/core";
+import { useTabStore } from "@api-client/core";
+import { getInheritedAuth, type InheritedAuth } from "../../stores/collection-store";
 
 interface AuthFormProps {
   authConfig: AuthConfig;
   onChange: (auth: AuthConfig) => void;
+  requestId?: string;
 }
 
 interface AuthType { id: string; labelKey: string; }
@@ -503,8 +506,24 @@ function renderAuthFields(auth: AuthConfig, onChange: (auth: AuthConfig) => void
   }
 }
 
-export function AuthForm({ authConfig, onChange }: AuthFormProps) {
+export function AuthForm({ authConfig, onChange, requestId }: AuthFormProps) {
   const { t } = useTranslation();
+
+  const inheritedAuth: InheritedAuth | null = (() => {
+    const id = requestId ?? useTabStore.getState().tabs.find((t) => t.id === useTabStore.getState().activeTabId)?.requestId;
+    if (!id) return null;
+    return getInheritedAuth(id);
+  })();
+
+  const openSourceConfig = (sourceCollectionId: string, sourceFolderId: string | undefined) => {
+    useTabStore.getState().openTab({
+      name: sourceFolderId ? `⚙ ${t("inheritance.folder")}` : `⚙ ${t("inheritance.collection")}`,
+      method: "",
+      url: "",
+      protocol: "collection-config",
+      meta: { collectionId: sourceCollectionId, folderId: sourceFolderId, initialSubTab: "auth" },
+    });
+  };
 
   return (
     <div className="auth-editor flex flex-col h-full p-4 gap-3">
@@ -520,6 +539,34 @@ export function AuthForm({ authConfig, onChange }: AuthFormProps) {
           <option key={at.id} value={at.id}>{t(at.labelKey)}</option>
         ))}
       </select>
+      {authConfig.type === "none" && inheritedAuth && (
+        <div className="inherited-auth-section border border-border-muted rounded-md bg-bg-elevated/40 p-3 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] font-semibold text-fg-primary">🔒 {t("inheritance.inheritedAuth")}</span>
+          </div>
+          <div className="flex items-center gap-2 text-[12px]">
+            <span className="text-fg-secondary">{t("inheritance.inheritedFrom")}:</span>
+            <span className="font-sans text-fg-primary">
+              {inheritedAuth.source === "folder" ? `📁 ${t("inheritance.folder")}` : `🔒 ${t("inheritance.collection")}`} "{inheritedAuth.sourceName}"
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-[12px]">
+            <span className="text-fg-secondary">{t("inheritance.authType")}:</span>
+            <span className="font-sans text-fg-primary">{t(`auth.${inheritedAuth.auth.type}`)}</span>
+          </div>
+          <div className="flex items-center gap-2 text-[12px]">
+            <span className="text-fg-secondary">{t("common.value")}:</span>
+            <span className="font-mono text-fg-tertiary">{t("inheritance.maskedValue")}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => openSourceConfig(inheritedAuth.collectionId, inheritedAuth.source === "folder" ? inheritedAuth.sourceId : undefined)}
+            className="self-start text-[11px] text-brand hover:underline mt-1"
+          >
+            {t("inheritance.editSource")} →
+          </button>
+        </div>
+      )}
       {renderAuthFields(authConfig, onChange, t)}
     </div>
   );

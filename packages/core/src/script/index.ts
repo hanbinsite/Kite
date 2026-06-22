@@ -54,3 +54,24 @@ export interface ExecuteScriptParams {
 export async function executeScript(params: ExecuteScriptParams): Promise<ScriptResult> {
   return invoke<ScriptResult>("execute_script", { params });
 }
+
+export interface ScriptTemplate {
+  id: string;
+  name: string;
+  description: string;
+  code: string;
+  category: string;
+  isBuiltin: boolean;
+}
+
+export function listScriptTemplates(): Promise<ScriptTemplate[]> {
+  return invoke<ScriptTemplate[]>("list_script_templates");
+}
+
+export function saveScriptTemplate(template: ScriptTemplate): Promise<void> {
+  return invoke<void>("save_script_template", { template });
+}
+
+export function deleteScriptTemplate(templateId: string): Promise<void> {
+  return invoke<void>("delete_script_template", { templateId });
+}

@@ -13,6 +13,7 @@ export interface Tab {
     collectionId?: string;
     folderId?: string;
     folderPath?: string[];
+    initialSubTab?: string;
   };
 }
 

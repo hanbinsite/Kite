@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useTranslation } from "react-i18next";
 import { KeyValueEditor, type KeyValue } from "../request/KeyValueEditor";
@@ -14,6 +14,8 @@ import { parseIntrospectionSchema, graphqlCompletionSource, getRootQueryFields, 
 import type { BodyConfig, AuthConfig, BodyMode, RawLanguage, Header, QueryParam, FormDataParam } from "@api-client/types";
 import type { GraphQLSchemaInfo } from "@api-client/core";
 import { Database, Loader2, ChevronDown, ChevronRight } from "lucide-react";
+import { useTabStore } from "@api-client/core";
+import { useCollectionStore, getInheritedAuth, getInheritedHeaders, type InheritedAuth, type InheritedHeader } from "../../stores/collection-store";
 
 const REQUEST_TABS = [
     { id: "params", labelKey: "request.params" },
@@ -300,6 +302,28 @@ export function RequestPanel() {
 
     const handleAuthChange = (auth: AuthConfig) => {
         setRequestAuth(auth);
+    };
+
+    const collections = useCollectionStore((s) => s.collections);
+    const activeTabForInheritance = useTabStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
+    const inheritedRequestId = activeTabForInheritance?.requestId ?? currentTabId ?? null;
+    const inheritedAuth: InheritedAuth | null = useMemo(
+        () => (inheritedRequestId ? getInheritedAuth(inheritedRequestId) : null),
+        [inheritedRequestId, collections],
+    );
+    const inheritedHeaders: InheritedHeader[] = useMemo(
+        () => (inheritedRequestId ? getInheritedHeaders(inheritedRequestId) : []),
+        [inheritedRequestId, collections],
+    );
+
+    const openSourceConfig = (sourceCollectionId: string, sourceFolderId: string | undefined, subTab: "auth" | "headers") => {
+        useTabStore.getState().openTab({
+            name: sourceFolderId ? `⚙ ${t("inheritance.folder")}` : `⚙ ${t("inheritance.collection")}`,
+            method: "",
+            url: "",
+            protocol: "collection-config",
+            meta: { collectionId: sourceCollectionId, folderId: sourceFolderId, initialSubTab: subTab },
+        });
     };
 
     const [tabRefs, indicatorStyle] = useTabIndicator<RequestTabId>(activeTab);
@@ -635,11 +659,41 @@ placeholder={t("auth.tokenTypePlaceholder")}
                 )}
 
                 {activeTab === "headers" && (
-                    <KeyValueEditor
-                        items={headers}
-                        onChange={handleHeadersChange}
-                        placeholder={{ key: t("request.header"), value: t("common.value") }}
-                    />
+                    <div className="flex flex-col h-full overflow-hidden">
+                        {inheritedHeaders.length > 0 && (
+                            <div className="inherited-headers-section shrink-0 border-b border-border-muted bg-bg-elevated/40">
+                                <div className="flex items-center gap-2 px-3 h-[28px] border-b border-border-muted">
+                                    <span className="text-[11px] font-semibold text-fg-secondary">🔒 {t("inheritance.inheritedHeaders")}</span>
+                                    <span className="text-[11px] text-fg-tertiary">({inheritedHeaders.length})</span>
+                                </div>
+                                <div className="max-h-[160px] overflow-auto">
+                                    {inheritedHeaders.map((h, i) => (
+                                        <div key={`${h.key}-${i}`} className="flex items-center gap-2 px-3 h-[26px] hover:bg-bg-hover">
+                                            <span className="font-mono text-[11px] text-fg-primary truncate min-w-0 flex-shrink-0 max-w-[180px]">{h.key}</span>
+                                            <span className="font-mono text-[11px] text-fg-tertiary truncate flex-1 min-w-0">{t("inheritance.maskedValue")}</span>
+                                            <span className="font-sans text-[10px] text-fg-tertiary shrink-0">
+                                                {h.source === "folder" ? `📁 ${t("inheritance.folder")}` : `🔒 ${t("inheritance.collection")}`}: {h.sourceName}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => openSourceConfig(h.collectionId, h.source === "folder" ? h.sourceId : undefined, "headers")}
+                                                className="text-[10px] text-brand hover:underline shrink-0"
+                                            >
+                                                {t("inheritance.editSource")}
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        <div className="flex-1 overflow-hidden">
+                            <KeyValueEditor
+                                items={headers}
+                                onChange={handleHeadersChange}
+                                placeholder={{ key: t("request.header"), value: t("common.value") }}
+                            />
+                        </div>
+                    </div>
                 )}
 
                 {activeTab === "body" && (
@@ -854,6 +908,34 @@ placeholder={t("auth.tokenTypePlaceholder")}
                                 <option key={at.id} value={at.id}>{t(at.labelKey)}</option>
                             ))}
                         </select>
+                        {storeAuth.type === "none" && inheritedAuth && (
+                            <div className="inherited-auth-section border border-border-muted rounded-md bg-bg-elevated/40 p-3 flex flex-col gap-2">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[12px] font-semibold text-fg-primary">🔒 {t("inheritance.inheritedAuth")}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-[12px]">
+                                    <span className="text-fg-secondary">{t("inheritance.inheritedFrom")}:</span>
+                                    <span className="font-sans text-fg-primary">
+                                        {inheritedAuth.source === "folder" ? `📁 ${t("inheritance.folder")}` : `🔒 ${t("inheritance.collection")}`} "{inheritedAuth.sourceName}"
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-2 text-[12px]">
+                                    <span className="text-fg-secondary">{t("inheritance.authType")}:</span>
+                                    <span className="font-sans text-fg-primary">{t(`auth.${inheritedAuth.auth.type}`)}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-[12px]">
+                                    <span className="text-fg-secondary">{t("common.value")}:</span>
+                                    <span className="font-mono text-fg-tertiary">{t("inheritance.maskedValue")}</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => openSourceConfig(inheritedAuth.collectionId, inheritedAuth.source === "folder" ? inheritedAuth.sourceId : undefined, "auth")}
+                                    className="self-start text-[11px] text-brand hover:underline mt-1"
+                                >
+                                    {t("inheritance.editSource")} →
+                                </button>
+                            </div>
+                        )}
                         {renderAuthFields()}
                     </div>
                 )}

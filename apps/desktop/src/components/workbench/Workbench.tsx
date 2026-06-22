@@ -9,7 +9,7 @@ import { SplitPane } from "../layout/SplitPane";
 import { useTabStore, useUIStore } from "@api-client/core";
 import { ErrorBoundary } from "@api-client/ui";
 import { useRequestStore } from "../../stores";
-import { CollectionConfigTab } from "../collection/CollectionConfigTab";
+import { CollectionConfigTab, type SubTab } from "../collection/CollectionConfigTab";
 
 const WebSocketPanel = lazy(() => import("../protocol").then((m) => ({ default: m.WebSocketPanel })));
 const SsePanel = lazy(() => import("../protocol").then((m) => ({ default: m.SsePanel })));
@@ -52,6 +52,7 @@ export function Workbench() {
         <CollectionConfigTab
           collectionId={activeTab.meta?.collectionId ?? ""}
           folderId={activeTab.meta?.folderId}
+          initialSubTab={activeTab.meta?.initialSubTab as SubTab | undefined}
         />
       </div>
     );
