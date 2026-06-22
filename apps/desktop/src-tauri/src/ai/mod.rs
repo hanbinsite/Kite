@@ -5,3 +5,4 @@ pub mod local;
 #[cfg(test)]
 mod local_test;
 pub mod mcp;
+pub mod mcp_external;

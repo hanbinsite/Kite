@@ -156,8 +156,9 @@ export async function callMcpTool(toolName: string, args: Record<string, unknown
 
 export { useProviderStore, useChatStore } from "./store";
 export type { ProviderStore, ChatState } from "./store";
-export { buildContextMessage } from "./context-builder";
+export { buildContextMessage, buildMcpContext } from "./context-builder";
 export type { AiContextData } from "./context-builder";
+export type { McpToolInfo as McpExternalToolInfo } from "./mcp-external";
 export { parseAgentAction, AGENT_TOOLS } from "./action-types";
 export type { CreateRequestAction, ModifyRequestAction, WriteTestAction, GenerateDocAction, FixErrorAction, ExtractVariablesAction, GenerateMockAction, ToolDefinition, AiChatWithToolsRequest, AiChatWithToolsResponse, AiToolCall } from "./action-types";
 export { chatAndParseActions, extractActionsFromText } from "./action-dispatcher";

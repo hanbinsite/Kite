@@ -1,4 +1,5 @@
 import type { AiMessage } from "./index";
+import type { McpToolInfo } from "./mcp-external";
 
 export interface AiContextData {
   request?: { method: string; url: string };
@@ -30,4 +31,26 @@ export function buildContextMessage(data: AiContextData): AiMessage {
   }
 
   return { role: "system", content: parts.join("\n") };
+}
+
+export function buildMcpContext(externalTools: McpToolInfo[]): string {
+  if (externalTools.length === 0) return "";
+
+  const lines: string[] = ["[Available MCP Tools] You may use the following external MCP tools. To run one, return a ```json code block with: {\"type\":\"run_mcp_tool\",\"description\":\"Run tool\",\"data\":{\"serverId\":\"...\",\"toolName\":\"...\",\"arguments\":{...}}}"];
+  const grouped = new Map<string, McpToolInfo[]>();
+  for (const tool of externalTools) {
+    const list = grouped.get(tool.serverName);
+    if (list) {
+      list.push(tool);
+    } else {
+      grouped.set(tool.serverName, [tool]);
+    }
+  }
+  for (const [serverName, tools] of grouped) {
+    lines.push(`Server: ${serverName}`);
+    for (const tool of tools) {
+      lines.push(`  - ${tool.name}: ${tool.description || "(no description)"}`);
+    }
+  }
+  return lines.join("\n");
 }

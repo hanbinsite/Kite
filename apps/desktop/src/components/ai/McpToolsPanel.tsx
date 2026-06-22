@@ -1,7 +1,9 @@
-import { useState } from "react";
-import { Wrench, ChevronDown, ChevronRight, Loader2, Play, Code, AlertCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Wrench, ChevronDown, ChevronRight, Loader2, Play, Code, AlertCircle, Server } from "lucide-react";
 import { useProviderStore, callMcpTool } from "@api-client/core/ai";
 import type { McpToolInfo } from "@api-client/core/ai";
+import { useMcpExternalStore } from "../../stores/mcp-external-store";
+import type { McpToolInfo as McpExternalToolInfo } from "@api-client/core/ai/mcp-external";
 import { useTranslation } from "react-i18next";
 
 function SchemaParams({ schema }: { schema: Record<string, unknown> }) {
@@ -35,7 +37,11 @@ function SchemaParams({ schema }: { schema: Record<string, unknown> }) {
   );
 }
 
-function ToolCard({ tool }: { tool: McpToolInfo }) {
+function ToolCard({ tool, serverBadge, onRun }: {
+  tool: McpToolInfo | McpExternalToolInfo;
+  serverBadge?: string;
+  onRun: (args: Record<string, unknown>) => Promise<string>;
+}) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [showRunner, setShowRunner] = useState(false);
@@ -50,7 +56,7 @@ function ToolCard({ tool }: { tool: McpToolInfo }) {
     setResult(null);
     try {
       const parsed = JSON.parse(args);
-      const res = await callMcpTool(tool.name, parsed);
+      const res = await onRun(parsed);
       setResult(res);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -58,6 +64,8 @@ function ToolCard({ tool }: { tool: McpToolInfo }) {
       setRunning(false);
     }
   };
+
+  const inputSchema = (tool.inputSchema as Record<string, unknown>) ?? {};
 
   return (
     <div className="bg-bg-elevated border border-border-default rounded-md overflow-hidden">
@@ -71,7 +79,14 @@ function ToolCard({ tool }: { tool: McpToolInfo }) {
           <ChevronRight className="w-3 h-3 text-fg-tertiary shrink-0" />
         )}
         <div className="min-w-0 flex-1">
-          <div className="text-[11px] text-fg-primary font-medium truncate">{tool.name}</div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-fg-primary font-medium truncate">{tool.name}</span>
+            {serverBadge && (
+              <span className="shrink-0 text-[9px] text-fg-secondary bg-bg-base border border-border-default rounded px-1 py-px">
+                {serverBadge}
+              </span>
+            )}
+          </div>
           {tool.description && (
             <div className="text-[10px] text-fg-tertiary truncate">{tool.description}</div>
           )}
@@ -93,7 +108,7 @@ function ToolCard({ tool }: { tool: McpToolInfo }) {
         <div className="px-3 pb-2 space-y-2 border-t border-border-default pt-2">
           <div>
             <div className="text-[9px] text-fg-tertiary uppercase tracking-wider mb-1">{t("ai.parameters")}</div>
-            <SchemaParams schema={tool.inputSchema} />
+            <SchemaParams schema={inputSchema} />
           </div>
 
           {showRunner && (
@@ -139,17 +154,41 @@ function ToolCard({ tool }: { tool: McpToolInfo }) {
   );
 }
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-1.5 pt-1">
+      <span className="text-[9px] text-fg-tertiary uppercase tracking-wider font-semibold">{children}</span>
+    </div>
+  );
+}
+
 export function McpToolsPanel() {
   const { t } = useTranslation();
   const mcpTools = useProviderStore((s) => s.mcpTools);
   const loadMcpTools = useProviderStore((s) => s.loadMcpTools);
+
+  const externalTools = useMcpExternalStore((s) => s.tools);
+  const loadServers = useMcpExternalStore((s) => s.loadServers);
+  const refreshTools = useMcpExternalStore((s) => s.refreshTools);
+  const callTool = useMcpExternalStore((s) => s.callTool);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    loadServers();
+    refreshTools();
+  }, [loadServers, refreshTools]);
 
   const handleRefresh = async () => {
     setLoading(true);
-    await loadMcpTools();
+    await Promise.all([loadMcpTools(), refreshTools()]);
     setLoading(false);
   };
+
+  const externalByServer = externalTools.reduce<Record<string, McpExternalToolInfo[]>>((acc, tool) => {
+    (acc[tool.serverName] ??= []).push(tool);
+    return acc;
+  }, {});
+  const hasExternal = Object.keys(externalByServer).length > 0;
 
   return (
     <div className="space-y-2">
@@ -157,8 +196,8 @@ export function McpToolsPanel() {
         <div className="flex items-center gap-1.5">
           <Wrench className="w-3.5 h-3.5 text-brand" />
           <span className="text-[11px] font-semibold text-fg-primary">{t("ai.mcpTools")}</span>
-          {mcpTools.length > 0 && (
-            <span className="text-[10px] text-fg-tertiary">({mcpTools.length})</span>
+          {(mcpTools.length + externalTools.length) > 0 && (
+            <span className="text-[10px] text-fg-tertiary">({mcpTools.length + externalTools.length})</span>
           )}
         </div>
         <button
@@ -171,15 +210,54 @@ export function McpToolsPanel() {
         </button>
       </div>
 
-      {mcpTools.length === 0 ? (
+      {mcpTools.length === 0 && !hasExternal ? (
         <div className="text-[10px] text-fg-tertiary text-center py-4">
           {t("ai.noMcpTools")}
+          {!hasExternal && (
+            <div className="mt-1 flex items-center justify-center gap-1 text-fg-tertiary">
+              <Server className="w-2.5 h-2.5" />
+              <span>{t("ai.noExternalServers")}</span>
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-1">
-          {mcpTools.map((tool) => (
-            <ToolCard key={tool.name} tool={tool} />
-          ))}
+          {mcpTools.length > 0 && (
+            <>
+              <SectionLabel>{t("ai.builtinTools")}</SectionLabel>
+              {mcpTools.map((tool) => (
+                <ToolCard
+                  key={`bi-${tool.name}`}
+                  tool={tool}
+                  onRun={async (args) => callMcpTool(tool.name, args)}
+                />
+              ))}
+            </>
+          )}
+
+          {hasExternal ? (
+            Object.entries(externalByServer).map(([serverName, tools]) => (
+              <div key={`srv-${serverName}`} className="space-y-1">
+                <SectionLabel>{t("ai.externalTools", { server: serverName })}</SectionLabel>
+                {tools.map((tool) => (
+                  <ToolCard
+                    key={`ext-${tool.serverId}-${tool.name}`}
+                    tool={tool}
+                    serverBadge={tool.serverName}
+                    onRun={async (args) => {
+                      const res = await callTool(tool.serverId, tool.name, args);
+                      return typeof res === "string" ? res : JSON.stringify(res, null, 2);
+                    }}
+                  />
+                ))}
+              </div>
+            ))
+          ) : (
+            <div className="flex items-center gap-1 text-[10px] text-fg-tertiary pt-1">
+              <Server className="w-2.5 h-2.5" />
+              <span>{t("ai.noExternalServers")}</span>
+            </div>
+          )}
         </div>
       )}
     </div>

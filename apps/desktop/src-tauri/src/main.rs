@@ -35,6 +35,7 @@ async fn main() {
         .manage(commands::mqtt::MqttState::new())
         .manage(commands::grpc::GrpcState::new())
         .manage(commands::mock::MockState::new())
+        .manage(ai::mcp_external::McpConnectionState::new())
         .invoke_handler(tauri::generate_handler![
             commands::http::send_http_request,
             commands::http::download_http_response,
@@ -113,6 +114,13 @@ commands::crypto::delete_vault_secret,
             ai::provider::ai_delete_session,
             ai::mcp::list_mcp_tools,
             ai::mcp::call_mcp_tool_command,
+            ai::mcp_external::mcp_list_external_servers,
+            ai::mcp_external::mcp_save_external_server,
+            ai::mcp_external::mcp_delete_external_server,
+            ai::mcp_external::mcp_connect_server,
+            ai::mcp_external::mcp_disconnect_server,
+            ai::mcp_external::mcp_list_external_tools,
+            ai::mcp_external::mcp_call_external_tool,
             proxy::start_proxy,
             proxy::stop_proxy,
             proxy::get_proxy_status,
@@ -127,6 +135,7 @@ commands::crypto::delete_vault_secret,
                     let _ = tokio::fs::create_dir_all(data_dir.join("environments")).await;
                     let _ = tokio::fs::create_dir_all(data_dir.join("vault")).await;
                     let _ = tokio::fs::create_dir_all(data_dir.join("ai-sessions")).await;
+                    let _ = tokio::fs::create_dir_all(data_dir.join("mcp-servers")).await;
 
                     if let Ok(s) = storage::Storage::new(&data_dir) {
                         let state = app_handle.state::<AppState>();
