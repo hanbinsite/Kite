@@ -132,6 +132,7 @@ function renderAuthFields(auth: AuthConfig, onChange: (auth: AuthConfig) => void
         clientSecret?: string;
         scope?: string;
         redirectUri?: string;
+        expiresAt?: number;
       };
       const [showFlowDialog, setShowFlowDialog] = useState(false);
       const [flowStatus, setFlowStatus] = useState<"idle" | "waiting" | "success" | "error">("idle");
@@ -186,6 +187,10 @@ function renderAuthFields(auth: AuthConfig, onChange: (auth: AuthConfig) => void
                   accessToken: tokenResult.accessToken,
                   tokenType: tokenResult.tokenType ?? config.tokenType,
                   refreshToken: tokenResult.refreshToken ?? config.refreshToken,
+                  expiresAt:
+                    typeof tokenResult.expiresIn === "number"
+                      ? Date.now() + tokenResult.expiresIn * 1000
+                      : undefined,
                 },
               });
               setFlowStatus("success");

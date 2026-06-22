@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useWsStore, type WsConnectionStatus } from "../../stores/websocket-store";
-import { Trash2, Send, Link, Unlink, ArrowUp, ArrowDown, AlertCircle } from "lucide-react";
+import { Trash2, Send, Link, Unlink, ArrowUp, ArrowDown, AlertCircle, Download, Paperclip } from "lucide-react";
 import { KeyValueEditor, type KeyValue } from "../request/KeyValueEditor";
 import { useTranslation } from "react-i18next";
 
@@ -15,6 +15,7 @@ const WS_TABS = [
 ] as const;
 
 type WsTabId = (typeof WS_TABS)[number]["id"];
+type MessageType = "text" | "binary";
 
 function StatusDot({ status }: { status: WsConnectionStatus }) {
   const colors: Record<WsConnectionStatus, string> = {
@@ -26,18 +27,35 @@ function StatusDot({ status }: { status: WsConnectionStatus }) {
   return <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${colors[status]}`} />;
 }
 
+function downloadBinary(bytes: number[], fileName: string) {
+  const arr = new Uint8Array(bytes);
+  const blob = new Blob([arr], { type: "application/octet-stream" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 export function WebSocketPanel({ connectionId }: WebSocketPanelProps) {
   const { t } = useTranslation();
   const [url, setUrl] = useState("ws://localhost:8080");
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState<MessageType>("text");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState<WsTabId>("messages");
   const [headers, setHeaders] = useState<KeyValue[]>([]);
   const [protocols, setProtocols] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const connection = useWsStore((s) => s.connections[connectionId]);
   const connect = useWsStore((s) => s.connect);
   const send = useWsStore((s) => s.send);
+  const sendBinary = useWsStore((s) => s.sendBinary);
   const disconnect = useWsStore((s) => s.disconnect);
   const clearMessages = useWsStore((s) => s.clearMessages);
 
@@ -64,10 +82,19 @@ export function WebSocketPanel({ connectionId }: WebSocketPanelProps) {
   }, [connectionId, url, status, connect, disconnect, buildHeaders]);
 
   const handleSend = useCallback(() => {
-    if (!message.trim()) return;
-    send(connectionId, message);
-    setMessage("");
-  }, [connectionId, message, send]);
+    if (messageType === "binary") {
+      if (!selectedFile) return;
+      selectedFile.arrayBuffer().then((buf) => {
+        sendBinary(connectionId, buf, selectedFile.name);
+      });
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } else {
+      if (!message.trim()) return;
+      send(connectionId, message);
+      setMessage("");
+    }
+  }, [connectionId, message, send, messageType, selectedFile, sendBinary]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -159,7 +186,22 @@ export function WebSocketPanel({ connectionId }: WebSocketPanelProps) {
                       {msg.direction === "system" && <AlertCircle size={12} className="text-fg-tertiary" />}
                       {msg.direction === "error" && <AlertCircle size={12} className="text-accent-danger" />}
                     </span>
-                    <span className="flex-1 break-all font-mono leading-snug text-fg-primary">{msg.data}</span>
+                    <span className="flex-1 break-all font-mono leading-snug text-fg-primary">
+                      {msg.isBinary ? (
+                        <span className="text-fg-secondary italic">{msg.data}</span>
+                      ) : (
+                        msg.data
+                      )}
+                    </span>
+                    {msg.isBinary && msg.binary && msg.direction === "received" && (
+                      <button
+                        onClick={() => downloadBinary(msg.binary!, `ws-binary-${msg.timestamp}.bin`)}
+                        className="shrink-0 flex items-center gap-1 px-1.5 h-[20px] rounded text-fg-tertiary hover:text-fg-secondary hover:bg-bg-hover cursor-pointer transition-colors text-[10px]"
+                        title={t("ws.download")}
+                      >
+                        <Download size={11} />
+                      </button>
+                    )}
                     <span className="shrink-0 text-fg-tertiary text-[10px] tabular-nums">
                       {new Date(msg.timestamp).toLocaleTimeString()}
                     </span>
@@ -171,30 +213,62 @@ export function WebSocketPanel({ connectionId }: WebSocketPanelProps) {
           </div>
 
           {status === "connected" && (
-            <div className="flex items-center gap-2 h-[44px] px-3 border-t border-border-muted shrink-0">
-              <input
-                type="text"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={t("ws.messagePlaceholder")}
-                className="flex-1 h-[28px] px-2 bg-bg-input border border-border-muted rounded text-[12px] text-fg-primary placeholder:text-fg-tertiary outline-none focus:border-border-focus font-mono"
-              />
-              <button
-                onClick={handleSend}
-                disabled={!message.trim()}
-                className="flex items-center gap-1 h-[28px] px-3 rounded bg-brand text-white text-[11px] font-semibold cursor-pointer hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Send size={12} />
-{t("common.send")}
-              </button>
-              <button
-                onClick={() => clearMessages(connectionId)}
-                className="flex items-center justify-center w-[28px] h-[28px] rounded text-fg-tertiary hover:text-fg-secondary hover:bg-bg-hover cursor-pointer transition-colors"
-                title={t("ws.clearMessages")}
-              >
-                <Trash2 size={12} />
-              </button>
+            <div className="flex flex-col gap-1.5 border-t border-border-muted shrink-0 p-2">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-0 rounded border border-border-muted overflow-hidden">
+                  <button
+                    onClick={() => setMessageType("text")}
+                    className={`px-2 h-[28px] text-[11px] font-medium cursor-pointer transition-colors ${
+                      messageType === "text" ? "bg-brand text-white" : "bg-bg-input text-fg-secondary hover:text-fg-primary"
+                    }`}
+                  >
+                    {t("ws.text")}
+                  </button>
+                  <button
+                    onClick={() => setMessageType("binary")}
+                    className={`px-2 h-[28px] text-[11px] font-medium cursor-pointer transition-colors ${
+                      messageType === "binary" ? "bg-brand text-white" : "bg-bg-input text-fg-secondary hover:text-fg-primary"
+                    }`}
+                  >
+                    {t("ws.binary")}
+                  </button>
+                </div>
+                {messageType === "text" ? (
+                  <input
+                    type="text"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={t("ws.messagePlaceholder")}
+                    className="flex-1 h-[28px] px-2 bg-bg-input border border-border-muted rounded text-[12px] text-fg-primary placeholder:text-fg-tertiary outline-none focus:border-border-focus font-mono"
+                  />
+                ) : (
+                  <div className="flex-1 flex items-center gap-2 h-[28px] px-2 bg-bg-input border border-border-muted rounded">
+                    <Paperclip size={12} className="text-fg-tertiary shrink-0" />
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+                      className="flex-1 text-[11px] text-fg-secondary file:mr-2 file:px-2 file:py-0.5 file:rounded file:border-0 file:bg-bg-elevated file:text-fg-primary file:text-[11px] file:cursor-pointer outline-none"
+                    />
+                  </div>
+                )}
+                <button
+                  onClick={handleSend}
+                  disabled={messageType === "text" ? !message.trim() : !selectedFile}
+                  className="flex items-center gap-1 h-[28px] px-3 rounded bg-brand text-white text-[11px] font-semibold cursor-pointer hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Send size={12} />
+                  {messageType === "binary" ? t("ws.sendFile") : t("common.send")}
+                </button>
+                <button
+                  onClick={() => clearMessages(connectionId)}
+                  className="flex items-center justify-center w-[28px] h-[28px] rounded text-fg-tertiary hover:text-fg-secondary hover:bg-bg-hover cursor-pointer transition-colors"
+                  title={t("ws.clearMessages")}
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
             </div>
           )}
         </>

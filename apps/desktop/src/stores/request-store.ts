@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import { listen } from "@tauri-apps/api/event";
-import { sendHttpRequest, cancelHttpRequest, downloadHttpResponse, insertHistoryEntry } from "@api-client/core/http";
+import { sendHttpRequest, cancelHttpRequest, downloadHttpResponse, insertHistoryEntry, refreshOAuth2Token } from "@api-client/core/http";
 import { buildIpcAuth as buildIpcAuthUtil } from "@api-client/core/http";
 import { markStart, markEnd, VariableResolver, variablesToRecord, handleError,
   getCollectionVariables, getFolderVariables, mergeHeaders, resolveAuth, collectPreRequestChain, collectPostResponseChain, resolveEnvironmentVariables } from "@api-client/core";
@@ -610,6 +610,43 @@ export const useRequestStore = create<RequestStore>()(
         auth: buildIpcAuth(effectiveAuth),
         settings: buildIpcSettings(mergedSettings),
       };
+
+      if (
+        effectiveAuth.type === "oauth2" &&
+        effectiveAuth.config &&
+        typeof effectiveAuth.config.expiresAt === "number" &&
+        effectiveAuth.config.refreshToken &&
+        effectiveAuth.config.tokenUrl &&
+        effectiveAuth.config.clientId &&
+        Date.now() > effectiveAuth.config.expiresAt - 60000
+      ) {
+        try {
+          const refreshed = await refreshOAuth2Token({
+            tokenUrl: effectiveAuth.config.tokenUrl,
+            clientId: effectiveAuth.config.clientId,
+            clientSecret: effectiveAuth.config.clientSecret,
+            refreshToken: effectiveAuth.config.refreshToken,
+            scope: effectiveAuth.config.scope,
+          });
+          const newExpiresAt =
+            typeof refreshed.expiresIn === "number"
+              ? Date.now() + refreshed.expiresIn * 1000
+              : undefined;
+          const updatedConfig = {
+            ...effectiveAuth.config,
+            accessToken: refreshed.accessToken || effectiveAuth.config.accessToken,
+            tokenType: refreshed.tokenType ?? effectiveAuth.config.tokenType,
+            refreshToken: refreshed.refreshToken ?? effectiveAuth.config.refreshToken,
+            expiresAt: newExpiresAt,
+          };
+          ipcConfig.auth = buildIpcAuth({ type: "oauth2", config: updatedConfig });
+          if (!hierarchy) {
+            get().setRequestAuth({ type: "oauth2", config: updatedConfig });
+          }
+        } catch {
+          // Refresh failed — proceed with old token; server will reject if invalid
+        }
+      }
 
       const collectionVariablesRecord = { ...collectionVars, ...folderVars };
       const folderPathNames = hierarchy?.folderPath.map((f) => f.name) ?? [];

@@ -5,6 +5,7 @@ const initial: WsStore = {
   connections: {},
   connect: expect.any(Function) as unknown as WsStore["connect"],
   send: expect.any(Function) as unknown as WsStore["send"],
+  sendBinary: expect.any(Function) as unknown as WsStore["sendBinary"],
   disconnect: expect.any(Function) as unknown as WsStore["disconnect"],
   clearMessages: expect.any(Function) as unknown as WsStore["clearMessages"],
   removeConnection: expect.any(Function) as unknown as WsStore["removeConnection"],

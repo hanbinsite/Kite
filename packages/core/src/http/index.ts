@@ -326,6 +326,16 @@ export async function exchangeOAuth2Token(config: {
   return invoke<OAuth2TokenResult>("exchange_oauth2_token", { args: config });
 }
 
+export async function refreshOAuth2Token(config: {
+  tokenUrl: string;
+  clientId: string;
+  clientSecret?: string;
+  refreshToken: string;
+  scope?: string;
+}): Promise<OAuth2TokenResult> {
+  return invoke<OAuth2TokenResult>("refresh_oauth2_token", { args: config });
+}
+
 export { useUIStore } from "../navigation";
 export type { UIStore, Theme } from "../navigation";
 

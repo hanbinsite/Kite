@@ -7,6 +7,9 @@ fn test_ws_message_serde() {
         data: r#"{"type":"message","text":"hello"}"#.into(),
         direction: "incoming".into(),
         timestamp: 1700000000000,
+        is_binary: false,
+        byte_len: 0,
+        binary: None,
     };
     let json = serde_json::to_string(&msg).unwrap();
     assert!(json.contains("connectionId"));
@@ -24,6 +27,9 @@ fn test_ws_message_outgoing() {
         data: "ping".into(),
         direction: "outgoing".into(),
         timestamp: 42,
+        is_binary: false,
+        byte_len: 0,
+        binary: None,
     };
     let json = serde_json::to_string(&msg).unwrap();
     let parsed: WsMessage = serde_json::from_str(&json).unwrap();

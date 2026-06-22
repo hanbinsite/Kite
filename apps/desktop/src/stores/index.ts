@@ -11,3 +11,4 @@ export { useMockStore, initMockEventListener, destroyMockEventListener } from ".
 export { useCookieStore } from "./cookie-store";
 export { useRunnerStore } from "./runner-store";
 export { useMonitorStore } from "./monitor-store";
+export { useVaultStore } from "./vault-store";

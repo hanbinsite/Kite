@@ -276,6 +276,81 @@ pub async fn exchange_oauth2_token(args: ExchangeOAuth2Args) -> Result<OAuth2Tok
     })
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefreshOAuth2Args {
+    pub token_url: String,
+    pub client_id: String,
+    #[serde(default)]
+    pub client_secret: Option<String>,
+    pub refresh_token: String,
+    #[serde(default)]
+    pub scope: Option<String>,
+}
+
+#[tauri::command]
+pub async fn refresh_oauth2_token(args: RefreshOAuth2Args) -> Result<OAuth2TokenResponse, AppError> {
+    let client = reqwest::Client::new();
+
+    let mut form = vec![
+        ("grant_type".to_string(), "refresh_token".to_string()),
+        ("refresh_token".to_string(), args.refresh_token.clone()),
+        ("client_id".to_string(), args.client_id.clone()),
+    ];
+
+    if let Some(ref secret) = args.client_secret {
+        if !secret.is_empty() {
+            form.push(("client_secret".to_string(), secret.clone()));
+        }
+    }
+
+    if let Some(ref scope) = args.scope {
+        if !scope.is_empty() {
+            form.push(("scope".to_string(), scope.clone()));
+        }
+    }
+
+    let response = client
+        .post(&args.token_url)
+        .form(&form)
+        .send()
+        .await
+        .map_err(|e| {
+            AppError::net_connect_failed(format!("Token refresh failed for {}: {}", args.token_url, e))
+        })?;
+
+    let status = response.status();
+    let body = response.text().await.map_err(|e| {
+        AppError::internal(format!("Failed to read refresh token response: {}", e))
+    })?;
+
+    if !status.is_success() {
+        return Err(AppError::net_auth_failed(format!(
+            "Token refresh returned {}: {}",
+            status, body
+        )));
+    }
+
+    #[derive(Deserialize)]
+    struct TokenJson {
+        access_token: Option<String>,
+        token_type: Option<String>,
+        refresh_token: Option<String>,
+        expires_in: Option<u64>,
+    }
+
+    let token: TokenJson = serde_json::from_str(&body).map_err(|e| {
+        AppError::storage_parse_failed(format!("Failed to parse refresh token response: {}", e))
+    })?;
+
+    Ok(OAuth2TokenResponse {
+        access_token: token.access_token.unwrap_or_default(),
+        token_type: token.token_type,
+        refresh_token: token.refresh_token,
+        expires_in: token.expires_in,
+    })
+}
+
 fn urlencoding(s: &str) -> String {
     url::form_urlencoded::byte_serialize(s.as_bytes()).collect::<String>()
 }

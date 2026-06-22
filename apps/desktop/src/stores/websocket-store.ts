@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import { wsConnect as ipcConnect, wsSend as ipcSend, wsClose as ipcClose, onWsMessage, type WsMessage } from "@api-client/core/ws";
+import { wsConnect as ipcConnect, wsSend as ipcSend, wsSendBinary as ipcSendBinary, wsClose as ipcClose, onWsMessage, type WsMessage } from "@api-client/core/ws";
 import { handleError } from "@api-client/core/error";
 
 export type WsConnectionStatus = "disconnected" | "connecting" | "connected" | "error";
@@ -19,6 +19,7 @@ export interface WsState {
 export interface WsActions {
   connect: (connectionId: string, url: string, headers?: [string, string][]) => Promise<void>;
   send: (connectionId: string, message: string) => Promise<void>;
+  sendBinary: (connectionId: string, data: ArrayBuffer, fileName?: string) => Promise<void>;
   disconnect: (connectionId: string) => Promise<void>;
   clearMessages: (connectionId: string) => void;
   removeConnection: (connectionId: string) => void;
@@ -69,6 +70,28 @@ export const useWsStore = create<WsStore>()(
           data: message,
           direction: "sent",
           timestamp: Date.now(),
+        });
+      } catch (err) {
+        const handled = handleError(err);
+        set((state) => {
+          if (state.connections[connectionId]) {
+            state.connections[connectionId].error = handled.description;
+          }
+        });
+      }
+    },
+
+    sendBinary: async (connectionId, data, fileName) => {
+      try {
+        await ipcSendBinary(connectionId, data);
+        const len = data.byteLength;
+        get().pushMessage(connectionId, {
+          connectionId,
+          data: fileName ? `(binary sent, ${len} bytes, ${fileName})` : `(binary sent, ${len} bytes)`,
+          direction: "sent",
+          timestamp: Date.now(),
+          isBinary: true,
+          byteLen: len,
         });
       } catch (err) {
         const handled = handleError(err);

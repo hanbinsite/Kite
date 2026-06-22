@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, Fragment } from "react";
-import { X, Settings, Globe, Type, Database, Info, Server, Cookie, Trash2, Leaf, Bot, Pencil, Plug, Puzzle } from "lucide-react";
+import { X, Settings, Globe, Type, Database, Info, Server, Cookie, Trash2, Leaf, Bot, Pencil, Plug, Puzzle, Shield } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useUIStore } from "@api-client/core";
 import type { Theme } from "@api-client/core";
@@ -14,6 +14,7 @@ import { EnvironmentEditor } from "../environment";
 import { KeyValueEditor, type KeyValue } from "../request/KeyValueEditor";
 import { McpSettings } from "./McpSettings";
 import { PluginSettings } from "./PluginSettings";
+import { VaultSettings } from "./VaultSettings";
 import type { Variable } from "@api-client/types";
 
 const FONT_SIZE_OPTIONS = [
@@ -35,6 +36,7 @@ const CATEGORIES = [
   { id: "proxy", labelKey: "settings.categories.proxy", icon: Globe },
   { id: "mock", labelKey: "settings.categories.mock", icon: Server },
   { id: "cookies", labelKey: "settings.categories.cookies", icon: Cookie },
+  { id: "vault", labelKey: "settings.categories.vault", icon: Shield },
   { id: "fonts", labelKey: "settings.categories.fonts", icon: Type },
   { id: "data", labelKey: "settings.categories.data", icon: Database },
   { id: "about", labelKey: "settings.categories.about", icon: Info },
@@ -146,6 +148,7 @@ export function SettingsPage() {
             {category === "proxy" && <ProxySection />}
             {category === "mock" && <MockSection />}
             {category === "cookies" && <CookiesSection />}
+            {category === "vault" && <VaultSettings />}
             {category === "fonts" && <FontsSection />}
             {category === "data" && <DataSection />}
             {category === "about" && <AboutSection />}

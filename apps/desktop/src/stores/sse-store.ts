@@ -9,6 +9,8 @@ export interface SseConnectionState {
   status: SseConnectionStatus;
   url: string;
   events: SseEvent[];
+  buffer: SseEvent[];
+  paused: boolean;
   error: string | null;
 }
 
@@ -22,9 +24,10 @@ export interface SseActions {
   clearEvents: (connectionId: string) => void;
   removeConnection: (connectionId: string) => void;
   pushEvent: (connectionId: string, event: SseEvent) => void;
+  setPaused: (connectionId: string, paused: boolean) => void;
 }
 
-const MAX_EVENTS = 200;
+const MAX_EVENTS = 5000;
 
 export type SseStore = SseState & SseActions;
 
@@ -38,6 +41,8 @@ export const useSseStore = create<SseStore>()(
           status: "connecting",
           url,
           events: [],
+          buffer: [],
+          paused: false,
           error: null,
         };
       });
@@ -83,6 +88,7 @@ export const useSseStore = create<SseStore>()(
       set((state) => {
         if (state.connections[connectionId]) {
           state.connections[connectionId].events = [];
+          state.connections[connectionId].buffer = [];
         }
       }),
 
@@ -91,13 +97,38 @@ export const useSseStore = create<SseStore>()(
         delete state.connections[connectionId];
       }),
 
+    setPaused: (connectionId, paused) =>
+      set((state) => {
+        const conn = state.connections[connectionId];
+        if (!conn) return;
+        if (paused) {
+          conn.paused = true;
+        } else {
+          conn.paused = false;
+          if (conn.buffer.length > 0) {
+            conn.events.push(...conn.buffer);
+            if (conn.events.length > MAX_EVENTS) {
+              conn.events = conn.events.slice(-MAX_EVENTS);
+            }
+            conn.buffer = [];
+          }
+        }
+      }),
+
     pushEvent: (connectionId, sseEvent) =>
       set((state) => {
         if (!state.connections[connectionId]) return;
         const conn = state.connections[connectionId];
-        conn.events.push(sseEvent);
-        if (conn.events.length > MAX_EVENTS) {
-          conn.events = conn.events.slice(-MAX_EVENTS);
+        if (conn.paused) {
+          conn.buffer.push(sseEvent);
+          if (conn.buffer.length > MAX_EVENTS) {
+            conn.buffer = conn.buffer.slice(-MAX_EVENTS);
+          }
+        } else {
+          conn.events.push(sseEvent);
+          if (conn.events.length > MAX_EVENTS) {
+            conn.events = conn.events.slice(-MAX_EVENTS);
+          }
         }
         if (sseEvent.event === "error") {
           conn.status = "error";

@@ -1,0 +1,1 @@
+export { VaultUnlockDialog } from "./VaultUnlockDialog";

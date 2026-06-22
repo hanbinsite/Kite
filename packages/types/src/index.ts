@@ -186,6 +186,7 @@ export interface OAuth2Auth {
   tokenType?: string;
   refreshToken?: string;
   expiresIn?: number;
+  expiresAt?: number;
   grantType?: "authorization_code";
   authorizationUrl?: string;
   tokenUrl?: string;

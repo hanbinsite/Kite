@@ -6,6 +6,9 @@ export interface WsMessage {
   data: string;
   direction: "sent" | "received" | "system" | "error";
   timestamp: number;
+  isBinary?: boolean;
+  byteLen?: number;
+  binary?: number[];
 }
 
 export async function wsConnect(
@@ -21,6 +24,14 @@ export async function wsSend(
   message: string,
 ): Promise<void> {
   return invoke<void>("ws_send", { connectionId, message });
+}
+
+export async function wsSendBinary(
+  connectionId: string,
+  data: ArrayBuffer | Uint8Array,
+): Promise<void> {
+  const bytes = data instanceof Uint8Array ? Array.from(data) : Array.from(new Uint8Array(data));
+  return invoke<void>("ws_send_binary", { connectionId, data: bytes });
 }
 
 export async function wsClose(

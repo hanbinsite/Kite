@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
+import { X, Lock, Link2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEnvironmentStore } from "../../stores/environment-store";
+import { useVaultStore } from "../../stores/vault-store";
 import { KeyValueEditor, type KeyValue } from "../request/KeyValueEditor";
+import { VaultUnlockDialog } from "../vault";
 import type { Variable } from "@api-client/types";
 
 interface EnvironmentEditorProps {
@@ -46,6 +48,10 @@ function ensureEmptyRow(items: KeyValue[]): KeyValue[] {
   return items;
 }
 
+function linkToVaultSecret(items: KeyValue[], key: string, secretName: string): KeyValue[] {
+  return items.map((kv) => (kv.key === key ? { ...kv, value: `vault://${secretName}` } : kv));
+}
+
 export function EnvironmentEditor({ environmentId, isOpen, onClose }: EnvironmentEditorProps) {
   const { t } = useTranslation();
   const environment = useEnvironmentStore((s) => s.environments.find((e) => e.id === environmentId));
@@ -53,11 +59,20 @@ export function EnvironmentEditor({ environmentId, isOpen, onClose }: Environmen
   const updateEnvironment = useEnvironmentStore((s) => s.updateEnvironment);
   const persistEnvironment = useEnvironmentStore((s) => s.persistEnvironment);
 
+  const vaultUnlocked = useVaultStore((s) => s.unlocked);
+  const vaultSecrets = useVaultStore((s) => s.secrets);
+  const checkVaultStatus = useVaultStore((s) => s.checkStatus);
+
   const [name, setName] = useState("");
   const [envType, setEnvType] = useState<"dev" | "staging" | "production" | undefined>(undefined);
   const [variables, setVariables] = useState<KeyValue[]>([]);
   const [nameError, setNameError] = useState("");
   const [parentId, setParentId] = useState<string>("");
+  const [vaultDialogOpen, setVaultDialogOpen] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) checkVaultStatus();
+  }, [isOpen, checkVaultStatus]);
 
   useEffect(() => {
     if (environment && isOpen) {
@@ -208,6 +223,70 @@ export function EnvironmentEditor({ environmentId, isOpen, onClose }: Environmen
                   />
                 </div>
               </div>
+
+              {/* Vault Link */}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <label className="font-sans text-[11px] font-semibold text-fg-secondary">
+                    {t("vault.linkToVault")}
+                  </label>
+                  {vaultUnlocked ? (
+                    <span className="flex items-center gap-1 text-[10px] text-accent-success">
+                      <Lock className="w-3 h-3" />
+                      {t("vault.unlocked")}
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => setVaultDialogOpen(true)}
+                      className="flex items-center gap-1 text-[10px] text-accent-danger hover:text-accent-danger/80 cursor-pointer"
+                    >
+                      <Lock className="w-3 h-3" />
+                      {t("vault.locked")}
+                    </button>
+                  )}
+                </div>
+                {vaultUnlocked ? (
+                  <div className="flex flex-col gap-2">
+                    {variables.filter((v) => v.key).length === 0 ? (
+                      <span className="text-[11px] text-fg-tertiary">{t("vault.noSecrets")}</span>
+                    ) : (
+                      variables
+                        .filter((v) => v.key)
+                        .map((v) => (
+                          <div key={v.id} className="flex items-center gap-2 h-8">
+                            <span className="font-mono text-[12px] text-fg-secondary w-[120px] truncate">{v.key}</span>
+                            <span className="font-mono text-[11px] text-fg-tertiary flex-1 truncate">
+                              {v.value.startsWith("vault://") ? v.value : t("vault.secretValue")}
+                            </span>
+                            <select
+                              value=""
+                              onChange={(e) => {
+                                if (!e.target.value) return;
+                                setVariables((prev) => ensureEmptyRow(linkToVaultSecret(prev, v.key, e.target.value)));
+                              }}
+                              className="h-7 px-2 bg-bg-input border border-border-muted rounded-md text-[11px] text-fg-primary outline-none cursor-pointer focus:border-border-focus"
+                            >
+                              <option value="">{t("vault.linkToVault")}</option>
+                              {vaultSecrets.map((s) => (
+                                <option key={s.name} value={s.name}>
+                                  {s.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setVaultDialogOpen(true)}
+                    className="flex items-center gap-1.5 h-7 px-2 rounded-md text-[11px] text-fg-tertiary hover:text-brand hover:bg-brand-muted cursor-pointer transition-colors w-fit"
+                  >
+                    <Link2 className="w-3 h-3" />
+                    {t("vault.vaultLockedHint")}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -228,6 +307,8 @@ export function EnvironmentEditor({ environmentId, isOpen, onClose }: Environmen
           </div>
         </Dialog.Content>
       </Dialog.Portal>
+
+      <VaultUnlockDialog open={vaultDialogOpen} onOpenChange={setVaultDialogOpen} />
     </Dialog.Root>
   );
 }
