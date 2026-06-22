@@ -8,7 +8,7 @@ export interface Tab {
   isModified: boolean;
   requestId?: string;
   response?: unknown;
-  protocol?: "http" | "websocket" | "sse" | "mqtt" | "grpc" | "mock" | "collection-config";
+  protocol?: "http" | "websocket" | "sse" | "mqtt" | "grpc" | "mock" | "proxy" | "collection-config";
   meta?: {
     collectionId?: string;
     folderId?: string;

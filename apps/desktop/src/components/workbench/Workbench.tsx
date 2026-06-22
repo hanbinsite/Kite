@@ -16,6 +16,7 @@ const SsePanel = lazy(() => import("../protocol").then((m) => ({ default: m.SseP
 const MqttPanel = lazy(() => import("../protocol").then((m) => ({ default: m.MqttPanel })));
 const GrpcPanel = lazy(() => import("../protocol").then((m) => ({ default: m.GrpcPanel })));
 const MockPanel = lazy(() => import("../protocol").then((m) => ({ default: m.MockPanel })));
+const ProxyPanel = lazy(() => import("../protocol").then((m) => ({ default: m.ProxyPanel })));
 
 function ProtocolPanelFallback() {
   return (
@@ -100,6 +101,7 @@ function ProtocolWorkbench({ protocol, tabId, t }: { protocol: string; tabId: st
       case "mqtt": return <MqttPanel connectionId={tabId} />;
       case "grpc": return <GrpcPanel connectionId={tabId} />;
       case "mock": return <MockPanel />;
+      case "proxy": return <ProxyPanel />;
       default: return (
         <div className="flex items-center justify-center h-full text-fg-tertiary text-[13px]">
           {t("errors.unknownProtocol", { protocol })}

@@ -9,7 +9,7 @@ import { SettingsPage } from "./components/settings";
 import { CodeSnippetDrawer, CollectionRunnerDialog, ImportDialog, ExportDialog, VariableInspector } from "./components/drawers";
 import { toast } from "@api-client/ui";
 import { useUIStore, useTabStore } from "@api-client/core";
-import { Plus, Settings, FolderOpen, Code2, Terminal, Play, Upload, Download, Variable, Bot, Activity, Plug } from "lucide-react";
+import { Plus, Settings, FolderOpen, Code2, Terminal, Play, Upload, Download, Variable, Bot, Activity, Plug, ShieldAlert } from "lucide-react";
 import { useTheme, useKeyboardShortcuts, useAutoSave, useSaveShortcut } from "./hooks";
 import { useRequestStore, initWsEventListener, initSseEventListener, initMqttEventListener, initGrpcEventListener, initMockEventListener, useCollectionStore } from "./stores";
 import { useConsoleStore } from "./stores/console-store";
@@ -281,6 +281,13 @@ export function App() {
       category: "action",
       icon: <Plus className="w-4 h-4" />,
       action: () => openTab({ name: "Mock Server", method: "GET", url: "", protocol: "mock" }),
+    },
+    {
+      id: "new-proxy",
+      label: "MITM Proxy",
+      category: "action",
+      icon: <ShieldAlert className="w-4 h-4" />,
+      action: () => openTab({ name: "MITM Proxy", method: "GET", url: "", protocol: "proxy" }),
     },
     {
       id: "toggle-sidebar",

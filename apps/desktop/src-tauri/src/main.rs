@@ -36,6 +36,7 @@ async fn main() {
         .manage(commands::grpc::GrpcState::new())
         .manage(commands::mock::MockState::new())
         .manage(ai::mcp_external::McpConnectionState::new())
+        .manage(proxy::ProxyState::new())
         .invoke_handler(tauri::generate_handler![
             commands::http::send_http_request,
             commands::http::download_http_response,
@@ -134,6 +135,8 @@ commands::crypto::delete_vault_secret,
             proxy::start_proxy,
             proxy::stop_proxy,
             proxy::get_proxy_status,
+            proxy::get_intercepted_requests,
+            proxy::clear_intercepted_requests,
             commands::oauth::start_oauth2_authorization,
             commands::oauth::exchange_oauth2_token,
             commands::oauth::refresh_oauth2_token,

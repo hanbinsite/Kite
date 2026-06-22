@@ -62,6 +62,8 @@ ts-rs = "10"
 open = "5"
 url = "2"
 zip = "4"
+hudsucker = { version = "0.24", default-features = false, features = ["rustls-client", "rcgen-ca"] }
+rcgen = "0.14"
 
 [dev-dependencies]
 tempfile = "3"

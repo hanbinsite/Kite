@@ -12,6 +12,7 @@ import {
   X,
   FileText,
   Bot,
+  ShieldAlert,
 } from "lucide-react";
 import { useUIStore, useTabStore, type Tab } from "@api-client/core";
 import { useRequestStore } from "../../stores/request-store";
@@ -630,6 +631,11 @@ const commitEdit = () => {
                 <button onClick={() => { openTab({ name: "Mock Server", method: "GET", url: "", protocol: "mock" }); setNewMenuOpen(false); }} className="w-full px-3 py-1.5 text-left text-[13px] text-fg-primary hover:bg-bg-hover flex items-center gap-2">
                   <span className="text-brand font-mono text-[10px] w-8">MOCK</span>
                   {t("sidebar.mockServer")}
+                </button>
+                <div className="my-1 border-t border-border-muted" />
+                <button onClick={() => { openTab({ name: "MITM Proxy", method: "GET", url: "", protocol: "proxy" }); setNewMenuOpen(false); }} className="w-full px-3 py-1.5 text-left text-[13px] text-fg-primary hover:bg-bg-hover flex items-center gap-2">
+                  <ShieldAlert className="w-3 h-3 text-brand" />
+                  {t("sidebar.proxy")}
                 </button>
               </div>
             </>
