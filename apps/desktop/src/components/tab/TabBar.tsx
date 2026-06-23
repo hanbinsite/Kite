@@ -46,6 +46,9 @@ export function TabBar() {
     useWsStore.getState().disconnect(tabId);
     useSseStore.getState().disconnect(tabId);
     useMqttStore.getState().disconnect(tabId);
+    useWsStore.getState().removeConnection(tabId);
+    useSseStore.getState().removeConnection(tabId);
+    useMqttStore.getState().removeConnection(tabId);
     closeTab(tabId);
     removeTabData(tabId);
   };
@@ -174,11 +177,15 @@ export function TabBar() {
               )}
               {isActive && (
                 <span
+                  role="button"
+                  tabIndex={0}
+                  aria-label={t("tabs.closeTab")}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleCloseTab(tab.id);
                   }}
-                  className="p-0.5 rounded hover:bg-bg-hover opacity-0 group-hover:opacity-100 transition-opacity"
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); handleCloseTab(tab.id); } }}
+                  className="p-0.5 rounded hover:bg-bg-hover opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                 >
                   <X className="w-3.5 h-3.5" />
                 </span>

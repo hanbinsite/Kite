@@ -55,6 +55,8 @@ export const messages = {
       requestNotFound: "Request not found in collection",
       protocolPanelCrashed: "Protocol panel crashed: {{message}}",
       unknownProtocol: "Unknown protocol: {{protocol}}",
+      scriptError: "[{{source}}] execution failed: {{error}}",
+      requestCancelled: "Request cancelled",
     },
     cookies: {
       domainPlaceholder: "Domain (.example.com)",
@@ -876,6 +878,8 @@ export const messages = {
       requestNotFound: "在集合中未找到请求",
       protocolPanelCrashed: "协议面板崩溃：{{message}}",
       unknownProtocol: "未知协议：{{protocol}}",
+      scriptError: "[{{source}}] 执行失败: {{error}}",
+      requestCancelled: "请求已取消",
     },
     cookies: {
       domainPlaceholder: "域名 (.example.com)",

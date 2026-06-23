@@ -190,6 +190,12 @@ pub async fn start_proxy(
         .parse()
         .map_err(|e| AppError::internal(format!("Invalid address: {}", e)))?;
 
+    if !addr.ip().is_loopback() {
+        return Err(AppError::internal(
+            "Proxy can only bind to localhost (127.0.0.1 or ::1) for security".into(),
+        ));
+    }
+
     let (cancel_tx, cancel_rx) = tokio::sync::oneshot::channel::<()>();
 
     let (ca, ca_pem) = gen_ca()?;

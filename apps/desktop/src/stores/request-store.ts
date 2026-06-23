@@ -3,6 +3,7 @@ import { immer } from "zustand/middleware/immer";
 import { listen } from "@tauri-apps/api/event";
 import { sendHttpRequest, cancelHttpRequest, downloadHttpResponse, insertHistoryEntry, refreshOAuth2Token } from "@api-client/core/http";
 import { buildIpcAuth as buildIpcAuthUtil } from "@api-client/core/http";
+import { i18n } from "../i18n";
 import { markStart, markEnd, VariableResolver, variablesToRecord, handleError,
   getCollectionVariables, getFolderVariables, mergeHeaders, resolveAuth, collectPreRequestChain, collectPostResponseChain, resolveEnvironmentVariables } from "@api-client/core";
 import type { VariableScope } from "@api-client/core";
@@ -90,7 +91,7 @@ async function executePreRequestScripts(
   } catch (scriptErr) {
     useConsoleStore.getState().addEntry(tabId, {
       level: "error",
-      message: `[Pre-request][${source}] 执行失败: ${scriptErr}`,
+      message: i18n.t("errors.scriptError", { source, error: String(scriptErr) }),
       source: "pre-request",
     });
     set((state) => {
@@ -120,7 +121,7 @@ async function executePostResponseScripts(
   } catch (scriptErr) {
     useConsoleStore.getState().addEntry(tabId, {
       level: "error",
-      message: `[Post-response][${source}] 执行失败: ${scriptErr}`,
+      message: i18n.t("errors.scriptError", { source, error: String(scriptErr) }),
       source: "post-response",
     });
   }
@@ -772,7 +773,7 @@ export const useRequestStore = create<RequestStore>()(
       }
       set((state) => {
         delete state.loadingTabs[tabId];
-        state.errors[tabId] = "Request cancelled";
+        state.errors[tabId] = i18n.t("errors.requestCancelled");
       });
     },
 

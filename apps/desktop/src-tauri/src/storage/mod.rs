@@ -69,6 +69,36 @@ impl Storage {
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA wal_autocheckpoint=1000;")
             .map_err(|e| e.to_string())?;
 
+        Self::run_migrations(conn)?;
+
+        Ok(())
+    }
+
+    const CURRENT_SCHEMA_VERSION: i64 = 1;
+
+    fn run_migrations(conn: &Connection) -> Result<(), String> {
+        let current: i64 = conn
+            .query_row(
+                "SELECT COALESCE(MAX(version), 0) FROM schema_version",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+
+        for v in (current + 1)..=Self::CURRENT_SCHEMA_VERSION {
+            match v {
+                1 => {
+                    conn.execute(
+                        "INSERT INTO schema_version (version) VALUES (?1)",
+                        rusqlite::params![v],
+                    )
+                    .map_err(|e| format!("Migration v{} failed: {}", v, e))?;
+                }
+                _ => {
+                    return Err(format!("Unknown schema version: {}", v));
+                }
+            }
+        }
         Ok(())
     }
 
@@ -191,13 +221,13 @@ impl Storage {
     pub fn query_cookies(&self, domain: Option<&str>) -> Result<Vec<CookieEntry>, String> {
         let conn = self.conn.lock().map_err(|e| e.to_string())?;
         if let Some(d) = domain {
-            let param = format!("%{}%", d);
+            let subdomain_pattern = format!("%.{}", d);
             let mut stmt = conn
-                .prepare("SELECT id, domain, name, value, path, expires, secure, http_only, same_site FROM cookie_jar WHERE domain LIKE ?1 ORDER BY domain, name")
+                .prepare("SELECT id, domain, name, value, path, expires, secure, http_only, same_site FROM cookie_jar WHERE domain = ?1 OR domain LIKE ?2 ORDER BY domain, name")
                 .map_err(|e| e.to_string())?;
 
             let rows: Vec<CookieEntry> = stmt
-                .query_map(params![param], |row| {
+                .query_map(params![d, subdomain_pattern], |row| {
                     Ok(CookieEntry {
                         id: row.get(0)?,
                         domain: row.get(1)?,

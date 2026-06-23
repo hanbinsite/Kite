@@ -1,7 +1,7 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager, State};
 use tokio::sync::RwLock;
@@ -288,7 +288,24 @@ pub struct ResponseHeader {
     pub value: String,
 }
 
+static DEFAULT_CLIENT: LazyLock<Client> = LazyLock::new(|| {
+    Client::builder()
+        .cookie_store(false)
+        .timeout(Duration::from_secs(30))
+        .build()
+        .expect("Failed to create default HTTP client")
+});
+
 pub(crate) fn build_client(settings: &RequestSettings) -> Result<Client, AppError> {
+    let needs_custom = settings.proxy_url.as_ref().map_or(false, |p| !p.is_empty())
+        || !settings.follow_redirects
+        || !settings.verify_ssl
+        || settings.timeout_ms != 30000;
+
+    if !needs_custom {
+        return Ok(DEFAULT_CLIENT.clone());
+    }
+
     let mut builder = Client::builder()
         .cookie_store(false)
         .timeout(std::time::Duration::from_millis(settings.timeout_ms));
@@ -981,6 +998,7 @@ pub(crate) async fn load_cookie_header(
         Err(_) => return String::new(),
     };
     let host = parsed_url.host_str().unwrap_or("").to_string();
+    let request_path = parsed_url.path().to_string();
     let is_https = parsed_url.scheme() == "https";
     if host.is_empty() {
         return String::new();
@@ -1013,6 +1031,10 @@ pub(crate) async fn load_cookie_header(
                 }
             }
             if c.secure && !is_https {
+                return false;
+            }
+            let cookie_path = &c.path;
+            if !request_path.starts_with(cookie_path) {
                 return false;
             }
             true

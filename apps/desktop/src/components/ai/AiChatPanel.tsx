@@ -18,6 +18,13 @@ function escapeHtml(text: string): string {
     .replace(/'/g, "&#039;");
 }
 
+function sanitizeHtml(html: string): string {
+  return html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    .replace(/\bon\w+\s*=\s*"[^"]*"/gi, "")
+    .replace(/\bon\w+\s*=\s*'[^']*'/gi, "")
+    .replace(/javascript\s*:/gi, "");
+}
+
 function renderMarkdown(text: string): string {
   const escaped = escapeHtml(text);
   return escaped
@@ -25,6 +32,11 @@ function renderMarkdown(text: string): string {
     .replace(/`([^`]+)`/g, '<code class="bg-bg-input text-brand px-1 rounded text-xs">$1</code>')
     .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold">$1</strong>')
     .replace(/\n/g, '<br/>');
+}
+
+function renderMessageHtml(msg: { role: string; content: string }): string {
+  const html = msg.role === "assistant" ? renderMarkdown(msg.content) : escapeHtml(msg.content);
+  return sanitizeHtml(html);
 }
 
 export function AiChatPanel() {
@@ -290,7 +302,7 @@ export function AiChatPanel() {
                   : "bg-bg-elevated text-fg-primary border border-border-default"
               }`}
               dangerouslySetInnerHTML={{
-                __html: msg.role === "assistant" ? renderMarkdown(msg.content) : escapeHtml(msg.content),
+                __html: renderMessageHtml(msg),
               }}
             />
             <div className="flex items-center gap-0.5 mt-0.5">

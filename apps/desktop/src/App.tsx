@@ -7,10 +7,12 @@ import { Workbench } from "./components/workbench/Workbench";
 import { CommandPalette, type CommandItem } from "./components/command-palette";
 import { SettingsPage } from "./components/settings";
 import { CodeSnippetDrawer, CollectionRunnerDialog, ImportDialog, ExportDialog, VariableInspector } from "./components/drawers";
+import { ConfirmDialog } from "./components/shared/ConfirmDialog";
 import { toast } from "@api-client/ui";
 import { useUIStore, useTabStore } from "@api-client/core";
 import { Plus, Settings, FolderOpen, Code2, Terminal, Play, Upload, Download, Variable, Bot, Activity, Plug, ShieldAlert } from "lucide-react";
 import { useTheme, useKeyboardShortcuts, useAutoSave, useSaveShortcut } from "./hooks";
+import { saveCurrentRequest } from "./hooks/useAutoSave";
 import { useRequestStore, initWsEventListener, initSseEventListener, initMqttEventListener, initGrpcEventListener, initMockEventListener, useCollectionStore } from "./stores";
 import { useConsoleStore } from "./stores/console-store";
 import { registerVariableCompletionProvider } from "./stores/variable-completion-provider";
@@ -36,6 +38,7 @@ export function App() {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isVariableInspectorOpen, setIsVariableInspectorOpen] = useState(false);
+  const [shortcutConfirmClose, setShortcutConfirmClose] = useState<string | null>(null);
 
   const language = useUIStore((s) => s.language);
 
@@ -74,16 +77,21 @@ export function App() {
 
   useKeyboardShortcuts([
     { shortcut: "cmd+w", handler: () => {
-      if (activeTabId) {
-        const tab = useTabStore.getState().tabs.find(t => t.id === activeTabId);
-        const isDirty = useRequestStore.getState().dirtyTabs[activeTabId];
-        if (tab?.isModified || isDirty) return;
-        useWsStore.getState().disconnect(activeTabId);
-        useSseStore.getState().disconnect(activeTabId);
-        useMqttStore.getState().disconnect(activeTabId);
-        closeTab(activeTabId);
-        removeTabData(activeTabId);
+      if (!activeTabId) return;
+      const tab = useTabStore.getState().tabs.find(t => t.id === activeTabId);
+      const isDirty = useRequestStore.getState().dirtyTabs[activeTabId];
+      if (tab?.isModified || isDirty) {
+        setShortcutConfirmClose(activeTabId);
+        return;
       }
+      useWsStore.getState().disconnect(activeTabId);
+      useSseStore.getState().disconnect(activeTabId);
+      useMqttStore.getState().disconnect(activeTabId);
+      useWsStore.getState().removeConnection(activeTabId);
+      useSseStore.getState().removeConnection(activeTabId);
+      useMqttStore.getState().removeConnection(activeTabId);
+      closeTab(activeTabId);
+      removeTabData(activeTabId);
     } },
     { shortcut: "cmd+enter", handler: () => { if (activeTabId && activeTab?.url) { sendRequest(activeTabId, (activeTab.method ?? "GET") as "GET", activeTab.url); } } },
   ]);
@@ -399,6 +407,44 @@ export function App() {
       <ImportDialog isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} />
       <ExportDialog isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} />
       <VariableInspector isOpen={isVariableInspectorOpen} onClose={() => setIsVariableInspectorOpen(false)} />
+      <ConfirmDialog
+        open={shortcutConfirmClose !== null}
+        onOpenChange={(open) => { if (!open) setShortcutConfirmClose(null); }}
+        title={t("tabs.unsavedChanges")}
+        description={t("tabs.unsavedMessage")}
+        confirmLabel={t("tabs.dontSave")}
+        cancelLabel={t("common.cancel")}
+        secondaryLabel={t("common.save")}
+        variant="warning"
+        onConfirm={() => {
+          if (!shortcutConfirmClose) return;
+          const tabId = shortcutConfirmClose;
+          useWsStore.getState().disconnect(tabId);
+          useSseStore.getState().disconnect(tabId);
+          useMqttStore.getState().disconnect(tabId);
+          useWsStore.getState().removeConnection(tabId);
+          useSseStore.getState().removeConnection(tabId);
+          useMqttStore.getState().removeConnection(tabId);
+          closeTab(tabId);
+          removeTabData(tabId);
+          setShortcutConfirmClose(null);
+        }}
+        onCancel={() => setShortcutConfirmClose(null)}
+        onSecondary={() => {
+          if (!shortcutConfirmClose) return;
+          const tabId = shortcutConfirmClose;
+          saveCurrentRequest(tabId);
+          useWsStore.getState().disconnect(tabId);
+          useSseStore.getState().disconnect(tabId);
+          useMqttStore.getState().disconnect(tabId);
+          useWsStore.getState().removeConnection(tabId);
+          useSseStore.getState().removeConnection(tabId);
+          useMqttStore.getState().removeConnection(tabId);
+          closeTab(tabId);
+          removeTabData(tabId);
+          setShortcutConfirmClose(null);
+        }}
+      />
     </>
   );
 }
