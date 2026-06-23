@@ -54,3 +54,7 @@ export async function getInterceptedRequests(): Promise<InterceptedRequest[]> {
 export async function clearInterceptedRequests(): Promise<void> {
   return invoke("clear_intercepted_requests");
 }
+
+export async function exportProxyCa(): Promise<string> {
+  return invoke<string>("export_proxy_ca");
+}

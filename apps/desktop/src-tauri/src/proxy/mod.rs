@@ -1,17 +1,20 @@
 use std::net::SocketAddr;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use hudsucker::{
     self,
     certificate_authority::RcgenAuthority,
-    Proxy, NoopHandler,
+    Proxy,
 };
-use rcgen::{CertificateParams, Issuer, KeyPair};
+use rcgen::{CertificateParams, KeyPair};
 use serde::{Deserialize, Serialize};
-use tauri::AppHandle;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::Mutex;
 
 use crate::error::AppError;
+
+// ---------------------------------------------------------------------------
+// Configuration & Status types
+// ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProxyConfig {
@@ -33,8 +36,11 @@ pub struct ProxyStatus {
     pub intercepted_count: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
-#[ts(export)]
+// ---------------------------------------------------------------------------
+// Intercept data (UI types — no ts-rs export for now, see P0 comment below)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InterceptedRequest {
     pub id: String,
@@ -51,12 +57,37 @@ pub struct InterceptedRequest {
     pub duration_ms: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
-#[ts(export)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeyValue {
     pub key: String,
     pub value: String,
 }
+
+// ---------------------------------------------------------------------------
+// Global proxy state
+// ---------------------------------------------------------------------------
+
+struct InnerProxyState {
+    intercepted: std::sync::Mutex<Vec<InterceptData>>,
+    port: std::sync::Mutex<Option<u16>>,
+    ca_cert_pem: std::sync::Mutex<Option<String>>,
+    auth_username: std::sync::Mutex<Option<String>>,
+    auth_password: std::sync::Mutex<Option<String>>,
+}
+
+static PROXY_STATE: std::sync::LazyLock<InnerProxyState> = std::sync::LazyLock::new(|| InnerProxyState {
+    intercepted: std::sync::Mutex::new(Vec::new()),
+    port: std::sync::Mutex::new(None),
+    ca_cert_pem: std::sync::Mutex::new(None),
+    auth_username: std::sync::Mutex::new(None),
+    auth_password: std::sync::Mutex::new(None),
+});
+
+static PROXY_RUNNING: AtomicBool = AtomicBool::new(false);
+
+// ---------------------------------------------------------------------------
+// Intercept data (internal, not serialised directly for UI)
+// ---------------------------------------------------------------------------
 
 #[derive(Clone)]
 pub struct InterceptData {
@@ -74,21 +105,18 @@ pub struct InterceptData {
     pub duration_ms: u64,
 }
 
-static PROXY_RUNNING: AtomicBool = AtomicBool::new(false);
-static INTERCEPT_COUNT: AtomicU64 = AtomicU64::new(0);
+// ---------------------------------------------------------------------------
+// ProxyState – managed by Tauri
+// ---------------------------------------------------------------------------
 
 pub struct ProxyState {
     pub shutdown_tx: Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
-    pub port: RwLock<Option<u16>>,
-    pub intercepted: RwLock<Vec<InterceptData>>,
 }
 
 impl ProxyState {
     pub fn new() -> Self {
         Self {
             shutdown_tx: Mutex::new(None),
-            port: RwLock::new(None),
-            intercepted: RwLock::new(Vec::new()),
         }
     }
 }
@@ -99,8 +127,13 @@ impl Default for ProxyState {
     }
 }
 
-fn gen_ca() -> Result<RcgenAuthority, AppError> {
-    let key_pair = KeyPair::generate().map_err(|e| AppError::internal(format!("Failed to generate CA key: {}", e)))?;
+// ---------------------------------------------------------------------------
+// CA generation
+// ---------------------------------------------------------------------------
+
+fn gen_ca() -> Result<(RcgenAuthority, String), AppError> {
+    let key_pair = KeyPair::generate()
+        .map_err(|e| AppError::internal(format!("Failed to generate CA key: {}", e)))?;
     let mut params = CertificateParams::default();
     params
         .distinguished_name
@@ -118,20 +151,31 @@ fn gen_ca() -> Result<RcgenAuthority, AppError> {
         .self_signed(&key_pair)
         .map_err(|e| AppError::internal(format!("Failed to generate CA cert: {}", e)))?;
 
-    let issuer = Issuer::from_ca_cert_der(cert.der(), key_pair)
+    let ca_pem = cert.pem();
+
+    let issuer = rcgen::Issuer::from_ca_cert_der(cert.der(), key_pair)
         .map_err(|e| AppError::internal(format!("Failed to create issuer: {}", e)))?;
 
-    Ok(RcgenAuthority::new(
+    let authority = RcgenAuthority::new(
         issuer,
         1_000,
         hudsucker::rustls::crypto::aws_lc_rs::default_provider(),
-    ))
+    );
+
+    Ok((authority, ca_pem))
 }
+
+// ---------------------------------------------------------------------------
+// Tauri Commands
+// ---------------------------------------------------------------------------
+
+// Request/response capture via HttpHandler is deferred (hudsucker 0.24 trait compat issue).
+// The proxy currently passes HTTPS traffic through without logging to the UI.
+// Future fix: implement a custom HttpHandler once hudsucker API is finalized.
 
 #[tauri::command]
 pub async fn start_proxy(
     state: tauri::State<'_, ProxyState>,
-    _app_handle: AppHandle,
     config: ProxyConfig,
 ) -> Result<ProxyStatus, AppError> {
     if !config.enabled {
@@ -148,7 +192,20 @@ pub async fn start_proxy(
 
     let (cancel_tx, cancel_rx) = tokio::sync::oneshot::channel::<()>();
 
-    let ca = gen_ca()?;
+    let (ca, ca_pem) = gen_ca()?;
+
+    PROXY_STATE.intercepted.lock().unwrap().clear();
+
+    let auth_username = if config.requires_auth {
+        config.username.clone()
+    } else {
+        None
+    };
+    let auth_password = if config.requires_auth {
+        config.password.clone()
+    } else {
+        None
+    };
 
     let proxy = Proxy::builder()
         .with_addr(addr)
@@ -156,7 +213,7 @@ pub async fn start_proxy(
         .with_rustls_connector(
             hudsucker::rustls::crypto::aws_lc_rs::default_provider(),
         )
-        .with_http_handler(NoopHandler::default())
+        .with_http_handler(hudsucker::NoopHandler::default())
         .with_graceful_shutdown(async {
             let _ = cancel_rx.await;
         })
@@ -164,15 +221,26 @@ pub async fn start_proxy(
         .map_err(|e| AppError::internal(format!("Failed to build proxy: {}", e)))?;
 
     PROXY_RUNNING.store(true, Ordering::SeqCst);
-    INTERCEPT_COUNT.store(0, Ordering::SeqCst);
 
     {
         let mut shutdown = state.shutdown_tx.lock().await;
         *shutdown = Some(cancel_tx);
     }
     {
-        let mut port = state.port.write().await;
+        let mut port = PROXY_STATE.port.lock().unwrap();
         *port = Some(config.port);
+    }
+    {
+        let mut ca = PROXY_STATE.ca_cert_pem.lock().unwrap();
+        *ca = Some(ca_pem);
+    }
+    {
+        let mut u = PROXY_STATE.auth_username.lock().unwrap();
+        *u = auth_username;
+    }
+    {
+        let mut p = PROXY_STATE.auth_password.lock().unwrap();
+        *p = auth_password;
     }
 
     tokio::spawn(async move {
@@ -198,8 +266,8 @@ pub async fn stop_proxy(state: tauri::State<'_, ProxyState>) -> Result<ProxyStat
         let _ = tx.send(());
     }
 
-    let count = INTERCEPT_COUNT.load(Ordering::SeqCst);
-    let mut port = state.port.write().await;
+    let count = PROXY_STATE.intercepted.lock().unwrap().len() as u64;
+    let mut port = PROXY_STATE.port.lock().unwrap();
     *port = None;
 
     Ok(ProxyStatus {
@@ -211,18 +279,22 @@ pub async fn stop_proxy(state: tauri::State<'_, ProxyState>) -> Result<ProxyStat
 
 #[tauri::command]
 pub async fn get_proxy_status() -> Result<ProxyStatus, AppError> {
+    let running = PROXY_RUNNING.load(Ordering::SeqCst);
+    let port = if running {
+        *PROXY_STATE.port.lock().unwrap()
+    } else {
+        None
+    };
     Ok(ProxyStatus {
-        running: PROXY_RUNNING.load(Ordering::SeqCst),
-        port: None,
-        intercepted_count: INTERCEPT_COUNT.load(Ordering::SeqCst),
+        running,
+        port,
+        intercepted_count: PROXY_STATE.intercepted.lock().unwrap().len() as u64,
     })
 }
 
 #[tauri::command]
-pub async fn get_intercepted_requests(
-    state: tauri::State<'_, ProxyState>,
-) -> Result<Vec<InterceptedRequest>, AppError> {
-    let intercepted = state.intercepted.read().await;
+pub async fn get_intercepted_requests() -> Result<Vec<InterceptedRequest>, AppError> {
+    let intercepted = PROXY_STATE.intercepted.lock().unwrap();
     Ok(intercepted
         .iter()
         .map(|d| InterceptedRequest {
@@ -235,14 +307,20 @@ pub async fn get_intercepted_requests(
             headers: d
                 .headers
                 .iter()
-                .map(|(k, v)| KeyValue { key: k.clone(), value: v.clone() })
+                .map(|(k, v)| KeyValue {
+                    key: k.clone(),
+                    value: v.clone(),
+                })
                 .collect(),
             body: d.body.clone(),
             status: d.status,
             response_headers: d
                 .response_headers
                 .iter()
-                .map(|(k, v)| KeyValue { key: k.clone(), value: v.clone() })
+                .map(|(k, v)| KeyValue {
+                    key: k.clone(),
+                    value: v.clone(),
+                })
                 .collect(),
             response_body: d.response_body.clone(),
             duration_ms: d.duration_ms,
@@ -251,11 +329,14 @@ pub async fn get_intercepted_requests(
 }
 
 #[tauri::command]
-pub async fn clear_intercepted_requests(
-    state: tauri::State<'_, ProxyState>,
-) -> Result<(), AppError> {
-    let mut intercepted = state.intercepted.write().await;
-    intercepted.clear();
-    INTERCEPT_COUNT.store(0, Ordering::SeqCst);
+pub async fn clear_intercepted_requests() -> Result<(), AppError> {
+    PROXY_STATE.intercepted.lock().unwrap().clear();
     Ok(())
+}
+
+#[tauri::command]
+pub async fn export_proxy_ca() -> Result<String, AppError> {
+    let ca = PROXY_STATE.ca_cert_pem.lock().unwrap();
+    ca.clone()
+        .ok_or_else(|| AppError::internal("CA certificate not available. Start the proxy first.".into()))
 }

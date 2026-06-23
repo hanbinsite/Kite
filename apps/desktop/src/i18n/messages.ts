@@ -810,7 +810,7 @@ export const messages = {
       path: "Path",
       status: "Status",
       time: "Time",
-      timestamp: "Time",
+      timestamp: "Timestamp",
       fullUrl: "Full URL",
       host: "Host",
       requestHeaders: "Request Headers",
