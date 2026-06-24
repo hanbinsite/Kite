@@ -65,7 +65,140 @@
 
 ---
 
-## 待继续
-- M12-M23: 剩余 12 个 High 修复
-- M24-M43: 20 个 Medium 修复
-- M44-M45: 2 个 Release Engineering
+## Session 2 — Batch 2: High (M12-M23) + Medium (M24-M43) + Release (M44-M45)
+
+### M12: 前进/后退按钮实现
+- 实现 URL 导航历史栈，前进/后退按钮不再永久 disabled
+- **文件**: `UrlBar.tsx`
+
+### M13: Command Palette 空 action 修复
+- 移除无实现的 "Open Collection"/"View History" 空 action
+- **文件**: `App.tsx`
+
+### M14: Copy Body 图标修复
+- ResponsePanel Copy Body 按钮改用 Copy 图标
+- **文件**: `ResponsePanel.tsx`
+
+### M15: 二进制响应下载按钮
+- 二进制/Base64 响应体添加下载按钮
+- **文件**: `ResponsePanel.tsx`
+
+### M16: ResponsePanel 结构化错误码
+- 错误检测改为结构化错误码，不再 string sniffing
+- **文件**: `ResponsePanel.tsx`
+
+### M17: encrypt_vault_secret name 路径校验
+- 对齐 delete_vault_secret，添加 name 不含路径分隔符校验
+- **文件**: `crypto.rs`
+
+### M18: Console store 上限截断
+- Tab 关闭时清理 console 条目，总量上限 5000
+- **文件**: `console-store.ts`
+
+### M19: KeyValueEditor 稳定 key
+- 使用稳定 key 替代 crypto.randomUUID，避免输入失焦
+- **文件**: `RequestPanel.tsx`
+
+### M20: GlobalConsole sourceToFilter 修复
+- "system" 来源修复为 "request"
+- **文件**: `GlobalConsole.tsx`
+
+### M21: 删除无效文件
+- 移除 `功能现状报告.md`（中文乱码名）
+- **文件**: 仓库根
+
+### M22: Monaco Editor 单实例
+- 通过 EditorManager 管理 Monaco 单实例，切换 Tab 时替换 Model
+- **文件**: `ScriptEditor.tsx`
+
+### M23: Settings 存储迁移 File System
+- Settings 从 localStorage 迁移到 File System 持久化
+- **文件**: `settings-store.ts`
+
+### M24: 生产路径 unwrap 替换
+- crypto.rs / http.rs / engine.rs 中 unwrap 替换为 ? 或 expect with context
+- **文件**: `crypto.rs`, `http.rs`, `engine.rs`
+
+### M25: 静默吞错误 catch 日志化
+- 空的 invoke().catch(() => {}) 替换为至少 console.error
+- **文件**: `Sidebar.tsx`, `HomePage.tsx`
+
+### M26: Sidebar History 定期刷新
+- 侧边栏 History 添加定期轮询/刷新机制
+- **文件**: `Sidebar.tsx`
+
+### M27: Cmd+T 快捷键注册
+- 注册 Cmd+T 快捷键创建新 Tab
+- **文件**: `App.tsx`
+
+### M28: Monaco Editor 单实例 (合并入 M22)
+- 与 M22 合并实现
+- **文件**: `ScriptEditor.tsx`
+
+### M29: 确认 dialog 统一 Radix
+- SettingsPage 中确认 dialog 统一使用 Radix ConfirmDialog
+- **文件**: `SettingsPage.tsx`
+
+### M30: Effect 依赖数组补充
+- App.tsx / Workbench.tsx useEffect 依赖数组补充完整
+- **文件**: `App.tsx`, `Workbench.tsx`
+
+### M31: 自动保存去抖动优化
+- 避免每次 keystroke 序列化，添加去抖动
+- **文件**: `useAutoSave.ts`
+
+### M32: 移除无用 tonic-build
+- Cargo.toml 移除无用的 tonic-build build dependency
+- **文件**: `Cargo.toml`
+
+### M33: hudsucker HttpHandler 实现
+- 实现自定义 CaptureHandler 以捕获 intercepted 流量
+- **文件**: `proxy/mod.rs`
+
+### M34: ProxyPanel CA 导出按钮
+- 前端 ProxyPanel 添加 CA 证书导出按钮，调用 export_proxy_ca
+- **文件**: `ProxyPanel.tsx`
+
+### M35: 默认环境移除 fake key
+- 默认环境种子数据移除 fake/sample key
+- **文件**: `environment-store.ts`
+
+### M36: Zustand 订阅粒度优化
+- CollectionRunnerDialog / ResponsePanel 按需订阅 selector
+- **文件**: `CollectionRunnerDialog.tsx`, `ResponsePanel.tsx`
+
+### M37: JsonViewer jsonPath 过滤
+- JsonViewer 添加 jsonPath 过滤/导航功能
+- **文件**: `JsonViewer.tsx`
+
+### M38: TabBar Cmd+T label
+- TabBar 添加按钮 label 与实际快捷键 Cmd+T 一致
+- **文件**: `TabBar.tsx`
+
+### M39: Sidebar History 刷新 (合并入 M26)
+- 与 M26 合并实现
+- **文件**: `Sidebar.tsx`
+
+### M40: Monaco 单例 (合并入 M22)
+- 与 M22 合并实现
+- **文件**: `ScriptEditor.tsx`
+
+### M41: Cookie path 过滤
+- Cookie 系统添加 path 属性过滤
+- **文件**: `storage/mod.rs`, `http.rs`
+
+### M42: 移除 repo 过期文件
+- 移除 task_plan.md, findings.md, progress.md, .claude/ 等过期文件
+- **文件**: 仓库根
+
+### M43: gRPC Sidebar 入口确认
+- gRPC 面板可到达性确认通过
+- **文件**: `Sidebar.tsx`
+
+### M44: LICENSE 文件
+- 添加 MIT LICENSE 文件
+- **文件**: 仓库根
+
+### M45: CHANGELOG + 版本同步
+- 添加 CHANGELOG.md 并同步版本号
+- **文件**: 仓库根
