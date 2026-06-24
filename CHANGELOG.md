@@ -1,5 +1,51 @@
 # Changelog
 
+## v0.0.7 (2026-06-24)
+
+### UX & Quality
+- **Confirm Dialogs**: Replaced native `window.confirm()` with unified `ConfirmDialog` component in Vault, MCP, and environment delete flows
+- **Cache Invalidation**: Collection file save triggers immediate re-render of sidebar tree via hash-based cache busting
+- **Zustand Subscription Optimization**: Applied selective selectors in runner dialog and response panel
+- **Auto-Save Debounce**: Increased to 1000ms with content snapshot comparison to avoid redundant writes
+- **Sidebar History Refresh**: Periodic 30-second refresh for history entries
+- **Proxy CA Export**: Added "Export CA Certificate" button to ProxyPanel with PEM download
+- **Keyboard Shortcuts**: Added Cmd+T / Ctrl+T for new tab
+
+### Internals
+- **Rust**: Replaced Mutex `.unwrap()` with `.unwrap_or_else()` in script engine for poisoned lock safety
+- **Rust**: Removed unused `tonic-build` from build dependencies
+- **Clippy**: Fixed `unnecessary_map_or` warning in HTTP client builder
+
+---
+
+## v0.0.6 (2026-06-23)
+
+### New Features
+- **JWT Real Signing**: HS256/RS256/ES256 algorithms, auto-generate payload + expiry
+- **OAuth 2.0 PKCE Flow**: Browser redirect + local callback server + automatic token exchange
+- **gRPC Server Reflection**: Discover button auto-finds services and methods, gzip compression, trailer error details
+- **GraphQL IDE**: SDL schema parser + CodeMirror field/arg/enum autocomplete + Schema tree
+- **MQTT**: Unsubscribe, wildcard tooltip, disconnect cleanup
+- **HTTP Streaming Download**: Progress bar for large files, non-blocking UI
+- **pm.sendRequest Cookie + Auth Sharing**: Script requests share main cookie jar and auth
+- **Postman 2.1 Folder Export**: Auto-group by URL path prefix
+- **Environment Variable Inheritance**: parent_id recursive resolution, child overrides parent
+- **Protocol Panel Status Labels**: Text labels (Connected/Disconnected/Error) next to status dot
+- **Tab Close Connection Confirmation**: Confirm dialog for active WS/SSE/MQTT/gRPC connections
+- **Runner Script Error Display**: Red error badge + expandable error details
+- **i18n Full Coverage**: +80 translation keys, 12 components fully localized (en/zh-CN)
+
+### Fixes & Optimizations
+- AI Single-Call Optimization: detectActions from dual LLM API to text-based JSON parsing
+- SQLite WAL Tuning: busy_timeout=5000ms, wal_autocheckpoint=1000
+- Removed unused explain_response type
+
+### Testing
+- TypeScript: 554 passed, 39 files
+- Rust: 243 passed, 18 modules
+
+---
+
 ## v0.0.4 (2026-06-17)
 
 ### UX Improvements

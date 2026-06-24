@@ -180,7 +180,7 @@ impl ScriptEngine {
             Ok(()) => {
                 let cookies: Vec<String> = match Arc::try_unwrap(collected_cookies) {
                     Ok(mutex) => mutex.into_inner().unwrap_or_default(),
-                    Err(arc) => arc.lock().unwrap().clone(),
+                    Err(arc) => arc.lock().unwrap_or_else(|e| e.into_inner()).clone(),
                 };
                 ScriptResult {
                     success: true,

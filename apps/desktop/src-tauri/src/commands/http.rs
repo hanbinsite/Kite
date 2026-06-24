@@ -297,7 +297,7 @@ static DEFAULT_CLIENT: LazyLock<Client> = LazyLock::new(|| {
 });
 
 pub(crate) fn build_client(settings: &RequestSettings) -> Result<Client, AppError> {
-    let needs_custom = settings.proxy_url.as_ref().map_or(false, |p| !p.is_empty())
+    let needs_custom = settings.proxy_url.as_ref().is_some_and(|p| !p.is_empty())
         || !settings.follow_redirects
         || !settings.verify_ssl
         || settings.timeout_ms != 30000;

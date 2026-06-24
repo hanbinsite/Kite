@@ -93,6 +93,7 @@ export function App() {
       closeTab(activeTabId);
       removeTabData(activeTabId);
     } },
+    { shortcut: "cmd+t", handler: () => { openTab({ name: t("tabs.newRequest"), method: "GET", url: "" }); } },
     { shortcut: "cmd+enter", handler: () => { if (activeTabId && activeTab?.url) { sendRequest(activeTabId, (activeTab.method ?? "GET") as "GET", activeTab.url); } } },
   ]);
 

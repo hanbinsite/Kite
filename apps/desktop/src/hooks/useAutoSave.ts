@@ -8,7 +8,7 @@ import type { RequestData } from "../stores/request-store";
 import type { AuthConfig, BodyConfig, Header, QueryParam, ScriptConfig } from "@api-client/types";
 import type { CollectionTreeNode } from "../stores/collection-store";
 
-const AUTOSAVE_DELAY = 800;
+const AUTOSAVE_DELAY = 1000;
 
 function bodyToCollectionBody(body: BodyConfig | null): BodyConfig | undefined {
   if (!body || body.mode === "none") return undefined;

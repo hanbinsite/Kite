@@ -364,6 +364,13 @@ const deleteRequest = useCollectionStore((s) => s.deleteRequest);
   }, [historyRefreshCounter]);
 
   useEffect(() => {
+    const interval = setInterval(() => {
+      queryHistoryEntries(50).then(setHistoryEntries).catch((e) => console.error('Failed to query history entries:', e));
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
     if (!searchQuery.trim()) {
       queryHistoryEntries(50).then(setHistoryEntries).catch((e) => console.error('Failed to query history entries:', e));
       return;

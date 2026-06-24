@@ -3,6 +3,7 @@ import { Plus, Trash2, Pencil, Plug, PlugZap, Loader2, AlertCircle } from "lucid
 import { useTranslation } from "react-i18next";
 import { useMcpExternalStore } from "../../stores/mcp-external-store";
 import type { McpServerConfig, McpTransport } from "@api-client/core/ai/mcp-external";
+import { ConfirmDialog } from "../shared/ConfirmDialog";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h3 className="font-sans text-md font-semibold text-fg-primary mb-4">{children}</h3>;
@@ -24,6 +25,7 @@ export function McpSettings() {
   const [editing, setEditing] = useState<McpServerConfig | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [deleteServerId, setDeleteServerId] = useState<string | null>(null);
 
   useEffect(() => {
     loadServers();
@@ -41,10 +43,9 @@ export function McpSettings() {
 
   const handleDelete = useCallback(
     async (id: string) => {
-      if (!confirm(t("mcp.deleteConfirm"))) return;
-      await deleteServer(id);
+      setDeleteServerId(id);
     },
-    [t, deleteServer],
+    [],
   );
 
   const handleToggleConnect = useCallback(
@@ -234,6 +235,22 @@ export function McpSettings() {
           )}
         </>
       )}
+
+    <ConfirmDialog
+      open={deleteServerId !== null}
+      onOpenChange={(open) => { if (!open) setDeleteServerId(null); }}
+      title={t("mcp.deleteConfirm")}
+      description={t("mcp.deleteConfirmMessage")}
+      confirmLabel={t("common.delete")}
+      variant="danger"
+      onConfirm={async () => {
+        if (deleteServerId) {
+          await deleteServer(deleteServerId);
+          setDeleteServerId(null);
+        }
+      }}
+      onCancel={() => setDeleteServerId(null)}
+    />
     </div>
   );
 }

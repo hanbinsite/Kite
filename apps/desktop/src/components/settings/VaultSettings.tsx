@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Lock, Unlock, Trash2, Plus, Loader2, Shield } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useVaultStore } from "../../stores/vault-store";
+import { ConfirmDialog } from "../shared/ConfirmDialog";
 
 export function VaultSettings() {
   const { t } = useTranslation();
@@ -20,6 +21,7 @@ export function VaultSettings() {
   const [newName, setNewName] = useState("");
   const [newValue, setNewValue] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
+  const [deleteSecretName, setDeleteSecretName] = useState<string | null>(null);
 
   useEffect(() => {
     checkStatus();
@@ -53,8 +55,7 @@ export function VaultSettings() {
   };
 
   const handleDeleteSecret = async (name: string) => {
-    if (!confirm(t("vault.deleteSecret"))) return;
-    await removeSecret(name);
+    setDeleteSecretName(name);
   };
 
   const formatDate = (iso: string) => {
@@ -223,6 +224,22 @@ export function VaultSettings() {
           </div>
         </div>
       )}
+
+    <ConfirmDialog
+      open={deleteSecretName !== null}
+      onOpenChange={(open) => { if (!open) setDeleteSecretName(null); }}
+      title={t("vault.deleteSecret")}
+      description={t("vault.deleteSecretConfirm")}
+      confirmLabel={t("common.delete")}
+      variant="danger"
+      onConfirm={async () => {
+        if (deleteSecretName) {
+          await removeSecret(deleteSecretName);
+          setDeleteSecretName(null);
+        }
+      }}
+      onCancel={() => setDeleteSecretName(null)}
+    />
     </div>
   );
 }

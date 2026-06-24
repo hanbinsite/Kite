@@ -16,6 +16,7 @@ import { McpSettings } from "./McpSettings";
 import { PluginSettings } from "./PluginSettings";
 import { VaultSettings } from "./VaultSettings";
 import type { Variable } from "@api-client/types";
+import { ConfirmDialog } from "../shared/ConfirmDialog";
 
 const FONT_SIZE_OPTIONS = [
   { value: "14", label: "14px" },
@@ -742,6 +743,7 @@ function EnvironmentsSection({ onEditEnvironment }: { onEditEnvironment: (id: st
   const setGlobalVariable = useEnvironmentStore((s) => s.setGlobalVariable);
 
   const [globalVars, setGlobalVars] = useState<KeyValue[]>([]);
+  const [confirmDeleteEnvId, setConfirmDeleteEnvId] = useState<string | null>(null);
 
   useEffect(() => {
     setGlobalVars(ensureEmptyRow(variablesToKv(globals)));
@@ -760,9 +762,7 @@ function EnvironmentsSection({ onEditEnvironment }: { onEditEnvironment: (id: st
 
   const handleDeleteEnvironment = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm(t("settings.environments.deleteConfirm"))) {
-      deleteEnvironment(id);
-    }
+    setConfirmDeleteEnvId(id);
   };
 
   const handleGlobalVarsChange = (newItems: KeyValue[]) => {
@@ -841,6 +841,22 @@ function EnvironmentsSection({ onEditEnvironment }: { onEditEnvironment: (id: st
           />
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmDeleteEnvId !== null}
+        onOpenChange={(open) => { if (!open) setConfirmDeleteEnvId(null); }}
+        title={t("settings.environments.deleteTitle")}
+        description={t("settings.environments.deleteConfirm")}
+        confirmLabel={t("common.delete")}
+        variant="danger"
+        onConfirm={() => {
+          if (confirmDeleteEnvId) {
+            deleteEnvironment(confirmDeleteEnvId);
+            setConfirmDeleteEnvId(null);
+          }
+        }}
+        onCancel={() => setConfirmDeleteEnvId(null)}
+      />
     </div>
   );
 }

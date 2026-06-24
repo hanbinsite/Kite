@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
-import { Play, Square, Trash2, ChevronDown, ChevronRight, ShieldAlert, Download } from "lucide-react";
+import { useState, useEffect, useCallback, Fragment } from "react";
+import { Play, Square, Trash2, ChevronDown, ChevronRight, ShieldAlert, Download, Key, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useProxyStore } from "../../stores/proxy-store";
 import type { InterceptedRequest } from "@api-client/core/proxy";
 import { useRequestStore } from "../../stores";
 import { useTabStore } from "@api-client/core";
 import type { Header } from "@api-client/types";
+import { invoke } from "@tauri-apps/api/core";
 
 const METHOD_COLORS: Record<string, string> = {
   GET: "text-method-get",
@@ -171,6 +172,18 @@ export function ProxyPanel() {
   const [port, setPort] = useState(8080);
   const [isStarting, setIsStarting] = useState(false);
   const [pollInterval, setPollInterval] = useState<ReturnType<typeof setInterval> | null>(null);
+  const [caCert, setCaCert] = useState<string | null>(null);
+  const [showCaCert, setShowCaCert] = useState(false);
+
+  const handleExportCaCert = async () => {
+    try {
+      const pem = await invoke<string>("export_proxy_ca");
+      setCaCert(pem);
+      setShowCaCert(true);
+    } catch (e) {
+      console.error("Failed to export CA certificate:", e);
+    }
+  };
 
   const handleStart = useCallback(async () => {
     setIsStarting(true);
@@ -200,6 +213,7 @@ export function ProxyPanel() {
   const displayHost = status.port ? `127.0.0.1:${status.port}` : "-";
 
   return (
+    <Fragment>
     <div className="h-full flex flex-col">
       <div className="flex items-center gap-3 px-4 h-[44px] border-b border-border-muted shrink-0">
         <ShieldAlert size={16} className="text-brand" />
@@ -259,6 +273,13 @@ export function ProxyPanel() {
                 {t("proxy.clear")}
               </button>
             )}
+            <button
+              onClick={handleExportCaCert}
+              className="flex items-center gap-1 h-[28px] px-2 text-brand hover:text-brand-hover text-[12px] transition-colors"
+            >
+              <Key size={12} />
+              {t("proxy.exportCaCert")}
+            </button>
           </>
         )}
         <div className="flex-1" />
@@ -290,5 +311,49 @@ export function ProxyPanel() {
         )}
       </div>
     </div>
+
+      {showCaCert && caCert && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowCaCert(false)}>
+          <div className="bg-bg-surface border border-border-default rounded-lg shadow-2xl w-[500px] max-w-[90vw] max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border-default">
+              <span className="font-sans text-[13px] font-semibold text-fg-primary">{t("proxy.caCertTitle")}</span>
+              <button onClick={() => setShowCaCert(false)} className="p-1 rounded hover:bg-bg-hover text-fg-tertiary hover:text-fg-primary cursor-pointer transition-colors">
+                <X size={14} />
+              </button>
+            </div>
+            <div className="px-4 py-3">
+              <textarea
+                readOnly
+                value={caCert}
+                className="w-full h-[240px] px-3 py-2 bg-bg-input border border-border-muted rounded-md font-mono text-[11px] text-fg-primary outline-none resize-none"
+              />
+              <div className="flex items-center gap-2 mt-3">
+                <button
+                  onClick={() => {
+                    const blob = new Blob([caCert], { type: "application/x-pem-file" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "kite-proxy-ca.pem";
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="h-8 px-4 rounded-md bg-brand text-white text-[12px] font-medium cursor-pointer hover:bg-brand-hover transition-colors"
+                >
+                  <Download size={12} className="inline mr-1" />
+                  {t("proxy.downloadCaCert")}
+                </button>
+                <button
+                  onClick={() => setShowCaCert(false)}
+                  className="h-8 px-4 rounded-md text-fg-secondary text-[12px] cursor-pointer hover:text-fg-primary transition-colors"
+                >
+                  {t("common.close")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </Fragment>
   );
 }
